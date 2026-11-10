@@ -5530,19 +5530,17 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     responsavel_setor = body.get("responsavel_setor", "").strip() or "Responsável do Setor"
                     responsavel_patrimonio = body.get("responsavel_patrimonio", "").strip() or "Marcos Silva (Patrimônio)"
 
-                    aprovar_setor_agora = bool(body.get("aprovar_setor_agora", False))
-                    dar_ok_patrimonio_agora = bool(body.get("dar_ok_patrimonio_agora", False))
-
                     agora_str = datetime.now().strftime("%d/%m/%Y %H:%M")
-                    status_aprov_setor = "Aprovado" if aprovar_setor_agora else "Pendente"
-                    data_aprov_setor = agora_str if aprovar_setor_agora else None
-                    op_aprov_setor = operador if aprovar_setor_agora else None
+                    status_aprov_setor = "Pendente"
+                    data_aprov_setor = None
+                    op_aprov_setor = None
 
-                    status_ok_pat = "Liberado" if dar_ok_patrimonio_agora else "Pendente"
-                    data_ok_pat = agora_str if dar_ok_patrimonio_agora else None
-                    op_ok_pat = operador if dar_ok_patrimonio_agora else None
+                    status_ok_pat = "Pendente"
+                    data_ok_pat = None
+                    op_ok_pat = None
 
-                    status_geral = "Em Aberto / Emprestado" if (aprovar_setor_agora and dar_ok_patrimonio_agora) else "Aguardando Aprovações"
+                    # Regra: Toda nova solicitação aguarda estritamente aprovação do setor primeiro
+                    status_geral = "Aguardando Aprovação do Setor"
 
                     cur.execute(
                         """
@@ -5565,11 +5563,11 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                         )
                     )
                     emp_id = cur.lastrowid
-                    log_auditoria(conn, operador, "Patrimônio", "Empréstimo de Equipamento", f"Registrou empréstimo de '{item}' para {solicitante_nome} (ID {emp_id})")
+                    log_auditoria(conn, operador, "Patrimônio", "Empréstimo de Equipamento", f"Registrou solicitação de empréstimo de '{item}' para {solicitante_nome} (ID {emp_id})")
                     conn.commit()
                     conn.close()
 
-                    broadcast_event("sync", {"setor": "Patrimônio", "operador": operador, "mensagem": f"{operador} registrou o empréstimo do item '{item}' para {solicitante_nome}."})
+                    broadcast_event("sync", {"setor": "Patrimônio", "operador": operador, "mensagem": f"{operador} registrou solicitação de empréstimo do item '{item}' para {solicitante_nome} (Aguardando aprovação do setor)."})
                     return self.send_json({"ok": True, "id": emp_id})
 
                 elif path == "/api/patrimonio/emprestimo/aprovar-setor":
@@ -5598,23 +5596,28 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                 elif path == "/api/patrimonio/emprestimo/ok-patrimonio":
                     emp_id = int(body["id"])
+                    row = cur.execute("SELECT item, status_aprovacao_setor FROM patrimonio_emprestimos WHERE id = ?", (emp_id,)).fetchone()
+                    if not row:
+                        conn.close()
+                        return self.send_json({"erro": "Empréstimo não encontrado"}, 404)
+                    
+                    # REGRA 2: A autorização do patrimônio depende estritamente da aprovação prévia do setor
+                    if row["status_aprovacao_setor"] != "Aprovado":
+                        conn.close()
+                        return self.send_json({"erro": "A autorização do Responsável pelo Patrimônio depende da aprovação prévia do Responsável do Setor."}, 400)
+
                     agora_str = datetime.now().strftime("%d/%m/%Y %H:%M")
                     cur.execute(
                         """
                         UPDATE patrimonio_emprestimos 
-                        SET status_ok_patrimonio = 'Liberado', data_ok_patrimonio = ?, operador_ok_patrimonio = ?
+                        SET status_ok_patrimonio = 'Liberado', data_ok_patrimonio = ?, operador_ok_patrimonio = ?, status = 'Liberado para Retirada'
                         WHERE id = ?
                         """,
                         (agora_str, operador, emp_id)
                     )
-                    row = cur.execute("SELECT item, status_aprovacao_setor FROM patrimonio_emprestimos WHERE id = ?", (emp_id,)).fetchone()
-                    if row and row["status_aprovacao_setor"] == "Aprovado":
-                        cur.execute("UPDATE patrimonio_emprestimos SET status = 'Liberado para Retirada' WHERE id = ?", (emp_id,))
-                    else:
-                        cur.execute("UPDATE patrimonio_emprestimos SET status = 'Aguardando Aprovação do Setor' WHERE id = ?", (emp_id,))
                     item_nome = row["item"] if row else f"ID {emp_id}"
 
-                    log_auditoria(conn, operador, "Patrimônio", "Liberação de Empréstimo (Patrimônio)", f"Deu OK na saída do item '{item_nome}'")
+                    log_auditoria(conn, operador, "Patrimônio", "Liberação de Empréstimo (Patrimônio)", f"Deu OK e liberou saída do item '{item_nome}'")
                     conn.commit()
                     conn.close()
                     broadcast_event("sync", {"setor": "Patrimônio", "operador": operador, "mensagem": f"{operador} deu OK patrimonial e liberou a retirada do item '{item_nome}'."})

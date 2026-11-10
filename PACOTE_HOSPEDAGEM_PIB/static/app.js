@@ -6206,15 +6206,19 @@ function renderPatrimonioEmprestimos() {
               `}
             </div>
 
-            <!-- 2º OK: Patrimônio -->
-            <div class="p-1.5 rounded-lg border text-[10px] ${okPatrimonioOk ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-blue-50 border-blue-200 text-blue-900'}">
+            <!-- 2º OK: Patrimônio (Depende estritamente do OK prévio do Setor) -->
+            <div class="p-1.5 rounded-lg border text-[10px] ${okPatrimonioOk ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : aprovSetorOk ? 'bg-blue-50 border-blue-200 text-blue-900' : 'bg-slate-50 border-slate-200 text-slate-500'}">
               <span class="font-bold block">2. Resp. do Patrimônio:</span>
               <span class="text-[10px] font-semibold text-slate-700 block truncate">${e.responsavel_patrimonio || 'Marcos Silva'}</span>
               ${okPatrimonioOk ? `
                 <span class="font-bold text-emerald-700 block mt-0.5">✓ Liberado por ${e.operador_ok_patrimonio || 'Patrimônio'}</span>
+              ` : !aprovSetorOk ? `
+                <div class="mt-1 w-full px-2 py-1 rounded bg-slate-100 text-slate-400 font-semibold text-[10px] border border-slate-200 text-center flex items-center justify-center gap-1 cursor-not-allowed" title="A liberação do Patrimônio só fica disponível após o Responsável do Setor aprovar">
+                  <span>🔒</span> Aguarda Liberação do Setor
+                </div>
               ` : `
-                <button onclick="darOkEmprestimoPatrimonio(${e.id})" class="mt-1 w-full px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] shadow-sm transition">
-                  Dar OK do Patrimônio
+                <button onclick="darOkEmprestimoPatrimonio(${e.id})" class="mt-1 w-full px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] shadow-sm transition flex items-center justify-center gap-1 animate-pulse">
+                  <span>✓</span> Dar OK do Patrimônio
                 </button>
               `}
             </div>
@@ -6510,19 +6514,20 @@ function abrirModalNovoEmprestimoPatrimonio(preSelectPatId = null) {
             </div>
           </div>
 
-          <div class="space-y-1.5 pt-2 border-t border-indigo-100">
-            <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
-              <input type="checkbox" id="emp-aprovar-setor-agora" checked class="rounded text-indigo-600 w-4 h-4" />
-              <span>Dar aprovação pelo <strong>Responsável do Setor</strong> agora</span>
-            </label>
-            <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
-              <input type="checkbox" id="emp-dar-ok-patrimonio-agora" checked class="rounded text-indigo-600 w-4 h-4" />
-              <span>Dar OK de liberação pelo <strong>Responsável do Patrimônio</strong> agora</span>
-            </label>
-            <label class="flex items-center gap-2 text-xs font-semibold text-emerald-800 cursor-pointer bg-emerald-50/70 p-2 rounded-lg border border-emerald-200">
-              <input type="checkbox" id="emp-efetivar-retirada-imediata" checked class="rounded text-emerald-600 w-4 h-4" />
-              <span><strong>Efetivar Retirada Física Imediata:</strong> O bem já está sendo entregue fisicamente neste momento</span>
-            </label>
+          <div class="p-3.5 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-950 space-y-1.5">
+            <div class="font-bold flex items-center gap-1.5 text-amber-900">
+              <span>⏳</span> Fluxo de Segurança: Aprovação Obrigatória em 2 Etapas
+            </div>
+            <p class="text-[11px] text-amber-800 leading-relaxed">
+              Ao salvar, esta solicitação ficará registrada como <strong>"Aguardando Aprovação do Setor"</strong>. O item fica com retirada bloqueada até que ambas as autorizações ocorram na sequência correta:
+            </p>
+            <div class="flex items-center gap-2 pt-1 text-[11px] font-bold">
+              <span class="px-2 py-0.5 rounded bg-white border border-amber-300 text-amber-900">1º OK do Setor</span>
+              <span>➔</span>
+              <span class="px-2 py-0.5 rounded bg-white border border-blue-300 text-blue-900">2º OK do Patrimônio</span>
+              <span>➔</span>
+              <span class="px-2 py-0.5 rounded bg-white border border-emerald-300 text-emerald-800">3º Efetivar Retirada</span>
+            </div>
           </div>
         </div>
 
@@ -6531,7 +6536,7 @@ function abrirModalNovoEmprestimoPatrimonio(preSelectPatId = null) {
             Cancelar
           </button>
           <button type="submit" class="px-5 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md transition flex items-center gap-1.5">
-            <span>💾</span> Salvar Registro de Empréstimo
+            <span>💾</span> Salvar Solicitação de Empréstimo
           </button>
         </div>
       </form>
@@ -6604,29 +6609,288 @@ async function salvarNovoEmprestimoPatrimonio(e) {
     data_retirada: document.getElementById('emp-data-retirada')?.value || '',
     previsao_devolucao: document.getElementById('emp-data-previsao')?.value || '',
     responsavel_setor: document.getElementById('emp-resp-setor')?.value || '',
-    responsavel_patrimonio: document.getElementById('emp-resp-patrimonio')?.value || 'Marcos Silva (Administração / Patrimônio)',
-    aprovar_setor_agora: document.getElementById('emp-aprovar-setor-agora')?.checked || false,
-    dar_ok_patrimonio_agora: document.getElementById('emp-dar-ok-patrimonio-agora')?.checked || false,
-    efetivar_retirada_imediata: document.getElementById('emp-efetivar-retirada-imediata')?.checked || false
+    responsavel_patrimonio: document.getElementById('emp-resp-patrimonio')?.value || 'Marcos Silva (Administração / Patrimônio)'
   };
 
   const { status, data } = await apiPost('/api/patrimonio/emprestimo', payload);
   if (status === 200) {
-    // Se marcou retirada imediata e ambos aprovaram, efetiva a retirada física
-    if (payload.efetivar_retirada_imediata && payload.aprovar_setor_agora && payload.dar_ok_patrimonio_agora) {
-      await apiPost('/api/patrimonio/emprestimo/efetivar-retirada', { id: data.id });
-    }
-
     fecharModalCustom();
-    fetchBootstrap();
-    setTimeout(() => {
-      if (confirm('Empréstimo registrado com sucesso! Deseja visualizar e imprimir o Termo Oficial de Cautela agora?')) {
-        imprimirTermoEmprestimo(data.id);
-      }
-    }, 300);
+    await fetchBootstrap();
+    alert('✓ Solicitação de empréstimo registrada com sucesso!\n\nStatus: Aguardando Aprovação do Setor Responsável.');
   } else {
     alert(data.erro || 'Erro ao registrar empréstimo');
   }
+}
+
+// =======================================================
+// AÇÕES DO FLUXO DE APROVAÇÃO, RETIRADA E DEVOLUÇÃO
+// =======================================================
+
+async function aprovarEmprestimoSetor(id) {
+  const lista = STATE.patrimonio_emprestimos || [];
+  const emp = lista.find(e => Number(e.id) === Number(id));
+  const itemNome = emp ? emp.item : 'este item';
+  const setorNome = emp ? (emp.setor || emp.responsavel_setor || 'do setor') : 'do setor';
+
+  if (!confirm(`Confirmar a aprovação da saída de "${itemNome}" pelo Responsável do Setor (${setorNome})?`)) {
+    return;
+  }
+
+  const { status, data } = await apiPost('/api/patrimonio/emprestimo/aprovar-setor', { id });
+  if (status === 200) {
+    await fetchBootstrap();
+    alert(`✓ Aprovação do Setor concedida com sucesso para "${itemNome}"!\n\nAgora a solicitação está liberada para o Responsável pelo Patrimônio dar o OK.`);
+  } else {
+    alert(data.erro || 'Erro ao registrar aprovação do setor.');
+  }
+}
+
+async function darOkEmprestimoPatrimonio(id) {
+  const lista = STATE.patrimonio_emprestimos || [];
+  const emp = lista.find(e => Number(e.id) === Number(id));
+  if (!emp) return;
+
+  // Regra estrita: autorização do patrimônio depende da aprovação prévia do setor
+  if (emp.status_aprovacao_setor !== 'Aprovado') {
+    alert(`⛔ AÇÃO BLOQUEADA!\n\nA autorização do Responsável pelo Patrimônio depende da aprovação prévia do Responsável do Setor.\n\nAguarde o responsável do setor (${emp.responsavel_setor || 'Líder'}) aprovar a solicitação primeiro.`);
+    return;
+  }
+
+  if (!confirm(`Confirmar o OK de liberação pelo Responsável do Patrimônio para o item "${emp.item}"?\n\nApós a confirmação, o bem estará 100% liberado para a retirada física pelo solicitante.`)) {
+    return;
+  }
+
+  const { status, data } = await apiPost('/api/patrimonio/emprestimo/ok-patrimonio', { id });
+  if (status === 200) {
+    await fetchBootstrap();
+    alert(`✓ OK do Patrimônio confirmado com sucesso!\n\nO item "${emp.item}" está LIBERADO PARA RETIRADA.`);
+  } else {
+    alert(data.erro || 'Erro ao registrar OK do patrimônio.');
+  }
+}
+
+function abrirModalDevolucaoPatrimonio(id) {
+  const lista = STATE.patrimonio_emprestimos || [];
+  const emp = lista.find(e => Number(e.id) === Number(id));
+  if (!emp) return;
+
+  const agoraIso = new Date().toISOString().slice(0, 16);
+
+  const html = `
+    <div class="space-y-4 text-xs">
+      <div class="flex items-center justify-between border-b pb-3">
+        <div>
+          <h3 class="text-sm font-bold text-slate-800">Registrar Devolução / Retorno do Bem</h3>
+          <p class="text-[11px] text-slate-500">${emp.codigo ? `[${emp.codigo}] ` : ''}${emp.item} • Solicitante: ${emp.solicitante_nome}</p>
+        </div>
+        <button type="button" onclick="fecharModalCustom()" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+      </div>
+
+      <form onsubmit="salvarDevolucaoPatrimonio(event, ${emp.id})" class="space-y-3">
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Data & Hora Real da Devolução *</label>
+          <input type="datetime-local" id="dev-data-retorno" value="${agoraIso}" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold" />
+        </div>
+
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Condição Física do Item no Retorno (Vistoria Reversa) *</label>
+          <select id="dev-condicao-retorno" required class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white font-bold text-xs">
+            <option value="Excelente / Idêntico à Saída" selected>🌟 Excelente / Idêntico à Saída</option>
+            <option value="Bom Estado (Sem Danos)">👍 Bom Estado (Sem Danos)</option>
+            <option value="Com Pequenas Avarias / Arranhões">⚠️ Com Pequenas Avarias / Detalhes</option>
+            <option value="Necessita Manutenção / Reparo">🔧 Necessita Manutenção / Reparo</option>
+            <option value="Danificado / Quebrado">❌ Danificado / Quebrado</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Observações da Vistoria de Entrega</label>
+          <textarea id="dev-obs-retorno" rows="2" placeholder="Descreva se todos os cabos, estojos e acessórios retornaram..." class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs"></textarea>
+        </div>
+
+        <div class="space-y-2 pt-2 border-t border-slate-200">
+          <label class="flex items-center gap-2 font-semibold text-slate-700 cursor-pointer">
+            <input type="checkbox" id="dev-ok-setor" checked class="rounded text-indigo-600 w-4 h-4" />
+            <span>Confirmar conferência e recebimento pelo <strong>Responsável do Setor</strong></span>
+          </label>
+          <label class="flex items-center gap-2 font-semibold text-slate-700 cursor-pointer">
+            <input type="checkbox" id="dev-ok-patrimonio" checked class="rounded text-indigo-600 w-4 h-4" />
+            <span>Confirmar baixa final pelo <strong>Responsável do Patrimônio</strong></span>
+          </label>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t">
+          <button type="button" onclick="fecharModalCustom()" class="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
+          <button type="submit" class="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow transition">Concluir Devolução</button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  abrirModalCustom(html, false, 'medio');
+}
+
+async function salvarDevolucaoPatrimonio(e, id) {
+  e.preventDefault();
+  const payload = {
+    id,
+    data_devolucao_real: document.getElementById('dev-data-retorno')?.value || '',
+    condicao_retorno: document.getElementById('dev-condicao-retorno')?.value || 'Excelente / Idêntico à Saída',
+    observacoes_retorno: document.getElementById('dev-obs-retorno')?.value || '',
+    ok_setor: document.getElementById('dev-ok-setor')?.checked || false,
+    ok_patrimonio: document.getElementById('dev-ok-patrimonio')?.checked || false
+  };
+
+  const { status, data } = await apiPost('/api/patrimonio/emprestimo/devolucao', payload);
+  if (status === 200) {
+    fecharModalCustom();
+    await fetchBootstrap();
+    alert('✓ Devolução registrada com sucesso!');
+  } else {
+    alert(data.erro || 'Erro ao registrar devolução.');
+  }
+}
+
+async function darOkRetornoSetor(id) {
+  if (!confirm('Confirmar o recebimento e conferência física do item devolvido pelo Setor?')) return;
+  const { status, data } = await apiPost('/api/patrimonio/emprestimo/ok-retorno-setor', { id });
+  if (status === 200) {
+    await fetchBootstrap();
+    alert('✓ Conferência do Setor confirmada!');
+  } else {
+    alert(data.erro || 'Erro ao confirmar retorno pelo setor.');
+  }
+}
+
+async function darOkRetornoPatrimonio(id) {
+  if (!confirm('Confirmar a baixa definitiva de devolução no Patrimônio?')) return;
+  const { status, data } = await apiPost('/api/patrimonio/emprestimo/ok-retorno-patrimonio', { id });
+  if (status === 200) {
+    await fetchBootstrap();
+    alert('✓ Baixa definitiva concluída no Patrimônio!');
+  } else {
+    alert(data.erro || 'Erro ao confirmar baixa pelo patrimônio.');
+  }
+}
+
+async function excluirEmprestimoPatrimonio(id) {
+  if (!confirm('Deseja realmente excluir este registro de empréstimo? Esta ação é irreversível.')) return;
+  const operador = CURRENT_OPERATOR ? CURRENT_OPERATOR.nome : 'Administrador';
+  const res = await fetch(`/api/patrimonio/emprestimo?id=${id}&operador=${encodeURIComponent(operador)}`, {
+    method: 'DELETE'
+  });
+  if (res.ok) {
+    await fetchBootstrap();
+    alert('Registro de empréstimo excluído com sucesso.');
+  } else {
+    const err = await res.json().catch(() => ({}));
+    alert(err.erro || 'Erro ao excluir empréstimo.');
+  }
+}
+
+function imprimirTermoEmprestimo(id) {
+  const lista = STATE.patrimonio_emprestimos || [];
+  const emp = lista.find(e => Number(e.id) === Number(id));
+  if (!emp) {
+    alert('Empréstimo não encontrado.');
+    return;
+  }
+
+  const agoraStr = new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR');
+
+  const html = `
+    <div id="termo-impressao-conteudo" class="space-y-4 text-xs text-slate-800 p-4 bg-white border border-slate-300 rounded-xl">
+      <div class="flex items-center justify-between border-b-2 border-slate-900 pb-3">
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-indigo-700">Primeira Igreja Batista Parque São Paulo</p>
+          <h2 class="text-base font-black text-slate-900 uppercase">Termo de Cautela e Empréstimo de Bens</h2>
+          <p class="text-[11px] text-slate-500">Documento Oficial de Registro de Saída Patrimonial • Nº REG-${String(emp.id).padStart(5, '0')}</p>
+        </div>
+        <div class="text-right">
+          <span class="text-[10px] text-slate-400 block font-mono">STATUS ATUAL</span>
+          <span class="inline-block px-2.5 py-1 rounded-full text-xs font-black bg-indigo-100 text-indigo-900 border border-indigo-200">${emp.status}</span>
+        </div>
+      </div>
+
+      <!-- DADOS DO BEM EMPRESTADO -->
+      <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+        <h4 class="font-bold text-slate-800 text-xs mb-2 uppercase tracking-wider">1. Identificação do Bem / Equipamento</h4>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+          <div><span class="text-slate-400 block">Código Tombamento:</span><strong>${emp.codigo || 'Não Tombado'}</strong></div>
+          <div><span class="text-slate-400 block">Item:</span><strong class="text-indigo-800">${emp.item}</strong></div>
+          <div><span class="text-slate-400 block">Setor de Origem:</span><strong>${emp.setor || 'Patrimônio Geral'}</strong></div>
+          <div><span class="text-slate-400 block">Condição na Saída:</span><strong>${emp.condicao_saida}</strong></div>
+        </div>
+        ${emp.observacoes_saida ? `<div class="mt-2 text-[11px] pt-1.5 border-t border-slate-200 text-slate-600"><strong>Observações/Acessórios:</strong> ${emp.observacoes_saida}</div>` : ''}
+      </div>
+
+      <!-- DADOS DO SOLICITANTE / RETIRANTE -->
+      <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+        <h4 class="font-bold text-slate-800 text-xs mb-2 uppercase tracking-wider">2. Responsável pela Retirada (Cautelador)</h4>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+          <div><span class="text-slate-400 block">Nome Completo:</span><strong class="text-slate-900">${emp.solicitante_nome}</strong></div>
+          <div><span class="text-slate-400 block">Telefone / WhatsApp:</span><strong>${emp.solicitante_telefone || 'Não informado'}</strong></div>
+          <div><span class="text-slate-400 block">Documento / Função:</span><strong>${emp.solicitante_documento || 'Membro'}</strong></div>
+          <div><span class="text-slate-400 block">Finalidade / Motivo:</span><strong>${emp.motivo || 'Atividade da Igreja'}</strong></div>
+        </div>
+        <div class="grid grid-cols-2 gap-2 mt-2 pt-1.5 border-t border-slate-200 text-[11px]">
+          <div><span class="text-slate-400">Data/Hora da Retirada:</span> <strong>${formatarDataHora(emp.data_retirada)}</strong></div>
+          <div><span class="text-slate-400">Previsão Obrigatória de Devolução:</span> <strong class="text-rose-700">${formatarDataHora(emp.previsao_devolucao)}</strong></div>
+        </div>
+      </div>
+
+      <!-- FLUXO DE APROVAÇÃO OFICIAL -->
+      <div class="bg-indigo-50/50 p-3 rounded-lg border border-indigo-100">
+        <h4 class="font-bold text-indigo-950 text-xs mb-2 uppercase tracking-wider">3. Fluxo de Autorizações Oficiais</h4>
+        <div class="grid grid-cols-2 gap-3 text-[11px]">
+          <div class="p-2 rounded bg-white border border-indigo-100">
+            <span class="font-bold block text-slate-700">1º OK: Responsável pelo Setor</span>
+            <div class="text-slate-600 mt-1">${emp.responsavel_setor || 'Responsável Setor'}</div>
+            <div class="text-[10px] font-bold ${emp.status_aprovacao_setor === 'Aprovado' ? 'text-emerald-700' : 'text-amber-700'} mt-0.5">
+              ${emp.status_aprovacao_setor === 'Aprovado' ? `✓ Aprovado em ${emp.data_aprovacao_setor || ''} (${emp.operador_aprovador_setor || 'Setor'})` : '⏳ Aguardando Aprovação'}
+            </div>
+          </div>
+          <div class="p-2 rounded bg-white border border-indigo-100">
+            <span class="font-bold block text-slate-700">2º OK: Responsável pelo Patrimônio</span>
+            <div class="text-slate-600 mt-1">${emp.responsavel_patrimonio || 'Marcos Silva'}</div>
+            <div class="text-[10px] font-bold ${emp.status_ok_patrimonio === 'Liberado' ? 'text-emerald-700' : 'text-slate-400'} mt-0.5">
+              ${emp.status_ok_patrimonio === 'Liberado' ? `✓ Liberado em ${emp.data_ok_patrimonio || ''} (${emp.operador_ok_patrimonio || 'Patrimônio'})` : '🔒 Aguardando Liberação'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TERMO DE COMPROMISSO -->
+      <div class="text-[10px] text-slate-500 leading-tight border-t pt-2">
+        Declaro ter recebido o(s) bem(ns) acima descrito(s) em perfeito estado de funcionamento e conservação, responsabilizando-me formalmente pela guarda, zelo e integridade física até a sua efetiva devolução na data estipulada, comprometendo-me a ressarcir a igreja em caso de extravio, dano por negligência ou uso indevido.
+      </div>
+
+      <!-- CAMPOS DE ASSINATURA -->
+      <div class="grid grid-cols-3 gap-4 pt-6 border-t border-slate-300 text-center text-[10px]">
+        <div>
+          <div class="border-t border-slate-800 pt-1 font-bold">${emp.solicitante_nome}</div>
+          <span class="text-slate-400">Assinatura do Retirante</span>
+        </div>
+        <div>
+          <div class="border-t border-slate-800 pt-1 font-bold">${emp.responsavel_setor || 'Líder do Setor'}</div>
+          <span class="text-slate-400">1º OK - Resp. pelo Setor</span>
+        </div>
+        <div>
+          <div class="border-t border-slate-800 pt-1 font-bold">${emp.responsavel_patrimonio || 'Marcos Silva'}</div>
+          <span class="text-slate-400">2º OK - Resp. Patrimônio</span>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-3 border-t print:hidden">
+        <button type="button" onclick="fecharModalCustom()" class="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200">Fechar</button>
+        <button type="button" onclick="window.print()" class="px-4 py-1.5 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 shadow flex items-center gap-1.5">
+          <span>🖨️</span> Imprimir Termo de Cautela
+        </button>
+      </div>
+    </div>
+  `;
+
+  abrirModalCustom(html, true, 'largo');
 }
 
 
