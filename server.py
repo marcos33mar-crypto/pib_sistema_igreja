@@ -6551,12 +6551,9 @@ if __name__ == "__main__":
 
 
 
-    if is_port_in_use(port):
-
+    if "PORT" not in os.environ and is_port_in_use(port):
         print(f"Servidor ja esta ativo em http://localhost:{port}", flush=True)
-
         # Navegador nao e aberto automaticamente
-
         sys.exit(0)
 
 
