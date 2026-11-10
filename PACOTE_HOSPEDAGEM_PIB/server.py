@@ -776,6 +776,10 @@ def init_db():
                 status_retorno_patrimonio TEXT DEFAULT 'Pendente',
                 data_retorno_patrimonio TEXT,
                 operador_retorno_patrimonio TEXT,
+                assinatura_retirada_base64 TEXT DEFAULT '',
+                assinatura_retirada_em TEXT DEFAULT '',
+                assinatura_devolucao_base64 TEXT DEFAULT '',
+                assinatura_devolucao_em TEXT DEFAULT '',
                 criado_em TEXT NOT NULL,
                 criado_por TEXT NOT NULL,
                 FOREIGN KEY (patrimonio_id) REFERENCES patrimonio(id) ON DELETE SET NULL
@@ -1116,8 +1120,20 @@ def init_db():
             """)
 
         except Exception:
-
             pass
+
+        # Garante migração das colunas de assinatura digital no módulo de patrimônio
+        for c_nome, c_tipo in [
+            ("assinatura_retirada_base64", "TEXT DEFAULT ''"),
+            ("assinatura_retirada_em", "TEXT DEFAULT ''"),
+            ("assinatura_devolucao_base64", "TEXT DEFAULT ''"),
+            ("assinatura_devolucao_em", "TEXT DEFAULT ''"),
+        ]:
+            try:
+                cur.execute(f"ALTER TABLE patrimonio_emprestimos ADD COLUMN {c_nome} {c_tipo}")
+            except Exception:
+                pass
+
 
 
 
@@ -2520,6 +2536,255 @@ def build_bootstrap_data(req_handler=None):
 
 
 
+def render_mobile_termo_page(emp):
+    """Gera a página mobile ultra-otimizada para celular/tablet onde o retirante assina digitalmente com o dedo."""
+    emp_id = emp.get("id", 0)
+    item_nome = emp.get("item", "Equipamento")
+    codigo = emp.get("codigo", "") or "Não Tombado"
+    setor = emp.get("setor", "") or "Patrimônio Geral"
+    cond_saida = emp.get("condicao_saida", "") or "Bom Estado"
+    obs_saida = emp.get("observacoes_saida", "") or "Sem detalhes adicionais"
+    solicitante = emp.get("solicitante_nome", "")
+    telefone = emp.get("solicitante_telefone", "") or "Não informado"
+    documento = emp.get("solicitante_documento", "") or "Documento não informado"
+    motivo = emp.get("motivo", "") or "Atividades da Igreja"
+    dt_retirada = emp.get("data_retirada", "")
+    dt_previsao = emp.get("previsao_devolucao", "")
+    status_atual = emp.get("status", "Em Aberto")
+    
+    ass_ret_base64 = emp.get("assinatura_retirada_base64", "")
+    ass_ret_em = emp.get("assinatura_retirada_em", "")
+    ja_assinado = bool(ass_ret_base64)
+
+    return f"""<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Termo de Cautela e Empréstimo • PIB Parque São Paulo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    body {{ font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }}
+    canvas {{ touch-action: none; }}
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased min-h-screen flex flex-col justify-between p-3 sm:p-5">
+
+  <main class="max-w-md mx-auto w-full bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden mb-6">
+    <!-- CABEÇALHO OFICIAL -->
+    <header class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-5 text-center relative">
+      <div class="inline-block p-2 bg-indigo-600/30 rounded-2xl mb-2 backdrop-blur-sm border border-indigo-400/20">
+        <span class="text-2xl">🏛️</span>
+      </div>
+      <p class="text-[10px] font-black uppercase tracking-widest text-indigo-300">Primeira Igreja Batista Parque São Paulo</p>
+      <h1 class="text-lg font-black tracking-tight mt-0.5">Termo Digital de Responsabilidade</h1>
+      <p class="text-xs text-slate-300 mt-1">Cautela de Empréstimo de Bens & Equipamentos</p>
+      <div class="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold {'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30' if ja_assinado else 'bg-amber-500/20 text-amber-300 border border-amber-400/30'}">
+        <span>{'✓ Assinado Digitalmente' if ja_assinado else '⏳ Aguardando Sua Assinatura'}</span>
+      </div>
+    </header>
+
+    <div class="p-5 space-y-4">
+
+      <!-- DADOS DO BEM EMPRESTADO -->
+      <section class="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 space-y-2">
+        <div class="flex items-center justify-between text-xs">
+          <span class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Identificação do Bem</span>
+          <span class="font-mono font-bold px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded border border-indigo-100 text-[10px]">Cód: {codigo}</span>
+        </div>
+        <h2 class="text-base font-extrabold text-slate-900 leading-snug">{item_nome}</h2>
+        <div class="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-200 text-slate-600">
+          <div><span class="text-[10px] text-slate-400 block">Setor de Origem:</span><strong class="text-slate-800">{setor}</strong></div>
+          <div><span class="text-[10px] text-slate-400 block">Condição na Saída:</span><strong class="text-emerald-700">{cond_saida}</strong></div>
+        </div>
+        {f'<p class="text-[11px] text-slate-500 bg-white p-2 rounded-lg border border-slate-200 mt-1"><strong>Observações:</strong> {obs_saida}</p>' if obs_saida else ''}
+      </section>
+
+      <!-- DADOS DO SOLICITANTE / RETIRANTE -->
+      <section class="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 space-y-2 text-xs">
+        <span class="font-bold text-slate-500 uppercase tracking-wider text-[10px] block">Responsável pela Retirada (Cautelador)</span>
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-xs">
+            {solicitante[:1].upper() if solicitante else 'M'}
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-900 text-sm">{solicitante}</h3>
+            <p class="text-[11px] text-slate-500">{documento} • {telefone}</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 text-slate-600 text-xs">
+          <div><span class="text-[10px] text-slate-400 block">Data de Retirada:</span><strong>{dt_retirada}</strong></div>
+          <div><span class="text-[10px] text-rose-500 block font-bold">Devolução Obrigatória Até:</span><strong class="text-rose-700 font-bold">{dt_previsao}</strong></div>
+        </div>
+      </section>
+
+      <!-- TERMO LEGAL DE COMPROMISSO -->
+      <section class="bg-amber-50/70 rounded-2xl p-4 border border-amber-200/80 text-xs space-y-2">
+        <h4 class="font-bold text-amber-950 flex items-center gap-1.5 text-xs">
+          <span>📜</span> Declaração e Compromisso de Devolução
+        </h4>
+        <p class="text-[11px] text-amber-900/90 leading-relaxed text-justify">
+          Eu, <strong>{solicitante}</strong>, declaro que retirei o bem discriminado neste termo em perfeito estado de funcionamento e conservação. Comprometo-me formalmente a utilizá-lo com zelo, <strong>devolvê-lo pontualmente no mesmo estado em que o retirei</strong> e comunicar de imediato qualquer intercorrência, responsabilizando-me pelos custos em caso de extravio ou dano.
+        </p>
+      </section>
+
+      <!-- QUADRO DE ASSINATURA DIGITAL TOUCH -->
+      <section class="space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="text-xs font-bold text-slate-900 flex items-center gap-1">
+            <span>✍️</span> Assinatura do Retirante:
+          </label>
+          {f'<span class="text-[10px] text-emerald-700 font-bold">Gravada em {ass_ret_em}</span>' if ja_assinado else '<button type="button" onclick="limparCanvas()" class="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 underline">Limpar e Refazer</button>'}
+        </div>
+
+        {f'''
+        <div class="bg-white p-3 rounded-2xl border-2 border-emerald-300 text-center space-y-1">
+          <img src="{ass_ret_base64}" alt="Assinatura Digital" class="h-28 mx-auto object-contain" />
+          <div class="text-[10px] text-slate-400 border-t pt-1 font-mono">Assinatura Digital Autenticada • ID REG-{emp_id:05d}</div>
+        </div>
+        <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-900 text-xs font-bold text-center">
+          ✓ Este termo já foi assinado e possui validade oficial no sistema!
+        </div>
+        ''' if ja_assinado else f'''
+        <div class="relative bg-white rounded-2xl border-2 border-dashed border-indigo-300 p-1 overflow-hidden shadow-inner">
+          <canvas id="sig-canvas" width="400" height="180" class="w-full h-44 rounded-xl cursor-crosshair bg-white block"></canvas>
+          <div id="sig-hint" class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-slate-300">
+            <span class="text-3xl opacity-60">✍️</span>
+            <span class="text-xs font-medium mt-1 opacity-70">Assine com a ponta do dedo aqui</span>
+          </div>
+        </div>
+
+        <button type="button" id="btn-confirmar-assinatura" onclick="enviarAssinatura()" class="w-full py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-black text-sm shadow-lg shadow-emerald-600/30 transition flex items-center justify-center gap-2">
+          <span>✓</span> Confirmar e Assinar Termo de Cautela
+        </button>
+        '''}
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="text-center text-[10px] text-slate-400 py-3">
+    PIB Parque São Paulo • Sistema Integrado de Gestão Eclesiástica & Patrimonial
+  </footer>
+
+  <script>
+    const canvas = document.getElementById('sig-canvas');
+    const hint = document.getElementById('sig-hint');
+    let ctx, drawing = false, hasDrawn = false;
+
+    if (canvas) {{
+      ctx = canvas.getContext('2d');
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#0f172a'; // slate-900
+
+      // Ajusta resolucao real para telas Retina / Celular
+      function ajustarDPI() {{
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * 2;
+        canvas.height = rect.height * 2;
+        ctx.scale(2, 2);
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#0f172a';
+      }}
+      ajustarDPI();
+      window.addEventListener('resize', ajustarDPI);
+
+      function getPos(e) {{
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {{
+          x: clientX - rect.left,
+          y: clientY - rect.top
+        }};
+      }}
+
+      function startDraw(e) {{
+        drawing = true;
+        hasDrawn = true;
+        if (hint) hint.style.display = 'none';
+        const pos = getPos(e);
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y);
+        e.preventDefault();
+      }}
+
+      function draw(e) {{
+        if (!drawing) return;
+        const pos = getPos(e);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+        e.preventDefault();
+      }}
+
+      function stopDraw(e) {{
+        drawing = false;
+        if (e) e.preventDefault();
+      }}
+
+      canvas.addEventListener('mousedown', startDraw);
+      canvas.addEventListener('mousemove', draw);
+      window.addEventListener('mouseup', stopDraw);
+
+      canvas.addEventListener('touchstart', startDraw, {{ passive: false }});
+      canvas.addEventListener('touchmove', draw, {{ passive: false }});
+      window.addEventListener('touchend', stopDraw, {{ passive: false }});
+    }}
+
+    function limparCanvas() {{
+      if (!ctx || !canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      hasDrawn = false;
+      if (hint) hint.style.display = 'flex';
+    }}
+
+    async function enviarAssinatura() {{
+      if (!hasDrawn) {{
+        alert('Por favor, assine com o dedo no quadro antes de confirmar.');
+        return;
+      }}
+      const btn = document.getElementById('btn-confirmar-assinatura');
+      if (btn) {{
+        btn.disabled = true;
+        btn.innerHTML = 'Gravando Assinatura...';
+      }}
+
+      const dataUrl = canvas.toDataURL('image/png');
+      try {{
+        const res = await fetch('/api/patrimonio/emprestimo/assinar', {{
+          method: 'POST',
+          headers: {{ 'Content-Type': 'application/json' }},
+          body: JSON.stringify({{
+            id: {emp_id},
+            tipo: 'retirada',
+            assinatura_base64: dataUrl,
+            solicitante_nome: '{solicitante}'
+          }})
+        }});
+        const data = await res.json();
+        if (res.ok && data.ok) {{
+          alert('✓ Termo assinado com sucesso! O comprovante oficial foi gravado.');
+          window.location.reload();
+        }} else {{
+          alert(data.erro || 'Falha ao registrar assinatura.');
+          if (btn) {{ btn.disabled = false; btn.innerHTML = 'Tentar Novamente'; }}
+        }}
+      }} catch (err) {{
+        alert('Erro de conexão ao salvar assinatura: ' + err.message);
+        if (btn) {{ btn.disabled = false; btn.innerHTML = 'Tentar Novamente'; }}
+      }}
+    }}
+  </script>
+</body>
+</html>"""
+
+
 class ChurchERPHandler(SimpleHTTPRequestHandler):
 
     def __init__(self, *args, **kwargs):
@@ -2634,10 +2899,45 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
 
+        if path in ("/assinar-emprestimo", "/assinar"):
+            qs = parse_qs(parsed.query)
+            emp_id = qs.get("id", [None])[0]
+            if not emp_id:
+                self.send_response(400)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.end_headers()
+                self.wfile.write("<h3 style='font-family:sans-serif;padding:20px;text-align:center;'>Código/ID do empréstimo não informado no link.</h3>".encode("utf-8"))
+                return
+
+            with db_lock:
+                conn = get_db()
+                cur = conn.cursor()
+                row = cur.execute("""
+                    SELECT pe.*, p.localizacao, p.valor_aquisicao, min.nome as ministerio_nome
+                    FROM patrimonio_emprestimos pe
+                    LEFT JOIN patrimonio p ON pe.patrimonio_id = p.id
+                    LEFT JOIN ministerios min ON p.ministerio_id = min.id
+                    WHERE pe.id = ?
+                """, (int(emp_id),)).fetchone()
+                conn.close()
+
+            if not row:
+                self.send_response(404)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.end_headers()
+                self.wfile.write("<h3 style='font-family:sans-serif;padding:20px;text-align:center;'>Registro de empréstimo não encontrado.</h3>".encode("utf-8"))
+                return
+
+            html_page = render_mobile_termo_page(dict(row))
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+            self.end_headers()
+            self.wfile.write(html_page.encode("utf-8"))
+            return
+
         if path == "/api/bootstrap":
-
             self.send_json(build_bootstrap_data(self))
-
             return
 
 
@@ -5747,6 +6047,60 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     broadcast_event("sync", {"setor": "Patrimônio", "operador": operador, "mensagem": f"{operador} finalizou a baixa definitiva do empréstimo de '{item_nome}' no Patrimônio."})
                     return self.send_json({"ok": True})
 
+                elif path == "/api/patrimonio/emprestimo/assinar":
+                    emp_id = int(body["id"])
+                    tipo = body.get("tipo", "retirada")
+                    assinatura_b64 = body.get("assinatura_base64", "").strip()
+                    if not assinatura_b64:
+                        conn.close()
+                        return self.send_json({"erro": "Assinatura digital é obrigatória."}, 400)
+
+                    agora_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+                    row = cur.execute("SELECT * FROM patrimonio_emprestimos WHERE id = ?", (emp_id,)).fetchone()
+                    if not row:
+                        conn.close()
+                        return self.send_json({"erro": "Empréstimo não encontrado."}, 404)
+
+                    item_nome = row["item"]
+                    solic_nome = row["solicitante_nome"]
+
+                    if tipo == "retirada":
+                        cur.execute(
+                            """
+                            UPDATE patrimonio_emprestimos
+                            SET assinatura_retirada_base64 = ?,
+                                assinatura_retirada_em = ?,
+                                status = CASE 
+                                    WHEN status_aprovacao_setor = 'Aprovado' AND status_ok_patrimonio = 'Liberado' 
+                                    THEN 'Em Aberto / Emprestado' 
+                                    ELSE status 
+                                END
+                            WHERE id = ?
+                            """,
+                            (assinatura_b64, agora_str, emp_id)
+                        )
+                        log_auditoria(conn, solic_nome, "Patrimônio", "Assinatura Digital de Cautela", f"{solic_nome} assinou digitalmente o termo de responsabilidade de '{item_nome}' (ID {emp_id})")
+                        broadcast_event("sync", {"setor": "Patrimônio", "operador": solic_nome, "mensagem": f"{solic_nome} assinou digitalmente o termo de responsabilidade de '{item_nome}'."})
+                    else:
+                        cur.execute(
+                            """
+                            UPDATE patrimonio_emprestimos
+                            SET assinatura_devolucao_base64 = ?,
+                                assinatura_devolucao_em = ?,
+                                data_devolucao_real = COALESCE(data_devolucao_real, ?),
+                                status_retorno_setor = 'Conferido',
+                                status_retorno_patrimonio = 'Finalizado',
+                                status = 'Devolvido'
+                            WHERE id = ?
+                            """,
+                            (assinatura_b64, agora_str, agora_str, emp_id)
+                        )
+                        log_auditoria(conn, solic_nome, "Patrimônio", "Assinatura Digital de Devolução", f"{solic_nome} assinou a devolução definitiva de '{item_nome}' (ID {emp_id})")
+                        broadcast_event("sync", {"setor": "Patrimônio", "operador": solic_nome, "mensagem": f"{solic_nome} assinou a devolução definitiva de '{item_nome}'."})
+
+                    conn.commit()
+                    conn.close()
+                    return self.send_json({"ok": True, "mensagem": "Assinatura registrada com sucesso!"})
 
                 elif path == "/api/usuarios":
 

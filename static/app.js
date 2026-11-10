@@ -6225,21 +6225,34 @@ function renderPatrimonioEmprestimos() {
           </div>
         </td>
 
-        <!-- 5. Ação de Retirada (Regra 3: Só com ambos os OKs) -->
+        <!-- 5. Ação de Retirada & Assinatura Digital do Retirante -->
         <td class="py-3 px-3 text-center">
-          ${isEmprestado || isDevolvido ? `
+          ${e.assinatura_retirada_base64 ? `
+            <div class="flex flex-col items-center gap-1">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                ✍️ Assinado pelo Retirante
+              </span>
+              <img src="${e.assinatura_retirada_base64}" alt="Assinatura" class="h-8 max-w-[120px] object-contain border bg-white rounded p-0.5 shadow-sm" />
+              <span class="text-[9px] text-slate-500">${e.assinatura_retirada_em || formatarDataHora(e.data_retirada)}</span>
+            </div>
+          ` : (isEmprestado || isDevolvido) ? `
             <div class="flex flex-col items-center gap-1">
               <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
                 ✓ Retirada Efetivada
               </span>
               <span class="text-[9px] text-slate-500">${formatarDataHora(e.data_retirada)}</span>
+              <button onclick="abrirModalAssinaturaDigital(${e.id})" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 underline mt-0.5">
+                📱 Colher Assinatura
+              </button>
             </div>
           ` : ambosAprovaramSaida ? `
-            <div class="flex flex-col items-center gap-1">
-              <button onclick="confirmarRetiradaFisicaItem(${e.id})" class="w-full px-3 py-2 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-md transition flex items-center justify-center gap-1.5 animate-bounce">
-                <span>🚀</span> Efetivar Retirada
+            <div class="flex flex-col items-center gap-1.5 min-w-[140px]">
+              <button onclick="abrirModalAssinaturaDigital(${e.id})" class="w-full px-2.5 py-2 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-md transition flex items-center justify-center gap-1.5 animate-bounce">
+                <span>📱</span> Assinar no Celular
               </button>
-              <span class="text-[9px] text-emerald-700 font-bold">Ambos os OKs Confirmados!</span>
+              <button onclick="confirmarRetiradaFisicaItem(${e.id})" class="text-[10px] font-semibold text-slate-500 hover:text-slate-800 underline">
+                Ou efetivar sem assinar
+              </button>
             </div>
           ` : `
             <div class="p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-400 text-[10px] flex flex-col items-center gap-1">
@@ -6298,6 +6311,9 @@ function renderPatrimonioEmprestimos() {
         <!-- 7. Ações -->
         <td class="py-3 px-3 text-right">
           <div class="flex items-center justify-end gap-1.5">
+            <button onclick="abrirModalAssinaturaDigital(${e.id})" class="p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition" title="Abrir QR Code / Assinatura no Celular">
+              📱
+            </button>
             <button onclick="imprimirTermoEmprestimo(${e.id})" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition" title="Gerar Termo de Cautela e Empréstimo (PDF / Imprimir)">
               📄
             </button>
@@ -6866,10 +6882,16 @@ function imprimirTermoEmprestimo(id) {
       </div>
 
       <!-- CAMPOS DE ASSINATURA -->
-      <div class="grid grid-cols-3 gap-4 pt-6 border-t border-slate-300 text-center text-[10px]">
+      <div class="grid grid-cols-3 gap-4 pt-4 border-t border-slate-300 text-center text-[10px]">
         <div>
+          ${emp.assinatura_retirada_base64 ? `
+            <img src="${emp.assinatura_retirada_base64}" alt="Assinatura Digital" class="h-12 mx-auto object-contain mb-1" />
+          ` : `
+            <div class="h-12 flex items-center justify-center text-[9px] text-slate-300 italic">(Aguardando assinatura digital)</div>
+          `}
           <div class="border-t border-slate-800 pt-1 font-bold">${emp.solicitante_nome}</div>
-          <span class="text-slate-400">Assinatura do Retirante</span>
+          <span class="text-slate-400">Assinatura do Retirante (Cautelador)</span>
+          ${emp.assinatura_retirada_em ? `<div class="text-[8px] text-emerald-700 font-bold">Assinado Digitalmente em ${emp.assinatura_retirada_em}</div>` : ''}
         </div>
         <div>
           <div class="border-t border-slate-800 pt-1 font-bold">${emp.responsavel_setor || 'Líder do Setor'}</div>
@@ -6891,6 +6913,228 @@ function imprimirTermoEmprestimo(id) {
   `;
 
   abrirModalCustom(html, true, 'largo');
+}
+
+function abrirModalAssinaturaDigital(id) {
+  const lista = STATE.patrimonio_emprestimos || [];
+  const emp = lista.find(e => Number(e.id) === Number(id));
+  if (!emp) {
+    alert('Empréstimo não encontrado.');
+    return;
+  }
+
+  // Gera a URL completa para celular (compatível tanto local quanto na nuvem Render)
+  const linkMobile = window.location.origin + '/assinar-emprestimo?id=' + emp.id;
+  const textoWhatsapp = encodeURIComponent(
+    `Olá, ${emp.solicitante_nome}! Segue o link para assinar digitalmente o Termo de Cautela do item "${emp.item}" da PIB Parque São Paulo:\n\n${linkMobile}\n\nPor favor, assine com a ponta do dedo na tela do seu celular para registrar a saída.`
+  );
+  const foneLimpo = (emp.solicitante_telefone || '').replace(/\D/g, '');
+  const linkZap = foneLimpo.length >= 8
+    ? `https://api.whatsapp.com/send?phone=55${foneLimpo}&text=${textoWhatsapp}`
+    : `https://api.whatsapp.com/send?text=${textoWhatsapp}`;
+
+  const jaAssinado = Boolean(emp.assinatura_retirada_base64);
+
+  const html = `
+    <div class="space-y-4 text-xs">
+      <div class="flex items-center justify-between border-b pb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">📱</span>
+          <div>
+            <h3 class="text-sm font-bold text-slate-800">Assinatura Digital no Celular • Termo de Cautela</h3>
+            <p class="text-[11px] text-slate-500">${emp.codigo ? `[${emp.codigo}] ` : ''}${emp.item} • Solicitante: <strong>${emp.solicitante_nome}</strong></p>
+          </div>
+        </div>
+        <button type="button" onclick="fecharModalCustom()" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+      </div>
+
+      ${jaAssinado ? `
+        <div class="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 text-center space-y-2">
+          <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+            ✓ Termo Já Assinado Digitalmente
+          </div>
+          <div class="bg-white p-3 rounded-xl border border-emerald-300 max-w-xs mx-auto">
+            <img src="${emp.assinatura_retirada_base64}" alt="Assinatura" class="h-20 mx-auto object-contain" />
+            <div class="text-[9px] text-slate-400 mt-1 font-mono">Assinado em ${emp.assinatura_retirada_em || ''}</div>
+          </div>
+          <p class="text-[11px] text-emerald-800">Este empréstimo já possui validade jurídica e comprovação oficial gravada no sistema.</p>
+        </div>
+      ` : `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- OPÇÃO 1: QR CODE PARA O CELULAR DO RETIRANTE -->
+          <div class="bg-gradient-to-b from-indigo-50/50 to-white p-4 rounded-2xl border border-indigo-200 text-center flex flex-col items-center justify-between space-y-3">
+            <div>
+              <span class="text-[10px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full">Opção 1: Celular do Membro</span>
+              <h4 class="font-bold text-slate-800 text-xs mt-1">Aponte a Câmera do Smartphone</h4>
+              <p class="text-[11px] text-slate-500">O retirante lê o QR Code e assina com o dedo na tela dele:</p>
+            </div>
+
+            <!-- CONTAINER QR CODE -->
+            <div id="modal-qr-assinatura-box" class="bg-white p-2.5 rounded-2xl border-2 border-indigo-200 shadow-md flex items-center justify-center min-w-[140px] min-h-[140px]">
+              <span class="text-xs text-slate-400">Gerando QR Code...</span>
+            </div>
+
+            <div class="w-full space-y-1.5 pt-1">
+              <a href="${linkZap}" target="_blank" class="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow transition flex items-center justify-center gap-1.5">
+                <span>📲</span> Enviar no WhatsApp do Membro
+              </a>
+              <button type="button" onclick="copiarLinkAssinaturaMobile('${linkMobile}')" class="w-full py-1.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition flex items-center justify-center gap-1.5">
+                <span>📋</span> Copiar Link Direto
+              </button>
+            </div>
+          </div>
+
+          <!-- OPÇÃO 2: ASSINAR NESTE COMPUTADOR / TABLET AGORA -->
+          <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col justify-between space-y-2">
+            <div>
+              <span class="text-[10px] font-black uppercase tracking-wider text-slate-600 bg-slate-200 px-2 py-0.5 rounded-full">Opção 2: Neste Dispositivo</span>
+              <h4 class="font-bold text-slate-800 text-xs mt-1">Assinar na Tela Touch / Mouse Agora</h4>
+              <p class="text-[11px] text-slate-500">Se o membro estiver ao seu lado no computador ou tablet:</p>
+            </div>
+
+            <div class="space-y-1">
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="font-semibold text-slate-600">Quadro de Assinatura:</span>
+                <button type="button" onclick="limparCanvasModalAssinatura()" class="text-indigo-600 font-bold hover:underline text-[10px]">Limpar</button>
+              </div>
+              <div class="relative bg-white rounded-xl border-2 border-dashed border-slate-300 p-1">
+                <canvas id="modal-sig-canvas" width="340" height="130" class="w-full h-32 rounded-lg cursor-crosshair bg-white block"></canvas>
+                <div id="modal-sig-hint" class="pointer-events-none absolute inset-0 flex items-center justify-center text-slate-300 text-xs">
+                  Assine aqui com o dedo ou mouse
+                </div>
+              </div>
+            </div>
+
+            <button type="button" id="btn-gravar-sig-modal" onclick="salvarAssinaturaPeloModal(${emp.id}, '${emp.solicitante_nome}')" class="w-full py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow transition flex items-center justify-center gap-1.5">
+              <span>✍️</span> Confirmar Assinatura Aqui
+            </button>
+          </div>
+        </div>
+      `}
+
+      <div class="flex items-center justify-end gap-2 pt-3 border-t">
+        <button type="button" onclick="fecharModalCustom()" class="px-4 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition">
+          Fechar
+        </button>
+      </div>
+    </div>
+  `;
+
+  abrirModalCustom(html, false, 'largo');
+
+  if (!jaAssinado) {
+    setTimeout(() => {
+      const box = document.getElementById('modal-qr-assinatura-box');
+      if (box) {
+        box.innerHTML = '';
+        gerarQRCodeNoElemento('modal-qr-assinatura-box', linkMobile, 130);
+      }
+      iniciarCanvasModalAssinatura();
+    }, 150);
+  }
+}
+
+let modalCanvasCtx = null, modalCanvasEl = null, modalHasDrawn = false, modalDrawing = false;
+
+function iniciarCanvasModalAssinatura() {
+  modalCanvasEl = document.getElementById('modal-sig-canvas');
+  const hint = document.getElementById('modal-sig-hint');
+  modalHasDrawn = false;
+  modalDrawing = false;
+  if (!modalCanvasEl) return;
+
+  modalCanvasCtx = modalCanvasEl.getContext('2d');
+  modalCanvasCtx.lineWidth = 2.5;
+  modalCanvasCtx.lineCap = 'round';
+  modalCanvasCtx.lineJoin = 'round';
+  modalCanvasCtx.strokeStyle = '#0f172a';
+
+  function getPos(e) {
+    const rect = modalCanvasEl.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+      x: clientX - rect.left,
+      y: clientY - rect.top
+    };
+  }
+
+  function start(e) {
+    modalDrawing = true;
+    modalHasDrawn = true;
+    if (hint) hint.style.display = 'none';
+    const pos = getPos(e);
+    modalCanvasCtx.beginPath();
+    modalCanvasCtx.moveTo(pos.x, pos.y);
+    e.preventDefault();
+  }
+
+  function draw(e) {
+    if (!modalDrawing) return;
+    const pos = getPos(e);
+    modalCanvasCtx.lineTo(pos.x, pos.y);
+    modalCanvasCtx.stroke();
+    e.preventDefault();
+  }
+
+  function stop(e) {
+    modalDrawing = false;
+    if (e) e.preventDefault();
+  }
+
+  modalCanvasEl.addEventListener('mousedown', start);
+  modalCanvasEl.addEventListener('mousemove', draw);
+  window.addEventListener('mouseup', stop);
+
+  modalCanvasEl.addEventListener('touchstart', start, { passive: false });
+  modalCanvasEl.addEventListener('touchmove', draw, { passive: false });
+  window.addEventListener('touchend', stop, { passive: false });
+}
+
+function limparCanvasModalAssinatura() {
+  if (!modalCanvasCtx || !modalCanvasEl) return;
+  const rect = modalCanvasEl.getBoundingClientRect();
+  modalCanvasCtx.clearRect(0, 0, rect.width, rect.height);
+  modalHasDrawn = false;
+  const hint = document.getElementById('modal-sig-hint');
+  if (hint) hint.style.display = 'flex';
+}
+
+async function salvarAssinaturaPeloModal(empId, solicitanteNome) {
+  if (!modalHasDrawn || !modalCanvasEl) {
+    alert('Por favor, faça a assinatura no quadro antes de confirmar.');
+    return;
+  }
+  const btn = document.getElementById('btn-gravar-sig-modal');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = 'Gravando Assinatura...';
+  }
+
+  const dataUrl = modalCanvasEl.toDataURL('image/png');
+  const { status, data } = await apiPost('/api/patrimonio/emprestimo/assinar', {
+    id: empId,
+    tipo: 'retirada',
+    assinatura_base64: dataUrl,
+    solicitante_nome: solicitanteNome
+  });
+
+  if (status === 200) {
+    fecharModalCustom();
+    await fetchBootstrap();
+    alert('✓ Termo assinado digitalmente com sucesso!\n\nA retirada física está confirmada e vinculada à assinatura do solicitante.');
+  } else {
+    alert(data.erro || 'Erro ao gravar assinatura digital.');
+    if (btn) { btn.disabled = false; btn.innerHTML = 'Tentar Novamente'; }
+  }
+}
+
+function copiarLinkAssinaturaMobile(url) {
+  navigator.clipboard.writeText(url).then(() => {
+    alert('✓ Link copiado para a área de transferência!\n\nVocê pode colar no WhatsApp ou enviar para o membro:\n' + url);
+  }).catch(() => {
+    prompt('Copie o link abaixo:', url);
+  });
 }
 
 
