@@ -3280,9 +3280,10 @@ function toggleSubmenuPatrimonio() {
   const seta = document.getElementById('seta-subnav-patrimonio');
 
   if (subMenu) {
-    const oculto = subMenu.classList.toggle('hidden');
-    if (seta) seta.style.transform = oculto ? 'rotate(-90deg)' : 'rotate(0deg)';
+    subMenu.classList.remove('hidden');
+    if (seta) seta.style.transform = 'rotate(0deg)';
   }
+  abrirPatrimonioSubtab(SUBTAB_PATRIMONIO_ATIVA || 'inventario');
 }
 
 function abrirPatrimonioSubtab(subtab) {
