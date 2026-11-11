@@ -780,6 +780,13 @@ def init_db():
                 assinatura_retirada_em TEXT DEFAULT '',
                 assinatura_devolucao_base64 TEXT DEFAULT '',
                 assinatura_devolucao_em TEXT DEFAULT '',
+                telefone_responsavel_setor TEXT DEFAULT '',
+                telefone_responsavel_patrimonio TEXT DEFAULT '',
+                notificacao_sms_setor_enviada INTEGER DEFAULT 0,
+                data_sms_setor TEXT DEFAULT '',
+                notificacao_sms_patrimonio_enviada INTEGER DEFAULT 0,
+                data_sms_patrimonio TEXT DEFAULT '',
+                ultimo_aviso_sms TEXT DEFAULT '',
                 criado_em TEXT NOT NULL,
                 criado_por TEXT NOT NULL,
                 FOREIGN KEY (patrimonio_id) REFERENCES patrimonio(id) ON DELETE SET NULL
@@ -1128,6 +1135,13 @@ def init_db():
             ("assinatura_retirada_em", "TEXT DEFAULT ''"),
             ("assinatura_devolucao_base64", "TEXT DEFAULT ''"),
             ("assinatura_devolucao_em", "TEXT DEFAULT ''"),
+            ("telefone_responsavel_setor", "TEXT DEFAULT ''"),
+            ("telefone_responsavel_patrimonio", "TEXT DEFAULT ''"),
+            ("notificacao_sms_setor_enviada", "INTEGER DEFAULT 0"),
+            ("data_sms_setor", "TEXT DEFAULT ''"),
+            ("notificacao_sms_patrimonio_enviada", "INTEGER DEFAULT 0"),
+            ("data_sms_patrimonio", "TEXT DEFAULT ''"),
+            ("ultimo_aviso_sms", "TEXT DEFAULT ''"),
         ]:
             try:
                 cur.execute(f"ALTER TABLE patrimonio_emprestimos ADD COLUMN {c_nome} {c_tipo}")
@@ -5829,6 +5843,9 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     motivo = body.get("motivo", "").strip()
                     responsavel_setor = body.get("responsavel_setor", "").strip() or "Responsável do Setor"
                     responsavel_patrimonio = body.get("responsavel_patrimonio", "").strip() or "Marcos Silva (Patrimônio)"
+                    telefone_responsavel_setor = body.get("telefone_responsavel_setor", "").strip()
+                    telefone_responsavel_patrimonio = body.get("telefone_responsavel_patrimonio", "").strip()
+                    enviar_sms_setor_agora = bool(body.get("enviar_sms_setor_agora", False))
 
                     agora_str = datetime.now().strftime("%d/%m/%Y %H:%M")
                     status_aprov_setor = "Pendente"
@@ -5850,8 +5867,10 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                             data_retirada, previsao_devolucao,
                             responsavel_setor, status_aprovacao_setor, data_aprovacao_setor, operador_aprovador_setor,
                             responsavel_patrimonio, status_ok_patrimonio, data_ok_patrimonio, operador_ok_patrimonio,
+                            telefone_responsavel_setor, telefone_responsavel_patrimonio,
+                            notificacao_sms_setor_enviada, data_sms_setor, ultimo_aviso_sms,
                             status, criado_em, criado_por
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
                             patrimonio_id, codigo, item, setor, condicao_saida, observacoes_saida,
@@ -5859,6 +5878,10 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                             data_retirada, previsao_devolucao,
                             responsavel_setor, status_aprov_setor, data_aprov_setor, op_aprov_setor,
                             responsavel_patrimonio, status_ok_pat, data_ok_pat, op_ok_pat,
+                            telefone_responsavel_setor, telefone_responsavel_patrimonio,
+                            (1 if (enviar_sms_setor_agora and telefone_responsavel_setor) else 0),
+                            (agora_str if (enviar_sms_setor_agora and telefone_responsavel_setor) else ""),
+                            (f"SMS solicitado para Setor ({telefone_responsavel_setor}) em {agora_str}" if (enviar_sms_setor_agora and telefone_responsavel_setor) else ""),
                             status_geral, agora_str, operador
                         )
                     )
@@ -5946,6 +5969,95 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     conn.close()
                     broadcast_event("sync", {"setor": "Patrimônio", "operador": operador, "mensagem": f"{operador} confirmou a retirada física do bem '{item_nome}' por {solic_nome}."})
                     return self.send_json({"ok": True})
+
+                elif path == "/api/patrimonio/emprestimo/enviar-sms":
+                    emp_id = int(body.get("id", 0))
+                    tipo = str(body.get("tipo", "setor")).lower().strip() # 'setor', 'patrimonio', 'solicitante'
+                    tel_custom = str(body.get("telefone", "")).strip()
+
+                    row = cur.execute("SELECT * FROM patrimonio_emprestimos WHERE id = ?", (emp_id,)).fetchone()
+                    if not row:
+                        conn.close()
+                        return self.send_json({"erro": "Registro de empréstimo não encontrado"}, 404)
+
+                    row = dict(row)
+                    agora_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+
+                    if tel_custom:
+                        tel_dest = tel_custom
+                    elif tipo == "setor":
+                        tel_dest = row.get("telefone_responsavel_setor") or ""
+                    elif tipo == "patrimonio":
+                        tel_dest = row.get("telefone_responsavel_patrimonio") or ""
+                    else:
+                        tel_dest = row.get("solicitante_telefone") or ""
+
+                    # Determina a URL base pública do sistema (preferencialmente nuvem permanente)
+                    base_url = "https://pib-parque-sp.onrender.com"
+                    host_hdr = self.headers.get("Host", "")
+                    if host_hdr and not host_hdr.startswith(("localhost", "127.0.0.1", "10.", "192.168.")):
+                        proto = self.headers.get("X-Forwarded-Proto", "https")
+                        base_url = f"{proto}://{host_hdr}"
+                    elif PUBLIC_TUNNEL_URL:
+                        base_url = PUBLIC_TUNNEL_URL
+
+                    item_nome = row.get("item", "Equipamento")
+                    solic_nome = row.get("solicitante_nome", "Membro")
+                    cod_str = f"[{row.get('codigo')}] " if row.get("codigo") else ""
+
+                    if tipo == "setor":
+                        dest_nome = row.get("responsavel_setor", "Líder do Setor")
+                        texto_sms = f"[PIB Parque SP] Olá {dest_nome}! Nova solicitação de empréstimo de {cod_str}{item_nome} para {solic_nome}. Favor autorizar no sistema: {base_url}/#patrimonio"
+                        cur.execute("""
+                            UPDATE patrimonio_emprestimos 
+                            SET notificacao_sms_setor_enviada = 1, data_sms_setor = ?, 
+                                telefone_responsavel_setor = COALESCE(NULLIF(?, ''), telefone_responsavel_setor),
+                                ultimo_aviso_sms = ?
+                            WHERE id = ?
+                        """, (agora_str, tel_dest, f"SMS Setor enviado para {tel_dest} em {agora_str}", emp_id))
+                    elif tipo == "patrimonio":
+                        dest_nome = row.get("responsavel_patrimonio", "Marcos Silva (Patrimônio)")
+                        texto_sms = f"[PIB Parque SP] Olá {dest_nome}! O Setor APROVOU o empréstimo de {cod_str}{item_nome} para {solic_nome}. Favor efetivar liberação patrimonial: {base_url}/#patrimonio"
+                        cur.execute("""
+                            UPDATE patrimonio_emprestimos 
+                            SET notificacao_sms_patrimonio_enviada = 1, data_sms_patrimonio = ?, 
+                                telefone_responsavel_patrimonio = COALESCE(NULLIF(?, ''), telefone_responsavel_patrimonio),
+                                ultimo_aviso_sms = ?
+                            WHERE id = ?
+                        """, (agora_str, tel_dest, f"SMS Patrimônio enviado para {tel_dest} em {agora_str}", emp_id))
+                    else:
+                        dest_nome = solic_nome
+                        link_assinatura = f"{base_url}/assinar-emprestimo?id={emp_id}"
+                        texto_sms = f"[PIB Parque SP] Olá {dest_nome}! Seu empréstimo de {cod_str}{item_nome} foi APROVADO! Assine o termo digital no celular com o dedo: {link_assinatura}"
+                        cur.execute("""
+                            UPDATE patrimonio_emprestimos 
+                            SET ultimo_aviso_sms = ?
+                            WHERE id = ?
+                        """, (f"SMS Solicitante enviado para {tel_dest} em {agora_str}", emp_id))
+
+                    log_auditoria(conn, operador, "Patrimônio", "Envio de Notificação SMS", f"Disparou aviso SMS ({tipo}) para {tel_dest} (Item '{item_nome}', ID {emp_id})")
+                    conn.commit()
+                    conn.close()
+
+                    tel_digitos = re.sub(r"\D", "", tel_dest)
+                    if tel_digitos.startswith("0"):
+                        tel_digitos = tel_digitos[1:]
+
+                    texto_encoded = urllib.parse.quote(texto_sms)
+                    sms_link = f"sms:+55{tel_digitos}?body={texto_encoded}" if tel_digitos else f"sms:?body={texto_encoded}"
+                    wa_link = f"https://api.whatsapp.com/send?phone=55{tel_digitos}&text={texto_encoded}" if tel_digitos else f"https://api.whatsapp.com/send?text={texto_encoded}"
+
+                    broadcast_event("sync", {"setor": "Patrimônio", "operador": operador, "mensagem": f"{operador} registrou envio de aviso SMS para {dest_nome} ({tel_dest})."})
+                    return self.send_json({
+                        "ok": True,
+                        "tipo": tipo,
+                        "destinatario": dest_nome,
+                        "telefone": tel_dest,
+                        "mensagem": texto_sms,
+                        "sms_link": sms_link,
+                        "whatsapp_link": wa_link,
+                        "data_envio": agora_str
+                    })
 
                 elif path == "/api/patrimonio/emprestimo/devolucao":
                     emp_id = int(body["id"])
