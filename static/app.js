@@ -7800,14 +7800,21 @@ function renderUsuarios(termoBusca = FILTRO_USUARIOS_TERMO, tipoFiltro = FILTRO_
               <button type="button" onclick="alternarVerSenhaCard(${u.id})" class="text-slate-400 hover:text-slate-800 text-xs cursor-pointer ml-1" title="Ver / Ocultar Senha">👁️</button>
             </span>
           </div>
-          <div class="flex items-center justify-between pt-1.5 border-t border-slate-200/60">
-            ${isSenhaAlterada ? 
-              '<span class="text-[10px] font-extrabold text-emerald-800 bg-emerald-100/80 border border-emerald-300 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">✅ Senha Definitiva</span>' : 
-              '<span class="text-[10px] font-extrabold text-amber-800 bg-amber-100/90 border border-amber-300 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">⚠️ 1º Acesso Pendente</span>'
-            }
-            <button type="button" onclick="resetarSenhaOperador(${u.id})" class="text-[10px] text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-xl border border-amber-200 font-bold transition flex items-center gap-1 cursor-pointer" title="Resetar para senha padrão 123456">
-              🔄 Resetar 123456
-            </button>
+          <div class="flex items-center justify-between pt-1.5 border-t border-slate-200/60 gap-1.5 flex-wrap">
+            <div>
+              ${isSenhaAlterada ? 
+                '<span class="text-[10px] font-extrabold text-emerald-800 bg-emerald-100/80 border border-emerald-300 px-2 py-0.5 rounded-full inline-flex items-center gap-1">✅ Senha Definitiva</span>' : 
+                '<span class="text-[10px] font-extrabold text-amber-800 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-full inline-flex items-center gap-1">⚠️ 1º Acesso Pendente</span>'
+              }
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button type="button" onclick="abrirModalAlterarSenhaUsuario(${u.id})" class="text-[10px] text-indigo-700 hover:text-white bg-indigo-50 hover:bg-indigo-600 px-2.5 py-1 rounded-xl border border-indigo-200 hover:border-indigo-600 font-bold transition flex items-center gap-1 cursor-pointer shadow-2xs" title="Definir nova senha para este operador">
+                🔑 Alterar Senha
+              </button>
+              <button type="button" onclick="resetarSenhaOperador(${u.id})" class="text-[10px] text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-xl border border-amber-200 font-bold transition flex items-center gap-1 cursor-pointer" title="Resetar para senha padrão 123456">
+                🔄 Resetar 123456
+              </button>
+            </div>
           </div>
         </div>
 
@@ -17218,413 +17225,311 @@ function alternarVerSenhaCard(id) {
 
 
 
-function abrirModalTrocaSenhaObrigatoria(user = CURRENT_OPERATOR) {
+// ======================================================================
+// GESTÃO E ALTERAÇÃO DE SENHAS DE OPERADORES (PRÓPRIA & ADMINISTRATIVA)
+// ======================================================================
+
+let MODAL_SENHA_MODO_OBRIGATORIO = false;
+let MODAL_SENHA_TARGET_USER_ID = null;
+
+function abrirModalTrocaSenhaPropria() {
+  if (!CURRENT_OPERATOR) {
+    alert('Nenhum operador conectado.');
+    return;
+  }
+  abrirModalTrocaSenha(CURRENT_OPERATOR, false);
+}
+
+function abrirModalAlterarSenhaUsuario(userId) {
+  const u = (STATE.usuarios || []).find(x => Number(x.id) === Number(userId));
+  if (!u) {
+    alert('Operador não encontrado.');
+    return;
+  }
+  abrirModalTrocaSenha(u, false);
+}
+
+function abrirModalTrocaSenha(user = CURRENT_OPERATOR, isObrigatoria = false) {
+  if (!user && CURRENT_OPERATOR) user = CURRENT_OPERATOR;
+  if (!user) return;
+
+  MODAL_SENHA_MODO_OBRIGATORIO = isObrigatoria;
+  MODAL_SENHA_TARGET_USER_ID = Number(user.id);
 
   const modal = document.getElementById('modal-troca-senha-obrigatoria');
-
   const nomeEl = document.getElementById('troca-senha-nome-operador');
-
   const idInput = document.getElementById('troca-senha-user-id');
-
   const inpNova = document.getElementById('nova-senha-obrigatoria');
-
   const inpConf = document.getElementById('confirma-senha-obrigatoria');
-
   const erroDiv = document.getElementById('troca-senha-erro');
+  const tituloEl = document.getElementById('troca-senha-modal-titulo');
+  const descEl = document.getElementById('troca-senha-modal-descricao');
+  const rodapeEl = document.getElementById('troca-senha-rodape-cancelar');
+  const btnSubmit = document.getElementById('btn-salvar-nova-senha');
 
-
-
-  if (nomeEl) nomeEl.textContent = user ? user.nome : 'Operador';
-
-  if (idInput) idInput.value = user ? user.id : '';
-
+  if (nomeEl) nomeEl.textContent = user.nome || 'Operador';
+  if (idInput) idInput.value = user.id;
   if (inpNova) inpNova.value = '';
-
   if (inpConf) inpConf.value = '';
-
   if (erroDiv) erroDiv.classList.add('hidden');
 
+  const isProprio = CURRENT_OPERATOR && Number(CURRENT_OPERATOR.id) === Number(user.id);
 
+  if (tituloEl) {
+    if (isObrigatoria) {
+      tituloEl.textContent = 'Alteração Obrigatória de Senha';
+    } else if (isProprio) {
+      tituloEl.textContent = 'Alterar Minha Senha de Acesso';
+    } else {
+      tituloEl.textContent = `Alterar Senha: ${user.nome}`;
+    }
+  }
+
+  if (descEl) {
+    if (isObrigatoria) {
+      descEl.textContent = 'Este é o seu primeiro acesso ao sistema (ou sua senha ainda é provisória). Para garantir a segurança dos dados da igreja, é obrigatório definir sua nova senha pessoal antes de continuar.';
+    } else if (isProprio) {
+      descEl.textContent = 'Atualize sua credencial pessoal de acesso ao sistema com segurança. Crie uma senha forte e memorize-a.';
+    } else {
+      descEl.textContent = `Defina uma nova senha de acesso para o operador ${user.nome}.`;
+    }
+  }
+
+  if (btnSubmit) {
+    btnSubmit.innerHTML = isObrigatoria ? '<span>🔒</span> Salvar Nova Senha & Acessar Sistema' : '<span>💾</span> Salvar Nova Senha';
+  }
+
+  if (rodapeEl) {
+    if (isObrigatoria) {
+      rodapeEl.style.display = 'block';
+    } else {
+      rodapeEl.style.display = 'none';
+    }
+  }
 
   aoDigitarNovaSenhaObrigatoria();
 
-
-
   if (modal) {
-
     modal.classList.remove('hidden');
-
     modal.style.display = 'flex';
-
   }
-
   setTimeout(() => {
-
     inpNova?.focus();
-
   }, 120);
-
 }
 
+function abrirModalTrocaSenhaObrigatoria(user = CURRENT_OPERATOR) {
+  abrirModalTrocaSenha(user, true);
+}
 
+function fecharModalTrocaSenha() {
+  const modal = document.getElementById('modal-troca-senha-obrigatoria');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+  MODAL_SENHA_MODO_OBRIGATORIO = false;
+  MODAL_SENHA_TARGET_USER_ID = null;
+}
+
+function cancelarTrocaSenhaObrigatoria() {
+  fecharModalTrocaSenha();
+  sairDoSistema();
+}
+
+function fecharOuCancelarTrocaSenha() {
+  if (MODAL_SENHA_MODO_OBRIGATORIO) {
+    cancelarTrocaSenhaObrigatoria();
+  } else {
+    fecharModalTrocaSenha();
+  }
+}
 
 function aoDigitarNovaSenhaObrigatoria() {
-
   const pwd = (document.getElementById('nova-senha-obrigatoria')?.value || '').trim();
-
   const conf = (document.getElementById('confirma-senha-obrigatoria')?.value || '').trim();
 
-
-
   const temLetra = /[a-zA-Z]/.test(pwd);
-
   const temNumero = /[0-9]/.test(pwd);
-
   const temEspecial = /[^a-zA-Z0-9]/.test(pwd);
-
   const tamanhoOk = pwd.length >= 6;
-
   const senhasBatem = pwd.length > 0 && pwd === conf;
 
-
-
   const atualizaItem = (id, cond) => {
-
     const el = document.getElementById(id);
-
     if (!el) return;
-
     const icon = el.querySelector('.req-icon');
-
     if (cond) {
-
       el.className = 'flex items-center gap-2 text-emerald-600 font-bold transition-colors';
-
       if (icon) icon.textContent = '✅';
-
     } else {
-
       el.className = 'flex items-center gap-2 text-slate-400 transition-colors';
-
       if (icon) icon.textContent = '⚪';
-
     }
-
   };
 
-
-
   atualizaItem('req-letras', temLetra);
-
   atualizaItem('req-numeros', temNumero);
-
   atualizaItem('req-especial', temEspecial);
-
   atualizaItem('req-tamanho', tamanhoOk);
-
   atualizaItem('req-confirmacao', senhasBatem);
 
-
-
   const tudoValido = temLetra && temNumero && temEspecial && tamanhoOk && senhasBatem;
-
   const tagStatus = document.getElementById('requisitos-status-tag');
-
   const btnSubmit = document.getElementById('btn-salvar-nova-senha');
-
-
 
   if (tagStatus) {
-
     if (tudoValido) {
-
       tagStatus.textContent = 'Padrão Atendido!';
-
       tagStatus.className = 'text-[10px] font-extrabold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full';
-
     } else {
-
       tagStatus.textContent = 'Pendente';
-
       tagStatus.className = 'text-[10px] font-extrabold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full';
-
     }
-
   }
-
-
 
   if (btnSubmit) {
-
     btnSubmit.disabled = !tudoValido;
-
   }
-
 }
-
-
 
 async function executarTrocaSenhaObrigatoria(e) {
-
   if (e && e.preventDefault) e.preventDefault();
 
-
-
   const idInput = document.getElementById('troca-senha-user-id');
-
   const inpNova = document.getElementById('nova-senha-obrigatoria');
-
   const inpConf = document.getElementById('confirma-senha-obrigatoria');
-
   const erroDiv = document.getElementById('troca-senha-erro');
-
   const erroTexto = document.getElementById('troca-senha-erro-texto');
-
   const btnSubmit = document.getElementById('btn-salvar-nova-senha');
 
-
-
   const userId = Number(idInput?.value || (CURRENT_OPERATOR ? CURRENT_OPERATOR.id : 0));
-
   const novaSenha = (inpNova?.value || '').trim();
-
   const confirmacao = (inpConf?.value || '').trim();
 
-
-
   if (!novaSenha) {
-
     if (erroDiv && erroTexto) {
-
       erroTexto.textContent = 'Por favor, digite a nova senha.';
-
       erroDiv.classList.remove('hidden');
-
     }
-
     inpNova?.focus();
-
     return;
-
   }
-
-
 
   if (novaSenha !== confirmacao) {
-
     if (erroDiv && erroTexto) {
-
       erroTexto.textContent = 'A confirmação não confere com a nova senha digitada.';
-
       erroDiv.classList.remove('hidden');
-
     }
-
     inpConf?.focus();
-
     return;
-
   }
-
-
 
   if (!/[a-zA-Z]/.test(novaSenha) || !/[0-9]/.test(novaSenha) || !/[^a-zA-Z0-9]/.test(novaSenha) || novaSenha.length < 6) {
-
     if (erroDiv && erroTexto) {
-
       erroTexto.textContent = 'A senha deve conter letras, números e pelo menos um caractere especial (mínimo 6 caracteres).';
-
       erroDiv.classList.remove('hidden');
-
     }
-
     inpNova?.focus();
-
     return;
-
   }
-
-
 
   if (btnSubmit) {
-
     btnSubmit.disabled = true;
-
     btnSubmit.innerHTML = '<span>⏳</span> Salvando nova senha segura...';
-
   }
-
-
 
   try {
-
     const res = await fetch('/api/usuarios/alterar-senha', {
-
       method: 'POST',
-
       headers: { 'Content-Type': 'application/json' },
-
       body: JSON.stringify({ id: userId, nova_senha: novaSenha, confirmacao: confirmacao })
-
     });
-
     const data = await res.json();
 
-
-
     if (res.ok && data.ok) {
-
-      if (CURRENT_OPERATOR) {
-
+      if (CURRENT_OPERATOR && Number(CURRENT_OPERATOR.id) === userId) {
         CURRENT_OPERATOR.senha = novaSenha;
-
         CURRENT_OPERATOR.senha_alterada = 1;
-
       }
-
       const uDb = (STATE.usuarios || []).find(u => Number(u.id) === userId);
-
       if (uDb) {
-
         uDb.senha = novaSenha;
-
         uDb.senha_alterada = 1;
-
       }
 
+      fecharModalTrocaSenha();
 
-
-      const modal = document.getElementById('modal-troca-senha-obrigatoria');
-
-      if (modal) {
-
-        modal.classList.add('hidden');
-
-        modal.style.display = 'none';
-
+      const isProprio = CURRENT_OPERATOR && Number(CURRENT_OPERATOR.id) === userId;
+      if (MODAL_SENHA_MODO_OBRIGATORIO) {
+        showLiveToast('🎉 Nova senha segura cadastrada com sucesso! Bem-vindo(a) ao sistema.');
+        const permitidas = getPermissoesOperador(CURRENT_OPERATOR);
+        const todasAbas = [
+          'dashboard', 'tesouraria', 'pedidos', 'projecao', 'relatorios',
+          'secretaria', 'recepcao', 'atas', 'ministerios', 'celulas',
+          'patrimonio', 'acessos'
+        ];
+        const destino = todasAbas.find(t => temPermissaoSetor(t, CURRENT_OPERATOR)) || 'secretaria';
+        switchTab(destino);
+        renderAll();
+      } else {
+        if (isProprio) {
+          showLiveToast('🎉 Sua nova senha foi atualizada com sucesso!');
+        } else {
+          showLiveToast(`✅ Senha do operador "${uDb ? uDb.nome : ''}" atualizada com sucesso!`);
+        }
+        renderUsuarios();
       }
-
-
-
-      showLiveToast('🎉 Nova senha segura cadastrada com sucesso! Bem-vindo(a) ao sistema.');
-
-
-
-      const permitidas = getPermissoesOperador(CURRENT_OPERATOR);
-
-      const todasAbas = [
-
-        'dashboard', 'tesouraria', 'pedidos', 'projecao', 'relatorios',
-
-        'secretaria', 'recepcao', 'atas', 'ministerios', 'celulas',
-
-        'patrimonio', 'acessos'
-
-      ];
-
-      const destino = todasAbas.find(t => temPermissaoSetor(t, CURRENT_OPERATOR)) || 'secretaria';
-
-      switchTab(destino);
-
-      renderAll();
-
     } else {
-
       if (erroDiv && erroTexto) {
-
         erroTexto.textContent = data.mensagem || 'Erro ao alterar senha. Verifique os requisitos.';
-
         erroDiv.classList.remove('hidden');
-
       }
-
     }
-
   } catch (err) {
-
     console.error('Erro na troca de senha:', err);
-
     if (erroDiv && erroTexto) {
-
       erroTexto.textContent = 'Erro de comunicação ao salvar a nova senha.';
-
       erroDiv.classList.remove('hidden');
-
     }
-
   } finally {
-
     if (btnSubmit) {
-
       btnSubmit.disabled = false;
-
-      btnSubmit.innerHTML = '<span>🔒</span> Salvar Nova Senha & Acessar Sistema';
-
+      btnSubmit.innerHTML = MODAL_SENHA_MODO_OBRIGATORIO ? '<span>🔒</span> Salvar Nova Senha & Acessar Sistema' : '<span>💾</span> Salvar Nova Senha';
     }
-
   }
-
 }
 
-
-
 async function resetarSenhaOperador(userId) {
-
   const uTarget = (STATE.usuarios || []).find(u => Number(u.id) === Number(userId));
-
   const nome = uTarget ? uTarget.nome : ('Operador #' + userId);
+  if (!confirm(`Deseja realmente resetar a senha do operador "${nome}" para o padrão inicial temporário 123456?
 
-  if (!confirm(`Deseja realmente resetar a senha do operador "${nome}" para o padrão inicial temporário 123456?\n\nEle será obrigado a cadastrar uma nova senha pessoal segura (com letras, números e caractere especial) no próximo acesso.`)) {
-
+Ele será obrigado a cadastrar uma nova senha pessoal segura (com letras, números e caractere especial) no próximo acesso.`)) {
     return;
-
   }
-
-
 
   try {
-
     const res = await fetch('/api/usuarios/resetar-senha', {
-
       method: 'POST',
-
       headers: { 'Content-Type': 'application/json' },
-
       body: JSON.stringify({ id: userId })
-
     });
-
     const data = await res.json();
-
     if (res.ok && data.ok) {
-
       showLiveToast(`🔄 Senha de ${nome} resetada para 123456 com sucesso!`);
-
       const uDb = (STATE.usuarios || []).find(u => Number(u.id) === userId);
-
       if (uDb) {
-
         uDb.senha = '123456';
-
         uDb.senha_alterada = 0;
-
       }
-
       renderPatrimonioEUsuarios();
-
     } else {
-
       alert(data.mensagem || 'Erro ao resetar senha.');
-
     }
-
   } catch (err) {
-
     console.error('Erro ao resetar senha:', err);
-
     alert('Erro de comunicação com o servidor ao resetar senha.');
-
   }
-
 }
 

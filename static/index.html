@@ -2959,6 +2959,9 @@
 
 
 
+          <button id="btn-header-trocar-senha" type="button" onclick="abrirModalTrocaSenhaPropria()" title="Alterar minha senha de acesso" class="text-xs font-bold text-slate-700 hover:text-indigo-700 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs">
+            <span>🔑</span> <span class="hidden sm:inline">Alterar Senha</span>
+          </button>
           <button id="btn-header-sair" onclick="sairDoSistema()" title="Sair do Usuário" class="ml-0.5 sm:ml-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg transition text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer">
 
 
@@ -25600,7 +25603,7 @@
 
 
 
-      <button type="button" onclick="cancelarTrocaSenhaObrigatoria()" class="absolute top-3.5 right-3.5 text-slate-400 hover:text-slate-700 font-extrabold text-sm p-1.5 rounded-lg hover:bg-slate-100 transition cursor-pointer" title="Cancelar e trocar de usuário">✕</button>
+      <button type="button" onclick="fecharOuCancelarTrocaSenha()" class="absolute top-3.5 right-3.5 text-slate-400 hover:text-slate-700 font-extrabold text-sm p-1.5 rounded-lg hover:bg-slate-100 transition cursor-pointer" title="Cancelar e trocar de usuário">✕</button>
 
 
 
@@ -25624,14 +25627,11 @@
 
 
 
-        <h2 class="text-lg font-black text-slate-900">Alteração Obrigatória de Senha</h2>
+        <h2 id="troca-senha-modal-titulo" class="text-lg font-black text-slate-900">Alteração Obrigatória de Senha</h2>
 
 
 
-        <p class="text-xs text-slate-600 mt-1 font-medium leading-relaxed">
-
-
-
+        <p id="troca-senha-modal-descricao" class="text-xs text-slate-600 mt-1 font-medium leading-relaxed">
           Este é o seu primeiro acesso ao sistema (ou sua senha ainda é provisória). Para garantir a segurança dos dados da igreja, é obrigatório definir sua nova senha pessoal antes de continuar.
 
 
@@ -25900,10 +25900,7 @@
 
 
 
-        <div class="pt-2 border-t border-slate-100 text-center">
-
-
-
+        <div id="troca-senha-rodape-cancelar" class="pt-2 border-t border-slate-100 text-center">
           <button type="button" onclick="cancelarTrocaSenhaObrigatoria()" class="text-slate-500 hover:text-slate-800 font-bold text-xs py-1.5 px-3 rounded-lg hover:bg-slate-100 transition cursor-pointer inline-flex items-center gap-1.5">
 
 
@@ -25968,7 +25965,7 @@
 
 
 
-  <script src="/app.js?v=20261110_v207_cadastro_membros"></script>
+  <script src="/app.js?v=20261110_v208_alterar_senha"></script>
 
 
 
