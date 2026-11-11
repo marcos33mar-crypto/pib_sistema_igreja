@@ -974,6 +974,12 @@ def init_db():
 
             ("numero_ficha", "INTEGER DEFAULT NULL"),
 
+            ("profissao", "TEXT DEFAULT ''"),
+
+            ("conjuge", "TEXT DEFAULT ''"),
+
+            ("data_casamento", "TEXT DEFAULT ''"),
+
         ]
 
         for col_name, col_type in novas_cols_membros:
@@ -3722,9 +3728,11 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                          estado_civil, genero, familia, rg, cidade_nascimento, estado_nascimento, cpf,
 
+                         profissao, conjuge, data_casamento,
+
                          cargo_eclesiastico, status, sala_ebd, celula_id, observacoes, criado_em)
 
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
 
                         (
 
@@ -3769,6 +3777,12 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                             body.get("estado_nascimento", "").strip(),
 
                             body.get("cpf", "").strip(),
+
+                            body.get("profissao", "").strip(),
+
+                            body.get("conjuge", "").strip(),
+
+                            body.get("data_casamento", "").strip(),
 
                             body.get("cargo_eclesiastico", "Membro"),
 
@@ -3920,6 +3934,10 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                     cpf = body.get("cpf", atual["cpf"] or "")
 
+                    profissao = body.get("profissao", (atual["profissao"] if "profissao" in atual.keys() and atual["profissao"] else ""))
+                    conjuge = body.get("conjuge", (atual["conjuge"] if "conjuge" in atual.keys() and atual["conjuge"] else ""))
+                    data_casamento = body.get("data_casamento", (atual["data_casamento"] if "data_casamento" in atual.keys() and atual["data_casamento"] else ""))
+
                     status = body.get("status", atual["status"] or "Ativo")
 
                     sala_ebd = body.get("sala_ebd", (atual["sala_ebd"] if "sala_ebd" in atual.keys() and atual["sala_ebd"] else "")).strip()
@@ -3946,6 +3964,8 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                             estado_civil=?, genero=?, familia=?, rg=?, cidade_nascimento=?, estado_nascimento=?, cpf=?,
 
+                            profissao=?, conjuge=?, data_casamento=?,
+
                             status=?, sala_ebd=?, cargo_eclesiastico=?, celula_id=?, observacoes=?
 
                         WHERE id=?""",
@@ -3959,6 +3979,8 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                             telefone, email, data_nascimento, data_batismo,
 
                             estado_civil, genero, familia, rg, cidade_nascimento, estado_nascimento, cpf,
+
+                            profissao, conjuge, data_casamento,
 
                             status, sala_ebd, cargo, celula_id or None, observacoes, membro_id
 

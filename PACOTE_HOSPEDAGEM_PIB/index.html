@@ -20363,6 +20363,22 @@
 
 
               </div>
+              <!-- PROFISSAO, CONJUGE E DATA DO CASAMENTO -->
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label class="font-semibold text-slate-700 block mb-1">Profissão</label>
+                  <input type="text" id="mem-profissao" placeholder="Ex: Professor(a), Advogado(a), Autônomo" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 bg-white" />
+                </div>
+                <div>
+                  <label class="font-semibold text-slate-700 block mb-1">Cônjuge (Esposo / Esposa)</label>
+                  <input type="text" id="mem-conjuge" placeholder="Nome completo do cônjuge" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 bg-white" />
+                </div>
+                <div>
+                  <label class="font-semibold text-slate-700 block mb-1">Data de Casamento</label>
+                  <input type="date" id="mem-data-casamento" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 bg-white" />
+                </div>
+              </div>
+
 
 
 
@@ -21659,109 +21675,18 @@
 
 
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-
-
-
-
-
-
-
                 <div>
-
-
-
-
-
-
-
-                  <label class="font-semibold text-slate-700 block mb-1">Vincular à Célula</label>
-
-
-
-
-
-
-
-                  <select id="mem-celula" class="w-full border border-slate-300 rounded-xl px-3 py-2.5 bg-white"></select>
-
-
-
-
-
-
-
-                </div>
-
-
-
-
-
-
-
-                <div>
-
-
-
-
-
-
-
-                  <label class="font-semibold text-slate-700 block mb-1">Ministério (Opcional)</label>
-
-
-
-
-
-
-
+                  <label class="font-semibold text-slate-700 block mb-1">Ministério</label>
                   <select id="mem-ministerio" class="w-full border border-slate-300 rounded-xl px-3 py-2.5 bg-white"></select>
-
-
-
-
-
-
-
                 </div>
-
-
-
-
-
-
-
                 <div>
-
-
-
-
-
-
-
                   <label class="font-semibold text-slate-700 block mb-1">Função no Ministério</label>
-
-
-
-
-
-
-
-                  <input type="text" id="mem-funcao-min" placeholder="Ex: Vocal, Recepção" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 bg-white" />
-
-
-
-
-
-
-
+                  <input type="text" id="mem-funcao-min" placeholder="Ex: Líder, Integrante, Vocal" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 bg-white" />
                 </div>
-
-
-
-
-
-
-
+                <div>
+                  <label class="font-semibold text-slate-700 block mb-1">Célula / Grupo Familiar (Opcional)</label>
+                  <select id="mem-celula" class="w-full border border-slate-300 rounded-xl px-3 py-2.5 bg-white"></select>
+                </div>
               </div>
             <!-- OBSERVAÇÕES & CONSIDERAÇÕES PASTORAIS DO MEMBRO -->
             <div class="sm:col-span-2 mt-2">
@@ -25730,7 +25655,7 @@
 
 
 
-  <script src="/app.js?v=20261111_v212_dom_nesting_fixed"></script>
+  <script src="/app.js?v=20261111_v213_novos_campos_membro"></script>
 
 
 

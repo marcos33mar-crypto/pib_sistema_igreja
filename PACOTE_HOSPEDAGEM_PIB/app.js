@@ -5394,6 +5394,20 @@ function abrirFicha360(membroId) {
             <input type="text" id="edit360-obs" value="${m.observacoes || ''}" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white" />
           </div>
         </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Profissão</label>
+            <input type="text" id="edit360-profissao" value="${m.profissao || ''}" placeholder="Ex: Professor(a)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Cônjuge</label>
+            <input type="text" id="edit360-conjuge" value="${m.conjuge || ''}" placeholder="Nome do cônjuge" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Data Casamento</label>
+            <input type="date" id="edit360-data-casamento" value="${m.data_casamento || ''}" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white" />
+          </div>
+        </div>
         <div class="flex justify-end">
           <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl shadow transition">
             💾 Salvar Alterações na Ficha 360º
@@ -5440,6 +5454,9 @@ async function salvarEdicaoMembro360(e, membroId) {
     celula_id: document.getElementById('edit360-celula').value || null,
     telefone: document.getElementById('edit360-tel').value,
     familia: document.getElementById('edit360-familia').value,
+    profissao: document.getElementById('edit360-profissao') ? document.getElementById('edit360-profissao').value : '',
+    conjuge: document.getElementById('edit360-conjuge') ? document.getElementById('edit360-conjuge').value : '',
+    data_casamento: document.getElementById('edit360-data-casamento') ? document.getElementById('edit360-data-casamento').value : '',
     observacoes: document.getElementById('edit360-obs').value
   });
   closeModal();
@@ -7345,6 +7362,9 @@ function abrirNovoCadastroMembro() {
   const statusCep = document.getElementById('status-cep-mem');
   if (statusCep) statusCep.textContent = '';
   if (document.getElementById('mem-observacoes')) document.getElementById('mem-observacoes').value = '';
+  if (document.getElementById('mem-profissao')) document.getElementById('mem-profissao').value = '';
+  if (document.getElementById('mem-conjuge')) document.getElementById('mem-conjuge').value = '';
+  if (document.getElementById('mem-data-casamento')) document.getElementById('mem-data-casamento').value = '';
 
   switchSecretariaSubtab('cadastro');
   setTimeout(() => {
@@ -7371,6 +7391,9 @@ function editarMembro(id) {
   if (document.getElementById('mem-nascimento')) document.getElementById('mem-nascimento').value = m.data_nascimento || '';
   if (document.getElementById('mem-genero')) document.getElementById('mem-genero').value = m.genero || 'Masculino';
   if (document.getElementById('mem-estado-civil')) document.getElementById('mem-estado-civil').value = m.estado_civil || 'Casado(a)';
+  if (document.getElementById('mem-profissao')) document.getElementById('mem-profissao').value = m.profissao || '';
+  if (document.getElementById('mem-conjuge')) document.getElementById('mem-conjuge').value = m.conjuge || '';
+  if (document.getElementById('mem-data-casamento')) document.getElementById('mem-data-casamento').value = m.data_casamento || '';
   if (document.getElementById('mem-telefone')) document.getElementById('mem-telefone').value = m.telefone || '';
   if (document.getElementById('mem-email')) document.getElementById('mem-email').value = m.email || '';
   if (document.getElementById('mem-cidade-nasc')) document.getElementById('mem-cidade-nasc').value = m.cidade_nascimento || '';
@@ -7430,7 +7453,7 @@ function popularSelectsCadastroMembro() {
   if (selMin) {
     const valAtual = selMin.value;
     const mins = STATE.ministerios || [];
-    selMin.innerHTML = '<option value="">-- Selecione o ministério principal --</option>' + 
+    selMin.innerHTML = '<option value="">-- Selecione o Ministério --</option>' + 
       mins.map(m => `<option value="${m.id}">${m.nome} (Líder: ${m.lider || 'Geral'})</option>`).join('');
     if (valAtual) selMin.value = valAtual;
   }
@@ -7497,6 +7520,9 @@ async function salvarMembro(e) {
     data_nascimento: document.getElementById('mem-nascimento')?.value || '',
     genero: document.getElementById('mem-genero')?.value || 'Masculino',
     estado_civil: document.getElementById('mem-estado-civil')?.value || 'Casado(a)',
+    profissao: (document.getElementById('mem-profissao')?.value || '').trim(),
+    conjuge: (document.getElementById('mem-conjuge')?.value || '').trim(),
+    data_casamento: document.getElementById('mem-data-casamento')?.value || '',
     telefone: (document.getElementById('mem-telefone')?.value || '').trim(),
     email: (document.getElementById('mem-email')?.value || '').trim(),
     cidade_nascimento: (document.getElementById('mem-cidade-nasc')?.value || '').trim(),
