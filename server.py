@@ -6005,9 +6005,13 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     solic_nome = row.get("solicitante_nome", "Membro")
                     cod_str = f"[{row.get('codigo')}] " if row.get("codigo") else ""
 
+                    import unicodedata
+                    def remover_acentos(t):
+                        return "".join(c for c in unicodedata.normalize('NFKD', str(t)) if not unicodedata.combining(c))
+
                     if tipo == "setor":
                         dest_nome = row.get("responsavel_setor", "Líder do Setor")
-                        texto_sms = f"[PIB Parque SP] Olá {dest_nome}! Nova solicitação de empréstimo de {cod_str}{item_nome} para {solic_nome}. Favor autorizar no sistema: {base_url}/#patrimonio"
+                        texto_sms = remover_acentos(f"[PIB Parque SP] Ola {dest_nome}! Nova solicitacao de emprestimo de {cod_str}{item_nome} para {solic_nome}. Favor autorizar no sistema: {base_url}/#patrimonio")
                         cur.execute("""
                             UPDATE patrimonio_emprestimos 
                             SET notificacao_sms_setor_enviada = 1, data_sms_setor = ?, 
@@ -6017,7 +6021,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                         """, (agora_str, tel_dest, f"SMS Setor enviado para {tel_dest} em {agora_str}", emp_id))
                     elif tipo == "patrimonio":
                         dest_nome = row.get("responsavel_patrimonio", "Marcos Silva (Patrimônio)")
-                        texto_sms = f"[PIB Parque SP] Olá {dest_nome}! O Setor APROVOU o empréstimo de {cod_str}{item_nome} para {solic_nome}. Favor efetivar liberação patrimonial: {base_url}/#patrimonio"
+                        texto_sms = remover_acentos(f"[PIB Parque SP] Ola {dest_nome}! O Setor APROVOU o emprestimo de {cod_str}{item_nome} para {solic_nome}. Favor efetivar liberacao patrimonial: {base_url}/#patrimonio")
                         cur.execute("""
                             UPDATE patrimonio_emprestimos 
                             SET notificacao_sms_patrimonio_enviada = 1, data_sms_patrimonio = ?, 
@@ -6028,7 +6032,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     else:
                         dest_nome = solic_nome
                         link_assinatura = f"{base_url}/assinar-emprestimo?id={emp_id}"
-                        texto_sms = f"[PIB Parque SP] Olá {dest_nome}! Seu empréstimo de {cod_str}{item_nome} foi APROVADO! Assine o termo digital no celular com o dedo: {link_assinatura}"
+                        texto_sms = remover_acentos(f"[PIB Parque SP] Ola {dest_nome}! Seu emprestimo de {cod_str}{item_nome} foi APROVADO! Assine o termo digital no celular com o dedo: {link_assinatura}")
                         cur.execute("""
                             UPDATE patrimonio_emprestimos 
                             SET ultimo_aviso_sms = ?
