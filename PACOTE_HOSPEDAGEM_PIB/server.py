@@ -2954,6 +2954,22 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
             self.send_json(build_bootstrap_data(self))
             return
 
+        if path == "/api/sistema/backup-db":
+            with db_lock:
+                conn = get_db()
+                conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+                conn.commit()
+                conn.close()
+                with open(DB_PATH, "rb") as f_db:
+                    db_bytes = f_db.read()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Disposition", 'attachment; filename="igreja_erp_backup.db"')
+            self.send_header("Content-Length", str(len(db_bytes)))
+            self.end_headers()
+            self.wfile.write(db_bytes)
+            return
+
 
 
         if path == "/api/atas":
@@ -5095,17 +5111,17 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
                     if ata_id:
-                    # Preserva pauta, conteudo e observações existentes caso venham vazios no payload
-                    row_ata_antiga = cur.execute("SELECT * FROM atas WHERE id=?", (ata_id,)).fetchone()
-                    if row_ata_antiga:
-                        if not conteudo and row_ata_antiga["conteudo"]:
-                            conteudo = row_ata_antiga["conteudo"]
-                        if not pauta and row_ata_antiga["pauta"]:
-                            pauta = row_ata_antiga["pauta"]
-                        if not observacoes and row_ata_antiga["observacoes"]:
-                            observacoes = row_ata_antiga["observacoes"]
+                        # Preserva pauta, conteudo e observacoes existentes caso venham vazios no payload
+                        row_ata_antiga = cur.execute("SELECT * FROM atas WHERE id=?", (ata_id,)).fetchone()
+                        if row_ata_antiga:
+                            if not conteudo and row_ata_antiga["conteudo"]:
+                                conteudo = row_ata_antiga["conteudo"]
+                            if not pauta and row_ata_antiga["pauta"]:
+                                pauta = row_ata_antiga["pauta"]
+                            if not observacoes and row_ata_antiga["observacoes"]:
+                                observacoes = row_ata_antiga["observacoes"]
 
-                    if remover_anexo:
+                        if remover_anexo:
 
                             cur.execute(
 
@@ -6541,10 +6557,8 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                     return self.send_json({"ok": True, "mensagem": "Senha alterada com sucesso! Seu acesso seguro está liberado."})
 
-
-
-                                elif path == "/api/sistema/backup-db":
-                    # Exporta cópia de segurança 100% íntegra do banco SQLite
+                elif path == "/api/sistema/backup-db":
+                    # Exporta copia de seguranca integra do banco SQLite
                     with db_lock:
                         conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
                         conn.commit()
@@ -6567,7 +6581,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                             raw_db = base64.b64decode(b64_db)
                     if not raw_db:
                         conn.close()
-                        return self.send_json({"ok": False, "mensagem": "Arquivo de banco de dados não informado."}, 400)
+                        return self.send_json({"ok": False, "mensagem": "Arquivo de banco de dados nao informado."}, 400)
                     with db_lock:
                         conn.close()
                         if os.path.exists(DB_PATH):
@@ -6575,7 +6589,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                         with open(DB_PATH, "wb") as f_db:
                             f_db.write(raw_db)
                     conn_new = get_db()
-                    log_auditoria(conn_new, operador, "Sistema", "Restauração de Backup", "Banco de dados restaurado pelo administrador.")
+                    log_auditoria(conn_new, operador, "Sistema", "Restauracao de Backup", "Banco de dados restaurado pelo administrador.")
                     conn_new.commit()
                     conn_new.close()
                     broadcast_event("sync", {"setor": "Sistema", "operador": operador, "mensagem": "Banco de dados restaurado com sucesso."})
@@ -6589,13 +6603,15 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                         "UPDATE patrimonio_emprestimos SET observacoes_saida = ?, observacoes_retorno = ? WHERE id = ?",
                         (obs_saida, obs_retorno, emp_id)
                     )
-                    log_auditoria(conn, operador, "Patrimônio", "Atualização de Considerações", f"Atualizou observações/considerações do empréstimo #{emp_id}")
+                    log_auditoria(conn, operador, "Patrimonio", "Atualizacao de Consideracoes", f"Atualizou observacoes/consideracoes do emprestimo #{emp_id}")
                     conn.commit()
                     conn.close()
-                    broadcast_event("sync", {"setor": "Patrimônio", "operador": operador, "mensagem": f"{operador} atualizou observações do empréstimo #{emp_id}."})
-                    return self.send_json({"ok": True, "mensagem": "Considerações atualizadas com sucesso!"})
+                    broadcast_event("sync", {"setor": "Patrimonio", "operador": operador, "mensagem": f"{operador} atualizou observacoes do emprestimo #{emp_id}."})
+                    return self.send_json({"ok": True, "mensagem": "Consideracoes atualizadas com sucesso!"})
 
-elif path == "/api/usuarios/resetar-senha":
+
+
+                elif path == "/api/usuarios/resetar-senha":
 
                     user_id = int(body.get("id", 0))
 
