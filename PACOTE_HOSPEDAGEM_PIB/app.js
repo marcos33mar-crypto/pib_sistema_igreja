@@ -6203,20 +6203,10 @@ function renderPatrimonioEmprestimos() {
               ${aprovSetorOk ? `
                 <span class="font-bold text-emerald-700 block mt-0.5">✓ Aprovado por ${e.operador_aprovador_setor || 'Setor'}</span>
               ` : `
-                <div class="mt-1 space-y-1">
-                  <button onclick="aprovarEmprestimoSetor(${e.id})" class="w-full px-2 py-1 rounded bg-amber-600 hover:bg-amber-700 text-white font-bold text-[10px] shadow-sm transition">
-                    Dar Aprovação do Setor
-                  </button>
-                  <button onclick="abrirModalEnvioSMS(${e.id}, 'setor')" class="w-full px-2 py-0.5 rounded bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-[9px] border border-amber-300 transition flex items-center justify-center gap-1" title="Enviar SMS/WhatsApp para o responsável do setor">
-                    <span>💬</span> ${e.notificacao_sms_setor_enviada ? 'Reenviar SMS Setor' : 'Notificar SMS Setor'}
-                  </button>
-                </div>
+                <button onclick="aprovarEmprestimoSetor(${e.id})" class="mt-1 w-full px-2 py-1 rounded bg-amber-600 hover:bg-amber-700 text-white font-bold text-[10px] shadow-sm transition">
+                  Dar Aprovação do Setor
+                </button>
               `}
-              ${e.notificacao_sms_setor_enviada ? `
-                <span class="text-[9px] text-amber-800 font-semibold block mt-0.5" title="${e.ultimo_aviso_sms || ''}">
-                  💬 SMS enviado ${e.data_sms_setor ? `em ${e.data_sms_setor}` : ''}
-                </span>
-              ` : ''}
             </div>
 
             <!-- 2º OK: Patrimônio (Depende estritamente do OK prévio do Setor) -->
@@ -6230,20 +6220,10 @@ function renderPatrimonioEmprestimos() {
                   <span>🔒</span> Aguarda Liberação do Setor
                 </div>
               ` : `
-                <div class="mt-1 space-y-1">
-                  <button onclick="darOkEmprestimoPatrimonio(${e.id})" class="w-full px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] shadow-sm transition flex items-center justify-center gap-1 animate-pulse">
-                    <span>✓</span> Dar OK do Patrimônio
-                  </button>
-                  <button onclick="abrirModalEnvioSMS(${e.id}, 'patrimonio')" class="w-full px-2 py-0.5 rounded bg-blue-100 hover:bg-blue-200 text-blue-900 font-bold text-[9px] border border-blue-300 transition flex items-center justify-center gap-1" title="Enviar SMS/WhatsApp para o responsável do patrimônio">
-                    <span>💬</span> ${e.notificacao_sms_patrimonio_enviada ? 'Reenviar SMS Patrimônio' : 'Notificar SMS Patrimônio'}
-                  </button>
-                </div>
+                <button onclick="darOkEmprestimoPatrimonio(${e.id})" class="mt-1 w-full px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] shadow-sm transition flex items-center justify-center gap-1 animate-pulse">
+                  <span>✓</span> Dar OK do Patrimônio
+                </button>
               `}
-              ${e.notificacao_sms_patrimonio_enviada ? `
-                <span class="text-[9px] text-blue-800 font-semibold block mt-0.5" title="${e.ultimo_aviso_sms || ''}">
-                  💬 SMS enviado ${e.data_sms_patrimonio ? `em ${e.data_sms_patrimonio}` : ''}
-                </span>
-              ` : ''}
             </div>
           </div>
         </td>
@@ -6334,9 +6314,6 @@ function renderPatrimonioEmprestimos() {
         <!-- 7. Ações -->
         <td class="py-3 px-3 text-right">
           <div class="flex items-center justify-end gap-1.5">
-            <button onclick="abrirModalEnvioSMS(${e.id}, 'setor')" class="p-2 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-lg transition" title="Enviar Notificação SMS aos Responsáveis">
-              💬
-            </button>
             <button onclick="abrirModalAssinaturaDigital(${e.id})" class="p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition" title="Abrir QR Code / Assinatura no Celular">
               📱
             </button>
@@ -6400,31 +6377,6 @@ function aoDigitarNomeRetirante(nomeVal) {
   } else {
     if (badgeMembro) badgeMembro.innerHTML = '';
   }
-}
-
-function buscarTelefonePorNome(nome) {
-  if (!nome) return '';
-  const nomeLimpo = nome.toLowerCase().split('(')[0].trim();
-  const membro = (STATE.membros || []).find(m => {
-    const mNome = (m.nome || '').toLowerCase();
-    return mNome === nomeLimpo || mNome.includes(nomeLimpo) || nomeLimpo.includes(mNome);
-  });
-  if (membro && membro.telefone) return membro.telefone;
-  return '';
-}
-
-function aoMudarResponsavelSetor(nome) {
-  const inpTel = document.getElementById('emp-telefone-resp-setor');
-  if (!inpTel) return;
-  const tel = buscarTelefonePorNome(nome);
-  if (tel) inpTel.value = tel;
-}
-
-function aoMudarResponsavelPatrimonio(nome) {
-  const inpTel = document.getElementById('emp-telefone-resp-patrimonio');
-  if (!inpTel) return;
-  const tel = buscarTelefonePorNome(nome);
-  if (tel) inpTel.value = tel;
 }
 
 function abrirModalNovoEmprestimoPatrimonio(preSelectPatId = null) {
@@ -6565,39 +6517,20 @@ function abrirModalNovoEmprestimoPatrimonio(preSelectPatId = null) {
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div class="space-y-1">
+            <div>
               <label class="font-semibold text-slate-700 block mb-1">Responsável pelo Setor / Item (Cadastro) *</label>
-              <select id="emp-resp-setor" required onchange="aoMudarResponsavelSetor(this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-xs font-semibold focus:ring-2 focus:ring-indigo-500">
+              <select id="emp-resp-setor" required class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-xs font-semibold focus:ring-2 focus:ring-indigo-500">
                 ${responsaveisSetor.map(r => `<option value="${r}">${r}</option>`).join('')}
               </select>
-              <div class="flex items-center gap-1.5 mt-1">
-                <span class="text-[10px] text-slate-500 font-bold whitespace-nowrap">📱 SMS Setor:</span>
-                <input type="text" id="emp-telefone-resp-setor" placeholder="(11) 98765-4321" class="w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono bg-white" />
-              </div>
-              <span class="text-[10px] text-slate-400 block">Líder ou encarregado cadastrado no bem</span>
+              <span class="text-[10px] text-slate-500 mt-0.5 block">Líder ou encarregado cadastrado no bem</span>
             </div>
-            <div class="space-y-1">
+            <div>
               <label class="font-semibold text-slate-700 block mb-1">Responsável pelo Patrimônio (Cadastro) *</label>
-              <select id="emp-resp-patrimonio" required onchange="aoMudarResponsavelPatrimonio(this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-xs font-semibold focus:ring-2 focus:ring-indigo-500">
+              <select id="emp-resp-patrimonio" required class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-xs font-semibold focus:ring-2 focus:ring-indigo-500">
                 ${responsaveisPatrimonio.map(r => `<option value="${r}">${r}</option>`).join('')}
               </select>
-              <div class="flex items-center gap-1.5 mt-1">
-                <span class="text-[10px] text-slate-500 font-bold whitespace-nowrap">📱 SMS Patrimônio:</span>
-                <input type="text" id="emp-telefone-resp-patrimonio" placeholder="(11) 98765-4321" class="w-full border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono bg-white" />
-              </div>
-              <span class="text-[10px] text-slate-400 block">Gestor de patrimônio autorizado</span>
+              <span class="text-[10px] text-slate-500 mt-0.5 block">Gestor de patrimônio autorizado</span>
             </div>
-          </div>
-
-          <!-- AVISO AUTOMÁTICO POR SMS -->
-          <div class="p-3 bg-gradient-to-r from-sky-50 to-indigo-50/50 rounded-xl border border-sky-200 text-xs text-sky-950 space-y-1.5">
-            <label class="flex items-center gap-2 cursor-pointer font-bold text-sky-950">
-              <input type="checkbox" id="emp-check-sms-setor" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500" />
-              <span>💬 Enviar aviso automático por SMS ao Responsável do Setor para liberação</span>
-            </label>
-            <p class="text-[11px] text-sky-800 leading-tight pl-6">
-              Ao salvar, o sistema dispara a notificação via SMS/WhatsApp com link direto para o responsável analisar e aprovar o empréstimo pelo celular.
-            </p>
           </div>
 
           <div class="p-3.5 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-950 space-y-1.5">
@@ -6630,14 +6563,6 @@ function abrirModalNovoEmprestimoPatrimonio(preSelectPatId = null) {
   `;
 
   abrirModalCustom(html, false, 'largo');
-
-  // Pré-preenche telefones dos responsáveis se encontrados
-  setTimeout(() => {
-    const selSetor = document.getElementById('emp-resp-setor');
-    if (selSetor && selSetor.value) aoMudarResponsavelSetor(selSetor.value);
-    const selPat = document.getElementById('emp-resp-patrimonio');
-    if (selPat && selPat.value) aoMudarResponsavelPatrimonio(selPat.value);
-  }, 50);
 
   if (preSelectPatId) {
     setTimeout(() => {
@@ -6703,23 +6628,14 @@ async function salvarNovoEmprestimoPatrimonio(e) {
     data_retirada: document.getElementById('emp-data-retirada')?.value || '',
     previsao_devolucao: document.getElementById('emp-data-previsao')?.value || '',
     responsavel_setor: document.getElementById('emp-resp-setor')?.value || '',
-    responsavel_patrimonio: document.getElementById('emp-resp-patrimonio')?.value || 'Marcos Silva (Administração / Patrimônio)',
-    telefone_responsavel_setor: document.getElementById('emp-telefone-resp-setor')?.value || '',
-    telefone_responsavel_patrimonio: document.getElementById('emp-telefone-resp-patrimonio')?.value || '',
-    enviar_sms_setor_agora: document.getElementById('emp-check-sms-setor')?.checked || false
+    responsavel_patrimonio: document.getElementById('emp-resp-patrimonio')?.value || 'Marcos Silva (Administração / Patrimônio)'
   };
 
   const { status, data } = await apiPost('/api/patrimonio/emprestimo', payload);
   if (status === 200) {
     fecharModalCustom();
     await fetchBootstrap();
-    if (payload.enviar_sms_setor_agora && data.id) {
-      setTimeout(() => {
-        abrirModalEnvioSMS(data.id, 'setor');
-      }, 250);
-    } else {
-      alert('✓ Solicitação de empréstimo registrada com sucesso!\n\nStatus: Aguardando Aprovação do Setor Responsável.');
-    }
+    alert('✓ Solicitação de empréstimo registrada com sucesso!\n\nStatus: Aguardando Aprovação do Setor Responsável.');
   } else {
     alert(data.erro || 'Erro ao registrar empréstimo');
   }
@@ -7000,218 +6916,6 @@ function imprimirTermoEmprestimo(id) {
   `;
 
   abrirModalCustom(html, true, 'largo');
-}
-
-function abrirModalEnvioSMS(id, tipoInicial = 'setor') {
-  const lista = STATE.patrimonio_emprestimos || [];
-  const emp = lista.find(e => Number(e.id) === Number(id));
-  if (!emp) {
-    alert('Registro de empréstimo não encontrado.');
-    return;
-  }
-
-  // Origem do sistema para o link (garante link na nuvem Render se acessado na nuvem)
-  const origem = window.location.origin.includes('localhost') ? 'https://pib-parque-sp.onrender.com' : window.location.origin;
-
-  const html = `
-    <div class="space-y-4 text-xs">
-      <div class="flex items-center justify-between border-b pb-3">
-        <div class="flex items-center gap-2">
-          <span class="p-2 bg-sky-100 text-sky-700 rounded-xl text-lg">💬</span>
-          <div>
-            <h3 class="text-sm font-extrabold text-slate-800">Aviso Automático por SMS aos Responsáveis</h3>
-            <p class="text-[11px] text-slate-500">${emp.codigo ? `[${emp.codigo}] ` : ''}${emp.item} • Solicitante: <strong>${emp.solicitante_nome}</strong></p>
-          </div>
-        </div>
-        <button type="button" onclick="fecharModalCustom()" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
-      </div>
-
-      <!-- SELETOR DE DESTINATÁRIO -->
-      <div class="flex items-center gap-2 p-1 bg-slate-100 rounded-xl">
-        <button type="button" id="tab-sms-setor" onclick="selecionarDestinatarioSMS(${emp.id}, 'setor')" class="flex-1 py-1.5 px-3 rounded-lg font-bold text-xs transition ${tipoInicial === 'setor' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-800'}">
-          1. Resp. do Setor
-        </button>
-        <button type="button" id="tab-sms-patrimonio" onclick="selecionarDestinatarioSMS(${emp.id}, 'patrimonio')" class="flex-1 py-1.5 px-3 rounded-lg font-bold text-xs transition ${tipoInicial === 'patrimonio' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-800'}">
-          2. Resp. do Patrimônio
-        </button>
-        <button type="button" id="tab-sms-solicitante" onclick="selecionarDestinatarioSMS(${emp.id}, 'solicitante')" class="flex-1 py-1.5 px-3 rounded-lg font-bold text-xs transition ${tipoInicial === 'solicitante' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-800'}">
-          3. Solicitante / Assinatura
-        </button>
-      </div>
-
-      <!-- FORMULÁRIO DINÂMICO DE DISPARO -->
-      <div id="box-conteudo-sms" class="space-y-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
-        <!-- Renderizado dinamicamente -->
-      </div>
-    </div>
-  `;
-
-  abrirModalCustom(html, false, 'medio');
-  setTimeout(() => {
-    selecionarDestinatarioSMS(emp.id, tipoInicial);
-  }, 50);
-}
-
-function selecionarDestinatarioSMS(empId, tipo) {
-  const lista = STATE.patrimonio_emprestimos || [];
-  const emp = lista.find(e => Number(e.id) === Number(empId));
-  if (!emp) return;
-
-  // Atualiza abas
-  ['setor', 'patrimonio', 'solicitante'].forEach(t => {
-    const btn = document.getElementById(`tab-sms-${t}`);
-    if (btn) {
-      if (t === tipo) {
-        btn.className = 'flex-1 py-1.5 px-3 rounded-lg font-bold text-xs transition bg-white shadow text-indigo-700 border border-slate-200';
-      } else {
-        btn.className = 'flex-1 py-1.5 px-3 rounded-lg font-bold text-xs transition text-slate-500 hover:text-slate-800';
-      }
-    }
-  });
-
-  const origem = window.location.origin.includes('localhost') ? 'https://pib-parque-sp.onrender.com' : window.location.origin;
-  const codStr = emp.codigo ? `[${emp.codigo}] ` : '';
-
-  let nomeDest = '';
-  let papelDest = '';
-  let telPadrao = '';
-  let textoMsg = '';
-
-  if (tipo === 'setor') {
-    nomeDest = emp.responsavel_setor || 'Responsável do Setor';
-    papelDest = 'Responsável pelo Setor / Origem do Bem';
-    telPadrao = emp.telefone_responsavel_setor || buscarTelefonePorNome(emp.responsavel_setor) || '';
-    textoMsg = `[PIB Parque SP] Ola ${nomeDest}! Nova solicitacao de emprestimo de ${codStr}${emp.item} para ${emp.solicitante_nome}. Favor acessar o sistema para liberar: ${origem}/#patrimonio`;
-  } else if (tipo === 'patrimonio') {
-    nomeDest = emp.responsavel_patrimonio || 'Marcos Silva (Patrimônio)';
-    papelDest = 'Responsável pela Gestão de Patrimônio';
-    telPadrao = emp.telefone_responsavel_patrimonio || buscarTelefonePorNome(emp.responsavel_patrimonio) || '(11) 98765-4321';
-    textoMsg = `[PIB Parque SP] Ola ${nomeDest}! O Setor APROVOU o emprestimo de ${codStr}${emp.item} para ${emp.solicitante_nome}. Favor acessar para efetivar liberacao: ${origem}/#patrimonio`;
-  } else {
-    nomeDest = emp.solicitante_nome || 'Retirante';
-    papelDest = 'Solicitante / Pessoa que irá retirar o item';
-    telPadrao = emp.solicitante_telefone || '';
-    const linkAssinatura = `${origem}/assinar-emprestimo?id=${emp.id}`;
-    textoMsg = `[PIB Parque SP] Ola ${nomeDest}! Seu emprestimo de ${codStr}${emp.item} foi APROVADO! Assine o termo digital no celular com o dedo: ${linkAssinatura}`;
-  }
-
-  const box = document.getElementById('box-conteudo-sms');
-  if (!box) return;
-
-  box.innerHTML = `
-    <div class="space-y-3">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <div>
-          <label class="font-bold text-slate-700 block mb-0.5">Destinatário</label>
-          <input type="text" id="sms-campo-nome" readonly value="${nomeDest}" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-slate-100 font-bold text-slate-800 text-xs" />
-          <span class="text-[10px] text-slate-400">${papelDest}</span>
-        </div>
-        <div>
-          <label class="font-bold text-slate-700 block mb-0.5">Telefone Celular (com DDD) *</label>
-          <input type="text" id="sms-campo-telefone" value="${telPadrao}" placeholder="(11) 98765-4321" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-mono font-bold text-slate-900 text-xs focus:ring-2 focus:ring-sky-500" />
-          <span class="text-[10px] text-slate-400">Pode alterar ou digitar novo número</span>
-        </div>
-      </div>
-
-      <div>
-        <div class="flex items-center justify-between mb-0.5">
-          <label class="font-bold text-slate-700 block">Texto da Mensagem SMS</label>
-          <span id="sms-contador-caracteres" class="text-[10px] text-slate-400 font-mono">${textoMsg.length} caracteres</span>
-        </div>
-        <textarea id="sms-campo-mensagem" rows="3" oninput="document.getElementById('sms-contador-caracteres').innerText = this.value.length + ' caracteres'" class="w-full border border-slate-300 rounded-lg p-2.5 bg-white text-xs text-slate-800 focus:ring-2 focus:ring-sky-500 leading-relaxed">${textoMsg}</textarea>
-        <span class="text-[10px] text-slate-400 block mt-0.5">Formato otimizado sem acentos complexos para 100% de compatibilidade em qualquer operadora móvel.</span>
-      </div>
-
-      <!-- BOTÕES DE DISPARO INTERATIVO -->
-      <div class="pt-2 border-t border-slate-200 space-y-2">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <!-- 1. SMS NATIVO (sms:) -->
-          <button type="button" onclick="dispararSMSNativo(${emp.id}, '${tipo}')" class="py-2.5 px-3 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-extrabold text-xs shadow-md transition flex items-center justify-center gap-2">
-            <span>📲</span> Disparar SMS no Celular
-          </button>
-          
-          <!-- 2. WHATSAPP (api.whatsapp.com) -->
-          <button type="button" onclick="dispararWhatsAppSMS(${emp.id}, '${tipo}')" class="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md transition flex items-center justify-center gap-2">
-            <span>🟢</span> Enviar via WhatsApp
-          </button>
-        </div>
-
-        <div class="flex items-center justify-between pt-1">
-          <button type="button" onclick="copiarTextoSMS()" class="text-xs text-slate-600 hover:text-slate-900 font-semibold inline-flex items-center gap-1">
-            <span>📋</span> Copiar Texto
-          </button>
-          <button type="button" onclick="salvarRegistroSMSNoBackend(${emp.id}, '${tipo}')" class="px-3 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg text-xs transition">
-            💾 Registrar Envio no Sistema
-          </button>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function dispararSMSNativo(empId, tipo) {
-  const fone = (document.getElementById('sms-campo-telefone')?.value || '').trim();
-  const msg = (document.getElementById('sms-campo-mensagem')?.value || '').trim();
-  if (!fone) {
-    alert('Por favor, informe o telefone celular do destinatário.');
-    return;
-  }
-
-  const digitos = fone.replace(/\D/g, '').replace(/^0+/, '');
-  const linkSms = `sms:+55${digitos}?body=${encodeURIComponent(msg)}`;
-
-  // Registra no backend o envio
-  salvarRegistroSMSNoBackend(empId, tipo, false);
-
-  // Abre aplicativo de SMS nativo
-  window.open(linkSms, '_blank');
-}
-
-function dispararWhatsAppSMS(empId, tipo) {
-  const fone = (document.getElementById('sms-campo-telefone')?.value || '').trim();
-  const msg = (document.getElementById('sms-campo-mensagem')?.value || '').trim();
-  if (!fone) {
-    alert('Por favor, informe o telefone celular do destinatário.');
-    return;
-  }
-
-  const digitos = fone.replace(/\D/g, '').replace(/^0+/, '');
-  const linkZap = `https://api.whatsapp.com/send?phone=55${digitos}&text=${encodeURIComponent(msg)}`;
-
-  // Registra no backend o envio
-  salvarRegistroSMSNoBackend(empId, tipo, false);
-
-  // Abre WhatsApp
-  window.open(linkZap, '_blank');
-}
-
-function copiarTextoSMS() {
-  const msg = document.getElementById('sms-campo-mensagem')?.value || '';
-  navigator.clipboard.writeText(msg).then(() => {
-    alert('✓ Texto da notificação copiado para a área de transferência!');
-  });
-}
-
-async function salvarRegistroSMSNoBackend(empId, tipo, avisar = true) {
-  const tel = (document.getElementById('sms-campo-telefone')?.value || '').trim();
-  const msg = (document.getElementById('sms-campo-mensagem')?.value || '').trim();
-
-  const { status, data } = await apiPost('/api/patrimonio/emprestimo/enviar-sms', {
-    id: empId,
-    tipo: tipo,
-    telefone: tel,
-    mensagem: msg
-  });
-
-  if (status === 200) {
-    await fetchBootstrap();
-    if (avisar) {
-      alert(`✓ Aviso SMS registrado com sucesso no sistema para ${data.destinatario || 'o responsável'}!`);
-      fecharModalCustom();
-    }
-  } else if (avisar) {
-    alert(data.erro || 'Erro ao registrar envio de SMS.');
-  }
 }
 
 function abrirModalAssinaturaDigital(id) {
