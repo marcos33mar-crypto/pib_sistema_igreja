@@ -3982,6 +3982,9 @@ function renderBadgesAndKPIs() {
   const badgePat = document.getElementById('badge-patrimonio');
   if (badgePat) badgePat.textContent = (STATE.patrimonio || []).length;
 
+  const badgeUsr = document.getElementById('badge-usuarios');
+  if (badgeUsr) badgeUsr.textContent = (STATE.usuarios || []).length;
+
   const badgeOnl = document.getElementById('online-count-badge');
   if (badgeOnl) badgeOnl.textContent = `${STATE.clientes_conectados || 1} tela(s) ativa(s)`;
 
@@ -7695,6 +7698,9 @@ function renderUsuarios(termoBusca = FILTRO_USUARIOS_TERMO, tipoFiltro = FILTRO_
   if (kpiSenhas) kpiSenhas.textContent = `${totalDefinitivas} protegido(s)`;
   if (kpiPendentes) kpiPendentes.textContent = `${totalPendentes} pendente(s)`;
   if (badgeTotalCad) badgeTotalCad.textContent = `${totalUsers} cadastrado(s)`;
+
+  const badgeMenuUsr = document.getElementById('badge-usuarios');
+  if (badgeMenuUsr) badgeMenuUsr.textContent = totalUsers;
 
   const usrCont = document.getElementById('lista-usuarios');
   if (!usrCont) return;
