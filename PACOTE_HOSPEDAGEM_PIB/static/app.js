@@ -6183,7 +6183,14 @@ function renderPatrimonioEmprestimos() {
               <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200">
                 <span>🔍</span> ${e.condicao_saida || 'Bom Estado'}
               </span>
-              ${e.observacoes_saida ? `<p class="text-[10px] text-slate-400 mt-0.5 italic max-w-xs truncate" title="${e.observacoes_saida}">"${e.observacoes_saida}"</p>` : ''}
+              ${e.observacoes_saida ? `
+                <div class="mt-1 text-[10px] text-amber-900 bg-amber-50/90 p-1.5 rounded-lg border border-amber-200 leading-snug">
+                  <strong>📝 Considerações na Saída:</strong> ${e.observacoes_saida}
+                </div>
+              ` : ''}
+              <button type="button" onclick="abrirModalEditarConsideracoesEmprestimo(${e.id})" class="text-[9px] text-indigo-600 hover:text-indigo-800 font-bold block mt-0.5 hover:underline cursor-pointer">
+                ✏️ Editar Considerações
+              </button>
             </div>
           </div>
         </td>
@@ -6335,6 +6342,11 @@ function renderPatrimonioEmprestimos() {
                 <div class="text-[10px] text-slate-600 space-y-0.5 pt-0.5">
                   <div>Retorno: <strong class="text-slate-800 font-mono">${formatarDataHora(e.data_devolucao_real)}</strong></div>
                   <div>Vistoria: <strong class="text-emerald-800">${e.condicao_retorno || 'Excelente'}</strong></div>
+                      ${e.observacoes_retorno ? `
+                        <div class="mt-1 text-[10px] text-emerald-950 bg-emerald-100/80 p-1.5 rounded-lg border border-emerald-300 leading-snug">
+                          <strong>🔍 Considerações da Vistoria:</strong> ${e.observacoes_retorno}
+                        </div>
+                      ` : ''}
                   <div class="text-[9px] text-slate-500">Conferido por Setor e Patrimônio</div>
                 </div>
               </div>
@@ -7322,6 +7334,7 @@ function abrirNovoCadastroMembro() {
 
   const statusCep = document.getElementById('status-cep-mem');
   if (statusCep) statusCep.textContent = '';
+  if (document.getElementById('mem-observacoes')) document.getElementById('mem-observacoes').value = '';
 
   switchSecretariaSubtab('cadastro');
   setTimeout(() => {
@@ -7363,6 +7376,7 @@ function editarMembro(id) {
   if (document.getElementById('mem-cargo')) document.getElementById('mem-cargo').value = m.cargo_eclesiastico || 'Membro';
   if (document.getElementById('mem-status')) document.getElementById('mem-status').value = m.status || 'Ativo';
   if (document.getElementById('mem-sala-ebd')) document.getElementById('mem-sala-ebd').value = m.sala_ebd || '';
+  if (document.getElementById('mem-observacoes')) document.getElementById('mem-observacoes').value = m.observacoes || '';
 
   popularSelectsCadastroMembro();
   if (document.getElementById('mem-celula')) document.getElementById('mem-celula').value = m.celula_id || '';
@@ -7490,7 +7504,8 @@ async function salvarMembro(e) {
     sala_ebd: (document.getElementById('mem-sala-ebd')?.value || '').trim(),
     celula_id: document.getElementById('mem-celula')?.value ? parseInt(document.getElementById('mem-celula').value) : null,
     ministerio_id: document.getElementById('mem-ministerio')?.value ? parseInt(document.getElementById('mem-ministerio').value) : null,
-    funcao_ministerio: (document.getElementById('mem-funcao-min')?.value || 'Voluntário').trim()
+    funcao_ministerio: (document.getElementById('mem-funcao-min')?.value || 'Voluntário').trim(),
+    observacoes: (document.getElementById('mem-observacoes')?.value || '').trim()
   };
 
   if (!payload.nome) {
@@ -16674,6 +16689,19 @@ function filtrarAtas() {
               </p>
 
             ` : ''}
+            ${a.conteudo ? `
+              <div class="text-xs text-slate-700 bg-violet-50/60 p-3 rounded-xl border border-violet-200/80 whitespace-pre-line leading-relaxed">
+                <span class="text-violet-950 font-bold block text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1">
+                  <span>📜</span> Considerações & Deliberações da Ata:
+                </span>
+                ${a.conteudo}
+              </div>
+            ` : ''}
+            ${a.observacoes ? `
+              <div class="text-[11px] text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                <span class="text-slate-500 font-bold">Observações / Considerações Adicionais:</span> ${a.observacoes}
+              </div>
+            ` : ''}
 
 
 
@@ -16780,6 +16808,7 @@ async function salvarAta(e) {
   const presidente = document.getElementById('ata-presidente')?.value?.trim();
 
   const pauta = document.getElementById('ata-pauta')?.value?.trim();
+  const conteudo = document.getElementById('ata-conteudo')?.value?.trim() || '';
 
   const observacoes = document.getElementById('ata-observacoes')?.value?.trim();
 
@@ -16825,9 +16854,7 @@ async function salvarAta(e) {
 
     presidente,
 
-    pauta,
-
-    observacoes
+    pauta, conteudo, observacoes
 
   };
 
@@ -16952,6 +16979,7 @@ function editarAta(id) {
   document.getElementById('ata-presidente').value = ata.presidente || '';
 
   document.getElementById('ata-pauta').value = ata.pauta || '';
+  if (document.getElementById('ata-conteudo')) document.getElementById('ata-conteudo').value = ata.conteudo || '';
 
   document.getElementById('ata-observacoes').value = ata.observacoes || '';
 
@@ -17054,6 +17082,8 @@ function cancelarEdicaoAta() {
   const elPauta = document.getElementById('ata-pauta');
 
   if (elPauta) elPauta.value = '';
+  const elCnt = document.getElementById('ata-conteudo');
+  if (elCnt) elCnt.value = '';
 
   const elObs = document.getElementById('ata-observacoes');
 

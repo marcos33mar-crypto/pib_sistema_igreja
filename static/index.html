@@ -18760,6 +18760,16 @@
 
 
               </div>
+            <!-- LINHA 4.1: TEXTO INTEGRAL / CONSIDERAÇÕES DA ATA -->
+            <div>
+              <label class="font-bold text-slate-700 block mb-1">Considerações da Reunião & Texto Integral da Ata</label>
+              <textarea
+                id="ata-conteudo"
+                rows="4"
+                placeholder="Considerações finais, votos, homologações, manifestações e texto completo da ata..."
+                class="w-full border border-slate-300 rounded-xl p-3 bg-white text-slate-800 focus:ring-2 focus:ring-violet-500 font-sans leading-relaxed"
+              ></textarea>
+            </div>
 
 
 
@@ -22039,6 +22049,11 @@
 
 
               </div>
+            <!-- OBSERVAÇÕES & CONSIDERAÇÕES PASTORAIS DO MEMBRO -->
+            <div class="sm:col-span-2 mt-2">
+              <label class="font-bold text-slate-700 block mb-1">Observações Pastorais, Anotações & Histórico do Membro</label>
+              <textarea id="mem-observacoes" rows="2" placeholder="Anotações pastorais, histórico de discipulado, considerações ministeriais e acompanhamento..." class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white text-slate-800 focus:ring-2 focus:ring-indigo-500 font-medium"></textarea>
+            </div>
 
 
 
@@ -24447,9 +24462,17 @@
 
           <!-- BOTÃO PRINCIPAL DE CADASTRO DE NOVO USUÁRIO -->
           <div class="flex items-center gap-3">
-            <button type="button" onclick="abrirFormularioNovoUsuario()" class="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-extrabold text-sm px-6 py-3.5 rounded-2xl shadow-lg hover:shadow-emerald-500/40 transition-all flex items-center gap-2.5 cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <button type="button" onclick="abrirFormularioNovoUsuario()" class="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-extrabold text-sm px-6 py-3.5 rounded-2xl shadow-lg hover:shadow-emerald-500/40 transition-all flex items-center gap-2.5 cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0">
               <span class="text-xl">➕</span> Cadastrar Novo Usuário
             </button>
+              <a href="/api/sistema/backup-db" target="_blank" download="igreja_erp_backup.db" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-3 rounded-2xl shadow-lg transition flex items-center gap-1.5 cursor-pointer text-xs" title="Baixar cópia de segurança completa do banco de dados (SQLite)">
+                <span>💾</span> Baixar Backup (.db)
+              </a>
+              <button type="button" onclick="abrirModalRestaurarBackup()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold px-4 py-3 rounded-2xl border border-slate-700 transition flex items-center gap-1.5 cursor-pointer text-xs" title="Restaurar banco de dados a partir de arquivo de backup">
+                <span>📥</span> Restaurar Banco
+              </button>
+            </div>
           </div>
         </div>
 
@@ -25965,7 +25988,7 @@
 
 
 
-  <script src="/app.js?v=20261110_v208_alterar_senha"></script>
+  <script src="/app.js?v=20261110_v209_persist_consideracoes"></script>
 
 
 

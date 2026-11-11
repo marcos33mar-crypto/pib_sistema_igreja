@@ -5095,8 +5095,17 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
                     if ata_id:
+                    # Preserva pauta, conteudo e observações existentes caso venham vazios no payload
+                    row_ata_antiga = cur.execute("SELECT * FROM atas WHERE id=?", (ata_id,)).fetchone()
+                    if row_ata_antiga:
+                        if not conteudo and row_ata_antiga["conteudo"]:
+                            conteudo = row_ata_antiga["conteudo"]
+                        if not pauta and row_ata_antiga["pauta"]:
+                            pauta = row_ata_antiga["pauta"]
+                        if not observacoes and row_ata_antiga["observacoes"]:
+                            observacoes = row_ata_antiga["observacoes"]
 
-                        if remover_anexo:
+                    if remover_anexo:
 
                             cur.execute(
 
@@ -5974,6 +5983,10 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     emp_id = int(body["id"])
                     condicao_retorno = body.get("condicao_retorno", "").strip() or "Excelente / Idêntico à Saída"
                     observacoes_retorno = body.get("observacoes_retorno", "").strip()
+                    if not observacoes_retorno:
+                        row_emp_ant = cur.execute("SELECT observacoes_retorno FROM patrimonio_emprestimos WHERE id=?", (emp_id,)).fetchone()
+                        if row_emp_ant and row_emp_ant["observacoes_retorno"]:
+                            observacoes_retorno = row_emp_ant["observacoes_retorno"]
                     data_retorno = body.get("data_devolucao_real", "").strip() or datetime.now().strftime("%Y-%m-%d %H:%M")
                     agora_str = datetime.now().strftime("%d/%m/%Y %H:%M")
 
@@ -6530,7 +6543,59 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
 
-                elif path == "/api/usuarios/resetar-senha":
+                                elif path == "/api/sistema/backup-db":
+                    # Exporta cópia de segurança 100% íntegra do banco SQLite
+                    with db_lock:
+                        conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+                        conn.commit()
+                        with open(DB_PATH, "rb") as f_db:
+                            db_bytes = f_db.read()
+                    conn.close()
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/octet-stream")
+                    self.send_header("Content-Disposition", 'attachment; filename="igreja_erp_backup.db"')
+                    self.send_header("Content-Length", str(len(db_bytes)))
+                    self.end_headers()
+                    self.wfile.write(db_bytes)
+                    return
+
+                elif path == "/api/sistema/restaurar-db":
+                    raw_db = None
+                    if isinstance(body, dict):
+                        b64_db = body.get("database_base64", "")
+                        if b64_db:
+                            raw_db = base64.b64decode(b64_db)
+                    if not raw_db:
+                        conn.close()
+                        return self.send_json({"ok": False, "mensagem": "Arquivo de banco de dados não informado."}, 400)
+                    with db_lock:
+                        conn.close()
+                        if os.path.exists(DB_PATH):
+                            shutil.copy2(DB_PATH, DB_PATH + ".bak")
+                        with open(DB_PATH, "wb") as f_db:
+                            f_db.write(raw_db)
+                    conn_new = get_db()
+                    log_auditoria(conn_new, operador, "Sistema", "Restauração de Backup", "Banco de dados restaurado pelo administrador.")
+                    conn_new.commit()
+                    conn_new.close()
+                    broadcast_event("sync", {"setor": "Sistema", "operador": operador, "mensagem": "Banco de dados restaurado com sucesso."})
+                    return self.send_json({"ok": True, "mensagem": "Banco de dados restaurado com sucesso!"})
+
+                elif path == "/api/patrimonio/emprestimo/atualizar-observacoes":
+                    emp_id = int(body.get("id", 0))
+                    obs_saida = (body.get("observacoes_saida") or "").strip()
+                    obs_retorno = (body.get("observacoes_retorno") or "").strip()
+                    cur.execute(
+                        "UPDATE patrimonio_emprestimos SET observacoes_saida = ?, observacoes_retorno = ? WHERE id = ?",
+                        (obs_saida, obs_retorno, emp_id)
+                    )
+                    log_auditoria(conn, operador, "Patrimônio", "Atualização de Considerações", f"Atualizou observações/considerações do empréstimo #{emp_id}")
+                    conn.commit()
+                    conn.close()
+                    broadcast_event("sync", {"setor": "Patrimônio", "operador": operador, "mensagem": f"{operador} atualizou observações do empréstimo #{emp_id}."})
+                    return self.send_json({"ok": True, "mensagem": "Considerações atualizadas com sucesso!"})
+
+elif path == "/api/usuarios/resetar-senha":
 
                     user_id = int(body.get("id", 0))
 
