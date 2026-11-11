@@ -443,62 +443,8 @@ if (typeof window.linkAssembleia === 'undefined') {
 
 function verificarAcessoRelatorio(relKey, nomeRelatorio = 'este relatório') {
   if (!CURRENT_OPERATOR || CURRENT_OPERATOR?.perfil === 'ADMIN') return true;
-  // Permite acesso irrestrito para emissao geral
   return true;
-}.`);
-
-
-
-
-
-
-
-    alert(`🔒 ACESSO RESTRITO AO RELATÓRIO\n\nO operador '${CURRENT_OPERATOR?.nome || 'atual'}' não possui autorização para emitir ou visualizar o relatório:\n➔ ${nomeRelatorio}\n\nPara solicitar acesso, contate o Administrador Geral no painel 'Controle de Acessos & Usuários'.`);
-
-
-
-
-
-
-
-    return false;
-
-
-
-
-
-
-
-  }
-
-
-
-
-
-
-
-  return true;
-
-
-
-
-
-
-
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 function marcarTodosRelatoriosForm(marcar = true) {
