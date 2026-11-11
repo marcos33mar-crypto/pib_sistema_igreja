@@ -3176,6 +3176,10 @@ function switchTab(tabName) {
 
   if (tabName === 'dashboard') {
     renderDashboard();
+    renderBadgesAndKPIs();
+    if (typeof fetchBootstrap === 'function' && !isFetchingBootstrap) {
+      fetchBootstrap();
+    }
   } else if (tabName === 'atas') {
     renderAtas();
     alternarMenuAtas(MENU_ATAS_ATIVO || 'lista');
@@ -4034,6 +4038,25 @@ function renderBadgesAndKPIs() {
     elOrcMinSub.textContent = `${anoReal}: ${formatBRL(totRealMin)} ➔`;
   }
 
+  // Quadro 4: Membros no Dashboard
+  const elMembrosKpi = document.getElementById('kpi-membros');
+  if (elMembrosKpi) elMembrosKpi.textContent = String(membrosAtivos);
+
+  const elMembrosSubKpi = document.getElementById('kpi-membros-sub');
+  if (elMembrosSubKpi) elMembrosSubKpi.textContent = `${membrosAtivos} ativos em comunhão ➔`;
+
+  // Quadro 5: Pedidos no Dashboard
+  const elReqKpi = document.getElementById('kpi-requisicoes');
+  if (elReqKpi) {
+    elReqKpi.textContent = String(reqPendentes);
+    elReqKpi.className = `text-base sm:text-lg xl:text-xl 2xl:text-2xl font-black tracking-tight truncate whitespace-nowrap ${reqPendentes > 0 ? 'text-rose-600' : 'text-emerald-600'}`;
+  }
+
+  const elReqSubKpi = document.getElementById('kpi-requisicoes-sub');
+  if (elReqSubKpi) {
+    elReqSubKpi.textContent = reqPendentes > 0 ? `${reqPendentes} aguardando aprovação ➔` : 'Nenhum pedido pendente ➔';
+  }
+
   // Mini KPIs na aba Ministérios
   const elMinTotalOrc = document.getElementById('min-painel-total-orc');
   const elMinTotalReal = document.getElementById('min-painel-total-real25');
@@ -4063,19 +4086,141 @@ function renderBadgesAndKPIs() {
 }
 
 function renderDashboard() {
+  const anoAtivo = ANO_MATRIZ_ATIVO || 2026;
+  const resAno = typeof calcularResumoAnoMatriz === 'function' ? calcularResumoAnoMatriz(anoAtivo) : { totalEntradas: 0, totalSaidas: 0, saldoTotal: 0 };
+
   const anoReal = ANO_MIN_REALIZADO || 2025;
   const anoOrc = ANO_MIN_ORCAMENTO || 2026;
   const anoExec = ANO_MIN_EXECUTADO || 2026;
 
+  const membrosList = STATE.membros || [];
+  const membrosTotal = membrosList.length;
+  const membrosAtivos = membrosList.filter(m => m.status === 'Ativo').length;
+
+  const reqList = STATE.requisicoes || [];
+  const reqTotal = reqList.length;
+  const reqPendentes = reqList.filter(r => r.status === 'Pendente').length;
+
+  const visTotal = (STATE.visitantes || []).length;
+  const visNovos = (STATE.visitantes || []).filter(v => v.status_acompanhamento !== 'Integrado como Membro').length;
+
+  const celTotal = (STATE.celulas || []).length;
+  const patTotal = (STATE.patrimonio || []).length;
+  const patDisponiveis = (STATE.patrimonio || []).filter(p => (p.status || 'Disponível') === 'Disponível').length;
+
+  const minsList = STATE.ministerios || [];
+  const totOrcMin = minsList.reduce((a, b) => a + getOrcamentoMinisterio(b, anoOrc), 0);
+  const totRealMin = minsList.reduce((a, b) => a + getRealizadoMinisterio(b, anoReal), 0);
+  const totExecMin = minsList.reduce((a, b) => a + getExecutadoMinisterio(b, anoExec), 0);
+
+  // Sincroniza seletor de exercício da Visão Geral
+  const selDash = document.getElementById('sel-ano-dashboard');
+  if (selDash && Number(selDash.value) !== Number(anoAtivo)) {
+    selDash.value = String(anoAtivo);
+  }
+
+  // 1. Quadro 1: Entradas
+  const lblEnt = document.getElementById('label-kpi-entradas');
+  if (lblEnt) lblEnt.textContent = `Entradas ${anoAtivo}`;
+  const elEnt = document.getElementById('kpi-entradas-2026');
+  if (elEnt) {
+    elEnt.textContent = formatBRL(resAno.totalEntradas);
+    elEnt.title = `Total arrecadado em ${anoAtivo}: ${formatBRL(resAno.totalEntradas)}`;
+  }
+  const elEntSub = document.getElementById('kpi-entradas-sub');
+  if (elEntSub) elEntSub.textContent = `Total arrecadado em ${anoAtivo} ➔`;
+
+  // 2. Quadro 2: Saldo Real
+  const lblSaldo = document.getElementById('label-kpi-saldo');
+  if (lblSaldo) lblSaldo.textContent = `Saldo Real ${anoAtivo}`;
+  const elSaldo = document.getElementById('kpi-saldo');
+  if (elSaldo) {
+    elSaldo.textContent = formatBRL(resAno.saldoTotal);
+    elSaldo.title = `Saldo do Exercício ${anoAtivo}: ${formatBRL(resAno.saldoTotal)}`;
+    elSaldo.className = `text-base sm:text-lg xl:text-xl 2xl:text-2xl font-black tracking-tight truncate whitespace-nowrap ${resAno.saldoTotal >= 0 ? 'text-indigo-600' : 'text-rose-600'}`;
+  }
+  const subSaldo = document.getElementById('kpi-financeiro-sub');
+  if (subSaldo) {
+    subSaldo.textContent = `Saídas ${anoAtivo}: ${formatBRL(resAno.totalSaidas)} ➔`;
+  }
+
+  // 3. Quadro 3: Orçamento 15 Ministérios
+  const elOrcMin = document.getElementById('kpi-orcamento-min');
+  if (elOrcMin) {
+    elOrcMin.textContent = formatBRL(totOrcMin);
+    elOrcMin.title = `Orçamento Total ${anoOrc}: ${formatBRL(totOrcMin)}`;
+  }
+  const elOrcMinSub = document.getElementById('kpi-orcamento-min-sub');
+  if (elOrcMinSub) {
+    elOrcMinSub.textContent = `Realizado ${anoReal}: ${formatBRL(totRealMin)} ➔`;
+  }
+
+  // 4. Quadro 4: Membros Cadastrados
+  const elMembros = document.getElementById('kpi-membros');
+  if (elMembros) {
+    elMembros.textContent = String(membrosTotal);
+    elMembros.title = `${membrosTotal} membros cadastrados no sistema (${membrosAtivos} ativos em comunhão)`;
+  }
+  const elMembrosSub = document.getElementById('kpi-membros-sub');
+  if (elMembrosSub) {
+    elMembrosSub.textContent = `${membrosAtivos} ativos em comunhão ➔`;
+  }
+
+  // 5. Quadro 5: Pedidos Pendentes
+  const elReq = document.getElementById('kpi-requisicoes');
+  if (elReq) {
+    elReq.textContent = String(reqPendentes);
+    elReq.title = `${reqPendentes} pedido(s) pendente(s) de aprovação na Tesouraria`;
+    elReq.className = `text-base sm:text-lg xl:text-xl 2xl:text-2xl font-black tracking-tight truncate whitespace-nowrap ${reqPendentes > 0 ? 'text-rose-600' : 'text-emerald-600'}`;
+  }
+  const elReqSub = document.getElementById('kpi-requisicoes-sub');
+  if (elReqSub) {
+    elReqSub.textContent = reqPendentes > 0 ? `${reqPendentes} aguardando aprovação ➔` : 'Nenhum pedido pendente ➔';
+  }
+
+  // 6. Resumo Consolidado de Setores na Visão Geral
+  const elResEnt = document.getElementById('dash-resumo-entradas');
+  if (elResEnt) elResEnt.textContent = formatBRL(resAno.totalEntradas);
+
+  const elResSai = document.getElementById('dash-resumo-saidas');
+  if (elResSai) elResSai.textContent = formatBRL(resAno.totalSaidas);
+
+  const elResSaldo = document.getElementById('dash-resumo-saldo');
+  if (elResSaldo) {
+    elResSaldo.textContent = formatBRL(resAno.saldoTotal);
+    elResSaldo.className = `font-black truncate text-right ${resAno.saldoTotal >= 0 ? 'text-indigo-700' : 'text-rose-600'}`;
+  }
+
+  const elResMem = document.getElementById('dash-resumo-membros');
+  if (elResMem) elResMem.textContent = `${membrosTotal} (${membrosAtivos} ativos)`;
+
+  const elResVis = document.getElementById('dash-resumo-visitantes');
+  if (elResVis) elResVis.textContent = `${visTotal} (${visNovos} novos)`;
+
+  const elResMinOrc = document.getElementById('dash-resumo-min-orc');
+  if (elResMinOrc) elResMinOrc.textContent = formatBRL(totOrcMin);
+
+  const elResMinReal = document.getElementById('dash-resumo-min-real25');
+  if (elResMinReal) elResMinReal.textContent = formatBRL(totRealMin);
+
+  const elResPat = document.getElementById('dash-resumo-patrimonio');
+  if (elResPat) elResPat.textContent = `${patTotal} bens (${patDisponiveis} disp.)`;
+
+  const elResCel = document.getElementById('dash-resumo-celulas');
+  if (elResCel) elResCel.textContent = `${celTotal} células/grupos`;
+
+  // 7. Auditoria em Tempo Real na Visão Geral
+  renderDashboardAuditoria();
+
+  // 8. Container legatário de ministérios se presente
   const minContainer = document.getElementById('dashboard-ministerios-list');
   if (minContainer) {
-    minContainer.innerHTML = (STATE.ministerios || []).map(m => {
+    minContainer.innerHTML = minsList.map(m => {
       const orcAnual = getOrcamentoMinisterio(m, anoOrc);
       const execAnual = getExecutadoMinisterio(m, anoExec);
       const realAnt = getRealizadoMinisterio(m, anoReal);
       const perc = orcAnual > 0 ? Math.min(100, Math.round((execAnual / orcAnual) * 100)) : 0;
       const saldoDisp = orcAnual - execAnual;
-
       return `
         <div class="p-3.5 rounded-xl border border-slate-200 hover:border-indigo-300 transition bg-slate-50/50">
           <div class="flex flex-wrap items-center justify-between gap-2">
@@ -4105,6 +4250,56 @@ function renderDashboard() {
       `;
     }).join('');
   }
+}
+
+function renderDashboardAuditoria() {
+  const container = document.getElementById('dashboard-auditoria-list');
+  if (!container) return;
+
+  const logs = STATE.auditoria || [];
+  if (logs.length === 0) {
+    container.innerHTML = `
+      <div class="p-6 text-center text-slate-400 text-xs border border-dashed border-slate-200 rounded-xl">
+        <p class="font-semibold text-slate-500">Nenhum evento recente na auditoria.</p>
+        <p class="text-[10px] mt-0.5">As ações dos operadores aparecerão aqui ao vivo.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = logs.slice(0, 30).map(item => {
+    let dataHoraStr = 'Recente';
+    if (item.data_hora) {
+      const parts = item.data_hora.split(' ');
+      const dataFmt = typeof formatDateBR === 'function' ? formatDateBR(parts[0]) : parts[0];
+      const horaFmt = parts[1] ? parts[1].substring(0, 5) : '';
+      dataHoraStr = horaFmt ? `${dataFmt} às ${horaFmt}` : dataFmt;
+    }
+
+    const setor = (item.setor || '').toLowerCase();
+    const icone = setor.includes('tesour') ? '💰' :
+                  setor.includes('secret') ? '👤' :
+                  setor.includes('patrim') ? '📦' :
+                  setor.includes('escala') ? '📅' :
+                  setor.includes('segur') || setor.includes('acesso') ? '🔒' :
+                  setor.includes('ata') ? '📜' :
+                  setor.includes('celul') ? '🏠' : '⛪';
+
+    return `
+      <div class="p-2.5 rounded-xl border border-slate-100 bg-slate-50/70 hover:bg-white hover:border-indigo-200 transition text-xs space-y-1">
+        <div class="flex items-center justify-between gap-2">
+          <span class="font-bold text-slate-800 flex items-center gap-1.5 truncate">
+            <span>${icone}</span>
+            <span class="truncate">${item.acao || 'Ação'}</span>
+            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 shrink-0">${item.setor || 'Geral'}</span>
+          </span>
+          <span class="text-[10px] font-medium text-slate-400 shrink-0">${dataHoraStr}</span>
+        </div>
+        <p class="text-[11px] text-slate-600 line-clamp-2">${item.detalhes || ''}</p>
+        <p class="text-[10px] text-slate-400 truncate">Operador: <strong class="text-slate-600">${item.usuario || 'Sistema'}</strong></p>
+      </div>
+    `;
+  }).join('');
 }
 
 function renderOrcamento15Ministerios() {
@@ -4743,6 +4938,8 @@ function initSSE() {
     } catch (err) {
       fetchBootstrap();
     }
+    renderDashboard();
+    renderBadgesAndKPIs();
   });
 
   evtSource.addEventListener('presence', (e) => {
@@ -11474,11 +11671,14 @@ function inicializarSistema() {
 
   initSSE();
 
-
-
-
-
-
+  // Heartbeat automático em segundo plano para manter a Visão Geral sempre atualizada
+  if (!window._pibAutoSyncInterval) {
+    window._pibAutoSyncInterval = setInterval(() => {
+      if (document.visibilityState === 'visible' && !isFetchingBootstrap) {
+        fetchBootstrap();
+      }
+    }, 12000);
+  }
 
   // // aoMudarPerfilOperador();
 
