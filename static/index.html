@@ -19640,7 +19640,7 @@
 
 
 
-            <button onclick="switchSecretariaSubtab('cadastro')" id="sec-btn-cadastro" class="subtab-btn text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 transition flex items-center gap-2">
+            <button type="button" onclick="abrirNovoCadastroMembro()" id="sec-btn-cadastro" class="subtab-btn text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 transition flex items-center gap-2">
 
 
 
@@ -19752,6 +19752,7 @@
 
 
 
+              <button type="button" onclick="abrirNovoCadastroMembro()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer"><span>➕</span> Cadastrar Novo Membro</button>
               <select id="filtro-status-membro" onchange="renderMembros()" class="border border-slate-300 rounded-xl px-3 py-2 text-xs bg-white font-semibold">
 
 
@@ -20176,7 +20177,7 @@
 
 
 
-              <h3 class="font-extrabold text-slate-900 text-lg mt-1">Cadastro Completo de Novo Membro</h3>
+              <h3 id="titulo-cadastro-membro" class="font-extrabold text-slate-900 text-lg mt-1">Cadastro Completo de Novo Membro</h3>
 
 
 
@@ -20217,6 +20218,8 @@
 
 
           <form id="form-membro" onsubmit="salvarMembro(event)" class="space-y-6 text-xs">
+            <!-- ID oculto para controle de Novo x Edição -->
+            <input type="hidden" id="mem-id" value="" />
 
 
 
@@ -22088,23 +22091,7 @@
 
 
 
-              <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-8 py-3 rounded-xl shadow-lg transition">
-
-
-
-
-
-
-
-                💾 Salvar Novo Membro e Ver no Rol Cadastrado
-
-
-
-
-
-
-
-              </button>
+              <button type="submit" id="btn-submit-membro" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-8 py-3 rounded-xl shadow-lg transition cursor-pointer"><span id="btn-salvar-membro-texto">💾 Salvar Novo Membro e Ver no Rol Cadastrado</span></button>
 
 
 
@@ -25981,7 +25968,7 @@
 
 
 
-  <script src="/app.js?v=20261110_v206_quadro_patrimonio"></script>
+  <script src="/app.js?v=20261110_v207_cadastro_membros"></script>
 
 
 

@@ -5301,13 +5301,16 @@ function renderMembros() {
         <td class="py-3 px-2 text-slate-700 font-medium">${m.celula_nome || '<span class="text-slate-400">Não vinculado</span>'}</td>
         <td class="py-3 px-2">${badgesMin}</td>
         <td class="py-3 px-2 text-right space-x-1 whitespace-nowrap">
-          <button onclick="abrirFicha360(${m.id})" class="bg-slate-900 hover:bg-indigo-600 text-white font-semibold px-2.5 py-1 rounded-lg transition">
-            🔍 Ficha 360º
+          <button type="button" onclick="editarMembro(${m.id})" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-2.5 py-1.5 rounded-lg transition shadow-2xs cursor-pointer inline-flex items-center gap-1" title="Editar cadastro completo do membro">
+            <span>✏️</span> Editar
           </button>
-          <button onclick="emitirCredencial(${m.id})" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-2.5 py-1 rounded-lg transition">
-            🪪 Carteirinha
+          <button type="button" onclick="abrirFicha360(${m.id})" class="bg-slate-800 hover:bg-slate-900 text-white font-semibold text-xs px-2.5 py-1.5 rounded-lg transition cursor-pointer inline-flex items-center gap-1" title="Ver ficha 360 e histórico">
+            <span>🔍</span> Ficha 360º
           </button>
-          <button onclick="removerItem('/api/membros', ${m.id})" class="bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold px-2 py-1 rounded-lg transition">
+          <button type="button" onclick="emitirCredencial(${m.id})" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs px-2.5 py-1.5 rounded-lg transition cursor-pointer inline-flex items-center gap-1" title="Gerar carteirinha">
+            <span>🪪</span> Carteirinha
+          </button>
+          <button type="button" onclick="removerItem('/api/membros', ${m.id})" class="bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold text-xs px-2 py-1.5 rounded-lg transition cursor-pointer" title="Remover Membro">
             ✕
           </button>
         </td>
@@ -5336,9 +5339,14 @@ function abrirFicha360(membroId) {
           <h3 class="text-lg font-extrabold text-slate-900 mt-1">${m.nome}</h3>
           <p class="text-slate-500">Matrícula #${String(m.id).padStart(4, '0')} • Cadastrado em ${formatDateBR(m.criado_em)}</p>
         </div>
-        <button onclick="emitirCredencial(${m.id})" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-3 py-2 rounded-xl">
-          🪪 Ver Carteirinha
-        </button>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="fecharModalCustom(); editarMembro(${m.id});" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-2 rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm cursor-pointer">
+            <span>✏️</span> Editar Cadastro Completo
+          </button>
+          <button type="button" onclick="emitirCredencial(${m.id})" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-3 py-2 rounded-xl text-xs cursor-pointer">
+            🪪 Ver Carteirinha
+          </button>
+        </div>
       </div>
 
       <form onsubmit="salvarEdicaoMembro360(event, ${m.id})" class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-3">
@@ -7256,25 +7264,256 @@ async function apiPost(url, payload) {
   return { status: res.status, data };
 }
 
+// ======================================================================
+// GESTÃO DO CADASTRO DE MEMBROS (NOVO CADASTRO E MANUTENÇÃO)
+// ======================================================================
+
+function switchSecretariaSubtab(subtab) {
+  const tabLista = document.getElementById('sec-subtab-lista');
+  const tabCadastro = document.getElementById('sec-subtab-cadastro');
+  const btnLista = document.getElementById('sec-btn-lista');
+  const btnCadastro = document.getElementById('sec-btn-cadastro');
+
+  if (subtab === 'cadastro') {
+    if (tabLista) tabLista.classList.add('hidden');
+    if (tabCadastro) tabCadastro.classList.remove('hidden');
+
+    if (btnLista) {
+      btnLista.className = 'subtab-btn text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 transition flex items-center gap-2 cursor-pointer';
+    }
+    if (btnCadastro) {
+      btnCadastro.className = 'subtab-btn active text-xs font-bold px-4 py-2.5 rounded-xl border border-indigo-600 bg-indigo-50 text-indigo-700 transition flex items-center gap-2 cursor-pointer';
+    }
+
+    popularSelectsCadastroMembro();
+  } else {
+    if (tabCadastro) tabCadastro.classList.add('hidden');
+    if (tabLista) tabLista.classList.remove('hidden');
+
+    if (btnLista) {
+      btnLista.className = 'subtab-btn active text-xs font-bold px-4 py-2.5 rounded-xl border border-indigo-600 bg-indigo-50 text-indigo-700 transition flex items-center gap-2 cursor-pointer';
+    }
+    if (btnCadastro) {
+      btnCadastro.className = 'subtab-btn text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 transition flex items-center gap-2 cursor-pointer';
+    }
+
+    renderMembros();
+  }
+}
+
+function abrirNovoCadastroMembro() {
+  const form = document.getElementById('form-membro');
+  if (form) form.reset();
+
+  const inpId = document.getElementById('mem-id');
+  if (inpId) inpId.value = '';
+
+  const titulo = document.getElementById('titulo-cadastro-membro');
+  if (titulo) titulo.textContent = 'Cadastro Completo de Novo Membro';
+
+  const badgeFicha = document.getElementById('badge-proxima-ficha');
+  if (badgeFicha) {
+    const total = (STATE.membros || []).length;
+    badgeFicha.textContent = `Ficha Nº #${String(total + 1).padStart(4, '0')}`;
+  }
+
+  const btnSalvar = document.getElementById('btn-salvar-membro-texto');
+  if (btnSalvar) btnSalvar.textContent = '💾 Salvar Novo Membro e Ver no Rol Cadastrado';
+
+  const statusCep = document.getElementById('status-cep-mem');
+  if (statusCep) statusCep.textContent = '';
+
+  switchSecretariaSubtab('cadastro');
+  setTimeout(() => {
+    const nomeInp = document.getElementById('mem-nome');
+    if (nomeInp) nomeInp.focus();
+  }, 100);
+}
+
+function editarMembro(id) {
+  const m = (STATE.membros || []).find(x => Number(x.id) === Number(id));
+  if (!m) {
+    alert('Membro não encontrado.');
+    return;
+  }
+
+  const inpId = document.getElementById('mem-id');
+  if (inpId) inpId.value = m.id;
+
+  if (document.getElementById('mem-nome')) document.getElementById('mem-nome').value = m.nome || '';
+  if (document.getElementById('mem-apelido')) document.getElementById('mem-apelido').value = m.apelido || '';
+  if (document.getElementById('mem-familia')) document.getElementById('mem-familia').value = m.familia || '';
+  if (document.getElementById('mem-cpf')) document.getElementById('mem-cpf').value = m.cpf || '';
+  if (document.getElementById('mem-rg')) document.getElementById('mem-rg').value = m.rg || '';
+  if (document.getElementById('mem-nascimento')) document.getElementById('mem-nascimento').value = m.data_nascimento || '';
+  if (document.getElementById('mem-genero')) document.getElementById('mem-genero').value = m.genero || 'Masculino';
+  if (document.getElementById('mem-estado-civil')) document.getElementById('mem-estado-civil').value = m.estado_civil || 'Casado(a)';
+  if (document.getElementById('mem-telefone')) document.getElementById('mem-telefone').value = m.telefone || '';
+  if (document.getElementById('mem-email')) document.getElementById('mem-email').value = m.email || '';
+  if (document.getElementById('mem-cidade-nasc')) document.getElementById('mem-cidade-nasc').value = m.cidade_nascimento || '';
+  if (document.getElementById('mem-estado-nasc')) document.getElementById('mem-estado-nasc').value = m.estado_nascimento || '';
+  if (document.getElementById('mem-cep')) document.getElementById('mem-cep').value = m.cep || '';
+  if (document.getElementById('mem-logradouro')) document.getElementById('mem-logradouro').value = m.logradouro || '';
+  if (document.getElementById('mem-numero')) document.getElementById('mem-numero').value = m.numero || '';
+  if (document.getElementById('mem-complemento')) document.getElementById('mem-complemento').value = m.complemento || '';
+  if (document.getElementById('mem-bairro')) document.getElementById('mem-bairro').value = m.bairro_endereco || '';
+  if (document.getElementById('mem-cidade-end')) document.getElementById('mem-cidade-end').value = m.cidade_endereco || 'São Paulo';
+  if (document.getElementById('mem-uf-end')) document.getElementById('mem-uf-end').value = m.uf_endereco || 'SP';
+  if (document.getElementById('mem-batismo')) document.getElementById('mem-batismo').value = m.data_batismo || '';
+  if (document.getElementById('mem-cargo')) document.getElementById('mem-cargo').value = m.cargo_eclesiastico || 'Membro';
+  if (document.getElementById('mem-status')) document.getElementById('mem-status').value = m.status || 'Ativo';
+  if (document.getElementById('mem-sala-ebd')) document.getElementById('mem-sala-ebd').value = m.sala_ebd || '';
+
+  popularSelectsCadastroMembro();
+  if (document.getElementById('mem-celula')) document.getElementById('mem-celula').value = m.celula_id || '';
+
+  const minVinculado = (m.ministerios && m.ministerios.length > 0) ? m.ministerios[0] : null;
+  if (minVinculado) {
+    if (document.getElementById('mem-ministerio')) document.getElementById('mem-ministerio').value = minVinculado.ministerio_id || '';
+    if (document.getElementById('mem-funcao-min')) document.getElementById('mem-funcao-min').value = minVinculado.funcao || 'Voluntário';
+  } else {
+    if (document.getElementById('mem-ministerio')) document.getElementById('mem-ministerio').value = '';
+    if (document.getElementById('mem-funcao-min')) document.getElementById('mem-funcao-min').value = '';
+  }
+
+  const titulo = document.getElementById('titulo-cadastro-membro');
+  if (titulo) titulo.textContent = `✏️ Editando Cadastro: ${m.nome}`;
+
+  const badgeFicha = document.getElementById('badge-proxima-ficha');
+  if (badgeFicha) badgeFicha.textContent = `Matrícula #${String(m.id).padStart(4, '0')}`;
+
+  const btnSalvar = document.getElementById('btn-salvar-membro-texto');
+  if (btnSalvar) btnSalvar.textContent = '💾 Atualizar Cadastro do Membro';
+
+  const statusCep = document.getElementById('status-cep-mem');
+  if (statusCep) statusCep.textContent = '';
+
+  switchSecretariaSubtab('cadastro');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function popularSelectsCadastroMembro() {
+  const selCelula = document.getElementById('mem-celula');
+  if (selCelula) {
+    const valAtual = selCelula.value;
+    const celulas = STATE.celulas || [];
+    selCelula.innerHTML = '<option value="">-- Sem vínculo com célula / grupo --</option>' + 
+      celulas.map(c => `<option value="${c.id}">${c.nome} (${c.bairro || 'Sem bairro'})</option>`).join('');
+    if (valAtual) selCelula.value = valAtual;
+  }
+
+  const selMin = document.getElementById('mem-ministerio');
+  if (selMin) {
+    const valAtual = selMin.value;
+    const mins = STATE.ministerios || [];
+    selMin.innerHTML = '<option value="">-- Selecione o ministério principal --</option>' + 
+      mins.map(m => `<option value="${m.id}">${m.nome} (Líder: ${m.lider || 'Geral'})</option>`).join('');
+    if (valAtual) selMin.value = valAtual;
+  }
+}
+
+function formatarEBuscarCep(input, prefixo = 'mem') {
+  let val = (input.value || '').replace(/\D/g, '');
+  if (val.length > 8) val = val.substring(0, 8);
+  if (val.length > 5) {
+    input.value = val.substring(0, 5) + '-' + val.substring(5);
+  } else {
+    input.value = val;
+  }
+  if (val.length === 8) {
+    buscarCepMembro(prefixo);
+  }
+}
+
+async function buscarCepMembro(prefixo = 'mem') {
+  const inpCep = document.getElementById(`${prefixo}-cep`);
+  if (!inpCep) return;
+  const cep = inpCep.value.replace(/\D/g, '');
+  if (cep.length !== 8) return;
+
+  const statusEl = document.getElementById(`status-cep-${prefixo}`);
+  if (statusEl) {
+    statusEl.innerHTML = '<span class="text-indigo-600 font-bold animate-pulse">⏳ Consultando CEP...</span>';
+  }
+
+  try {
+    const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    const data = await res.json();
+    if (data.erro) {
+      if (statusEl) statusEl.innerHTML = '<span class="text-rose-600 font-bold">❌ CEP não encontrado</span>';
+      return;
+    }
+
+    if (document.getElementById(`${prefixo}-logradouro`)) document.getElementById(`${prefixo}-logradouro`).value = data.logradouro || '';
+    if (document.getElementById(`${prefixo}-bairro`)) document.getElementById(`${prefixo}-bairro`).value = data.bairro || '';
+    if (document.getElementById(`${prefixo}-cidade-end`)) document.getElementById(`${prefixo}-cidade-end`).value = data.localidade || '';
+    if (document.getElementById(`${prefixo}-uf-end`)) document.getElementById(`${prefixo}-uf-end`).value = data.uf || '';
+
+    if (statusEl) {
+      statusEl.innerHTML = '<span class="text-emerald-700 font-bold">✓ Endereço preenchido via CEP!</span>';
+    }
+    const inpNum = document.getElementById(`${prefixo}-numero`);
+    if (inpNum) inpNum.focus();
+  } catch (err) {
+    if (statusEl) statusEl.innerHTML = '<span class="text-rose-600 font-bold">Erro ao consultar CEP</span>';
+  }
+}
+
 async function salvarMembro(e) {
   e.preventDefault();
+  const idMembro = document.getElementById('mem-id')?.value;
+  const isEdicao = Boolean(idMembro);
+
   const payload = {
-    nome: document.getElementById('mem-nome').value,
-    telefone: document.getElementById('mem-telefone').value,
-    data_nascimento: document.getElementById('mem-nascimento').value,
-    cargo_eclesiastico: document.getElementById('mem-cargo').value,
-    familia: document.getElementById('mem-familia').value,
-    celula_id: document.getElementById('mem-celula').value || null,
-    data_batismo: document.getElementById('mem-batismo').value,
-    ministerio_id: document.getElementById('mem-ministerio').value || null,
-    funcao_ministerio: document.getElementById('mem-funcao-min').value || 'Voluntário'
+    nome: (document.getElementById('mem-nome')?.value || '').trim(),
+    apelido: (document.getElementById('mem-apelido')?.value || '').trim(),
+    familia: (document.getElementById('mem-familia')?.value || '').trim(),
+    cpf: (document.getElementById('mem-cpf')?.value || '').trim(),
+    rg: (document.getElementById('mem-rg')?.value || '').trim(),
+    data_nascimento: document.getElementById('mem-nascimento')?.value || '',
+    genero: document.getElementById('mem-genero')?.value || 'Masculino',
+    estado_civil: document.getElementById('mem-estado-civil')?.value || 'Casado(a)',
+    telefone: (document.getElementById('mem-telefone')?.value || '').trim(),
+    email: (document.getElementById('mem-email')?.value || '').trim(),
+    cidade_nascimento: (document.getElementById('mem-cidade-nasc')?.value || '').trim(),
+    estado_nascimento: (document.getElementById('mem-estado-nasc')?.value || '').trim(),
+    cep: (document.getElementById('mem-cep')?.value || '').trim(),
+    logradouro: (document.getElementById('mem-logradouro')?.value || '').trim(),
+    numero: (document.getElementById('mem-numero')?.value || '').trim(),
+    complemento: (document.getElementById('mem-complemento')?.value || '').trim(),
+    bairro_endereco: (document.getElementById('mem-bairro')?.value || '').trim(),
+    cidade_endereco: (document.getElementById('mem-cidade-end')?.value || '').trim(),
+    uf_endereco: (document.getElementById('mem-uf-end')?.value || '').trim(),
+    data_batismo: document.getElementById('mem-batismo')?.value || '',
+    cargo_eclesiastico: document.getElementById('mem-cargo')?.value || 'Membro',
+    status: document.getElementById('mem-status')?.value || 'Ativo',
+    sala_ebd: (document.getElementById('mem-sala-ebd')?.value || '').trim(),
+    celula_id: document.getElementById('mem-celula')?.value ? parseInt(document.getElementById('mem-celula').value) : null,
+    ministerio_id: document.getElementById('mem-ministerio')?.value ? parseInt(document.getElementById('mem-ministerio').value) : null,
+    funcao_ministerio: (document.getElementById('mem-funcao-min')?.value || 'Voluntário').trim()
   };
-  const { status, data } = await apiPost('/api/membros', payload);
-  if (status === 200) {
-    document.getElementById('form-membro').reset();
-    fetchBootstrap();
+
+  if (!payload.nome) {
+    alert('O nome do membro é obrigatório!');
+    return;
+  }
+
+  let res;
+  if (isEdicao) {
+    payload.id = parseInt(idMembro);
+    res = await apiPost('/api/membros/atualizar', payload);
   } else {
-    alert(data.erro || 'Erro ao salvar membro');
+    res = await apiPost('/api/membros', payload);
+  }
+
+  if (res.status === 200) {
+    alert(isEdicao ? `✓ Cadastro de "${payload.nome}" atualizado com sucesso!` : `✓ Membro "${payload.nome}" cadastrado com sucesso!`);
+    document.getElementById('form-membro')?.reset();
+    if (document.getElementById('mem-id')) document.getElementById('mem-id').value = '';
+    await fetchBootstrap();
+    switchSecretariaSubtab('lista');
+  } else {
+    alert(res.data?.erro || 'Erro ao salvar membro.');
   }
 }
 
