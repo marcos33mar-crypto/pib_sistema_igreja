@@ -71,6 +71,7 @@ except ImportError:
         ("Ministério Comunicação", "Equipe Comunica", 397.90, 1160.00, "No comunica, colocamos as mesmas despesas de 2025, com o acréscimo.", "#06b6d4"),
         ("Ministério Louvor", "Líder de Louvor", 279.99, 279.99, "Sem orçamento fixo definido.", "#4f46e5"),
         ("Ministério Diáconos", "Corpo Diaconal", 253.43, 253.43, "Sem orçamento fixo definido.", "#64748b"),
+        ("Diretoria", "Pastor Presidente & Diretoria Executiva", 0.0, 0.0, "Diretoria Estatutária da Igreja: Pastor Presidente, Vice-Presidente, Secretários e Tesoureiros.", "#1e293b"),
     ]
     
     # Os 10 grupos oficiais de despesas idênticos ao gráfico "RESUMO DESPESAS" do PowerPoint da Igreja:
@@ -1402,6 +1403,14 @@ def init_db():
             integrar_planilha_real(conn, zerar_valores=True)
 
 
+
+        # Verifica se o ministério 'Diretoria' já está cadastrado
+        cur.execute("SELECT id FROM ministerios WHERE LOWER(nome) = 'diretoria' OR LOWER(nome) LIKE '%diretoria%'")
+        if not cur.fetchone():
+            cur.execute("""
+                INSERT INTO ministerios (nome, lider, orcamento_mensal, realizado_2025, orcamento_2026, descricao, cor)
+                VALUES ('Diretoria', 'Pastor Presidente & Diretoria Executiva', 0.0, 0.0, 0.0, 'Diretoria Estatutária da Igreja: Pastor Presidente, Vice-Presidente, Secretários e Tesoureiros.', '#1e293b')
+            """)
 
         conn.commit()
 

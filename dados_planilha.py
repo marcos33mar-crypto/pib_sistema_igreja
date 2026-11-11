@@ -21,6 +21,7 @@ MINISTERIOS_REAIS = [
     ("Ministério Comunicação", "Equipe Comunica", 397.90, 1160.00, "No comunica, colocamos as mesmas despesas de 2025, com o acréscimo.", "#06b6d4"),
     ("Ministério Louvor", "Líder de Louvor", 279.99, 279.99, "Sem orçamento fixo definido.", "#4f46e5"),
     ("Ministério Diáconos", "Corpo Diaconal", 253.43, 253.43, "Sem orçamento fixo definido.", "#64748b"),
+    ("Diretoria", "Pastor Presidente & Diretoria Executiva", 0.0, 0.0, "Diretoria Estatutária da Igreja: Pastor Presidente, Vice-Presidente, Secretários e Tesoureiros.", "#1e293b"),
 ]
 
 # Os 10 grupos oficiais de despesas idênticos ao gráfico "RESUMO DESPESAS" do PowerPoint da Igreja:
