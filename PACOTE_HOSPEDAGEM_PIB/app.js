@@ -3199,6 +3199,7 @@ function switchTab(tabName) {
     renderRelatorios();
   } else if (tabName === 'secretaria') {
     renderMembros();
+    if (typeof popularSelectsCadastroMembro === 'function') popularSelectsCadastroMembro();
   } else if (tabName === 'recepcao') {
     renderVisitantes();
   } else if (tabName === 'ministerios_painel') {
@@ -8821,14 +8822,24 @@ function editarMembro(id) {
     document.getElementById('mem-ministerio').value = minVinculado1 ? minVinculado1.ministerio_id : (m.ministerio_id || '');
   }
   if (document.getElementById('mem-funcao-min')) {
-    document.getElementById('mem-funcao-min').value = minVinculado1 ? minVinculado1.funcao : (m.funcao_ministerio || '');
+    const f1 = minVinculado1 ? minVinculado1.funcao : (m.funcao_ministerio || 'Voluntário');
+    const el1 = document.getElementById('mem-funcao-min');
+    if (f1 && !Array.from(el1.options).some(o => o.value === f1)) {
+      el1.add(new Option(f1, f1, true, true));
+    }
+    el1.value = f1;
   }
 
   if (document.getElementById('mem-ministerio-2')) {
     document.getElementById('mem-ministerio-2').value = minVinculado2 ? minVinculado2.ministerio_id : (m.ministerio_id_2 || '');
   }
   if (document.getElementById('mem-funcao-min-2')) {
-    document.getElementById('mem-funcao-min-2').value = minVinculado2 ? minVinculado2.funcao : (m.funcao_ministerio_2 || '');
+    const f2 = minVinculado2 ? minVinculado2.funcao : (m.funcao_ministerio_2 || '');
+    const el2 = document.getElementById('mem-funcao-min-2');
+    if (f2 && !Array.from(el2.options).some(o => o.value === f2)) {
+      el2.add(new Option(f2, f2, true, true));
+    }
+    el2.value = f2;
   }
 
   const titulo = document.getElementById('titulo-cadastro-membro');
@@ -8848,10 +8859,11 @@ function editarMembro(id) {
 }
 
 function popularSelectsCadastroMembro() {
+  const mins = STATE.ministerios || [];
+
   const selMin = document.getElementById('mem-ministerio');
   if (selMin) {
     const valAtual = selMin.value;
-    const mins = STATE.ministerios || [];
     selMin.innerHTML = '<option value="">-- Selecione o Ministério 1 --</option>' + 
       mins.map(m => `<option value="${m.id}">${m.nome} (Líder: ${m.lider || 'Geral'})</option>`).join('');
     if (valAtual) selMin.value = valAtual;
@@ -8860,7 +8872,6 @@ function popularSelectsCadastroMembro() {
   const selMin2 = document.getElementById('mem-ministerio-2');
   if (selMin2) {
     const valAtual2 = selMin2.value;
-    const mins = STATE.ministerios || [];
     selMin2.innerHTML = '<option value="">-- Selecione o Ministério 2 (Opcional) --</option>' + 
       mins.map(m => `<option value="${m.id}">${m.nome} (Líder: ${m.lider || 'Geral'})</option>`).join('');
     if (valAtual2) selMin2.value = valAtual2;

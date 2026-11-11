@@ -2592,8 +2592,8 @@
 
 
       </div>
-      <div class="text-[10px] text-slate-500 font-medium mt-1 tracking-wider">
-        Versão 2.14 • Build 20261111
+      <div class="text-[10px] text-slate-500 font-medium mt-1 tracking-wider" id="versao-sistema-tag">
+        Versão 2.16 • Build 20261111
       </div>
 
 
@@ -21712,19 +21712,56 @@
               <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                 <div>
                   <label class="font-semibold text-slate-700 block mb-1">Ministério 1</label>
-                  <select id="mem-ministerio" class="w-full border border-slate-300 rounded-xl px-3 py-2.5 bg-white"></select>
+                  <select id="mem-ministerio" class="w-full border border-slate-300 rounded-xl px-3 py-2.5 bg-white">
+                    <option value="">-- Selecione o Ministério 1 --</option>
+                  </select>
                 </div>
                 <div>
                   <label class="font-semibold text-slate-700 block mb-1">Função no Ministério 1</label>
-                  <input type="text" id="mem-funcao-min" placeholder="Ex: Líder, Integrante, Vocal" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 bg-white" />
+                  <select id="mem-funcao-min" class="w-full border border-slate-300 rounded-xl px-3 py-2.5 bg-white font-medium text-slate-800">
+                    <option value="Voluntário">Voluntário(a) / Membro</option>
+                    <option value="Líder">Líder / Coordenador(a)</option>
+                    <option value="Vice-Líder">Vice-Líder</option>
+                    <option value="Integrante">Integrante / Apoio</option>
+                    <option value="Vocal">Vocal / Cantor(a)</option>
+                    <option value="Músico">Músico / Instrumentista</option>
+                    <option value="Professor">Professor(a) EBD</option>
+                    <option value="Sonoplastia">Sonoplastia / Áudio</option>
+                    <option value="Mídia">Mídia / Projeção / Transmissão</option>
+                    <option value="Recepção">Recepção / Acolhimento</option>
+                    <option value="Diácono">Diácono / Diaconisa</option>
+                    <option value="Diretoria">Diretoria / Executiva</option>
+                    <option value="Secretário">Secretário(a)</option>
+                    <option value="Tesoureiro">Tesoureiro(a)</option>
+                    <option value="Outro">Outro</option>
+                  </select>
                 </div>
                 <div>
                   <label class="font-semibold text-slate-700 block mb-1">Ministério 2 (Opcional)</label>
-                  <select id="mem-ministerio-2" class="w-full border border-slate-300 rounded-xl px-3 py-2.5 bg-white"></select>
+                  <select id="mem-ministerio-2" class="w-full border border-slate-300 rounded-xl px-3 py-2.5 bg-white">
+                    <option value="">-- Selecione o Ministério 2 (Opcional) --</option>
+                  </select>
                 </div>
                 <div>
                   <label class="font-semibold text-slate-700 block mb-1">Função no Ministério 2</label>
-                  <input type="text" id="mem-funcao-min-2" placeholder="Ex: Músico, Apoio, Professor" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 bg-white" />
+                  <select id="mem-funcao-min-2" class="w-full border border-slate-300 rounded-xl px-3 py-2.5 bg-white font-medium text-slate-800">
+                    <option value="">-- Nenhuma / Sem Função --</option>
+                    <option value="Voluntário">Voluntário(a) / Membro</option>
+                    <option value="Líder">Líder / Coordenador(a)</option>
+                    <option value="Vice-Líder">Vice-Líder</option>
+                    <option value="Integrante">Integrante / Apoio</option>
+                    <option value="Vocal">Vocal / Cantor(a)</option>
+                    <option value="Músico">Músico / Instrumentista</option>
+                    <option value="Professor">Professor(a) EBD</option>
+                    <option value="Sonoplastia">Sonoplastia / Áudio</option>
+                    <option value="Mídia">Mídia / Projeção / Transmissão</option>
+                    <option value="Recepção">Recepção / Acolhimento</option>
+                    <option value="Diácono">Diácono / Diaconisa</option>
+                    <option value="Diretoria">Diretoria / Executiva</option>
+                    <option value="Secretário">Secretário(a)</option>
+                    <option value="Tesoureiro">Tesoureiro(a)</option>
+                    <option value="Outro">Outro</option>
+                  </select>
                 </div>
               </div>
               <input type="hidden" id="mem-celula" value="" />
@@ -25711,7 +25748,7 @@
 
 
 
-  <script src="/app.js?v=20261111_v216_diretoria_relatorios"></script>
+  <script src="/app.js?v=20261111_v216_versao_funcao_min2"></script>
 
 
 
