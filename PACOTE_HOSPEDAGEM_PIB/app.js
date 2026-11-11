@@ -3843,9 +3843,13 @@ function populateSelects() {
     }
   };
 
+  const minOptionsMembro = `<option value="">-- Nenhum ministério selecionado --</option>` +
+    (STATE.ministerios || []).map(m => `<option value="${m.id}">${m.nome}</option>`).join('');
+
   setHTML('mem-celula', celOptions);
   setHTML('vis-celula', celOptions);
-  setHTML('mem-ministerio', minOptionsOptional);
+  setHTML('mem-ministerio', minOptionsMembro);
+  setHTML('mem-ministerio-2', minOptionsMembro);
   setHTML('esc-ministerio', minOptionsRequired);
   setHTML('vol-ministerio', minOptionsRequired);
   setHTML('req-ministerio', minOptionsRequired);
@@ -8860,20 +8864,20 @@ function editarMembro(id) {
 
 function popularSelectsCadastroMembro() {
   const mins = STATE.ministerios || [];
+  const minOptions = '<option value="">-- Nenhum ministério selecionado --</option>' + 
+    mins.map(m => `<option value="${m.id}">${m.nome}</option>`).join('');
 
   const selMin = document.getElementById('mem-ministerio');
   if (selMin) {
     const valAtual = selMin.value;
-    selMin.innerHTML = '<option value="">-- Selecione o Ministério 1 --</option>' + 
-      mins.map(m => `<option value="${m.id}">${m.nome} (Líder: ${m.lider || 'Geral'})</option>`).join('');
+    selMin.innerHTML = minOptions;
     if (valAtual) selMin.value = valAtual;
   }
 
   const selMin2 = document.getElementById('mem-ministerio-2');
   if (selMin2) {
     const valAtual2 = selMin2.value;
-    selMin2.innerHTML = '<option value="">-- Selecione o Ministério 2 (Opcional) --</option>' + 
-      mins.map(m => `<option value="${m.id}">${m.nome} (Líder: ${m.lider || 'Geral'})</option>`).join('');
+    selMin2.innerHTML = minOptions;
     if (valAtual2) selMin2.value = valAtual2;
   }
 }
