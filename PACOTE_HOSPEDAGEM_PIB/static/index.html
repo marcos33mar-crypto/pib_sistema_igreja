@@ -24276,87 +24276,114 @@
 
         <!-- SUB-ABA 2: QUADRO DE EMPRÉSTIMOS DE BENS (ALOCADO EM SUBMENU) -->
         <div id="subtab-pat-emprestimos" class="space-y-6 hidden">
-<!-- ========================================================= -->
-        <!-- QUADRO DE EMPRÉSTIMOS & DEVOLUÇÕES DE PATRIMÔNIO           -->
-        <!-- ========================================================= -->
-        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6 mt-6">
-          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-            <div>
-              <div class="flex items-center gap-2">
-                <span class="p-2 bg-indigo-50 text-indigo-600 rounded-xl text-lg">📦</span>
-                <h3 class="font-extrabold text-slate-800 text-lg">Quadro de Empréstimo & Devolução de Bens</h3>
+          <!-- Banner Executivo de Gestão Patrimonial -->
+          <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 text-white shadow-xl border border-slate-800 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3.5">
+              <div class="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-2xl shadow-inner shrink-0">
+                📦
               </div>
-              <p class="text-xs text-slate-500 mt-1">
-                Controle rigoroso de retiradas, condições do bem, aprovação do responsável do item, liberação do patrimônio e conferência de retorno.
-              </p>
+              <div>
+                <h3 class="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                  Quadro de Empréstimos & Devoluções de Bens
+                  <span class="text-[10px] font-bold uppercase tracking-wider bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 px-2.5 py-0.5 rounded-full">Gestão Patrimonial</span>
+                </h3>
+                <p class="text-xs text-slate-300 font-medium mt-0.5">
+                  Fluxo seguro com aprovação do setor, liberação patrimonial e assinatura digital do termo de cautela no celular.
+                </p>
+              </div>
             </div>
-            <div class="flex items-center gap-2 flex-wrap">
-              <button type="button" onclick="imprimirRelatorioGeralEmprestimos()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 transition flex items-center gap-1.5 shadow-sm">
-                <span>📄</span> Relatório de Empréstimos
+            <div class="flex items-center gap-2.5 flex-wrap">
+              <button type="button" onclick="imprimirRelatorioGeralEmprestimos()" class="bg-slate-800/90 hover:bg-slate-700 text-slate-200 font-bold text-xs px-4 py-2.5 rounded-xl border border-slate-700 transition flex items-center gap-2 cursor-pointer shadow-sm">
+                <span>📄</span> Relatório Consolidado (PDF)
               </button>
-              <button type="button" onclick="abrirModalNovoEmprestimoPatrimonio()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5">
-                <span>+</span> Novo Empréstimo de Item
+              <button type="button" onclick="abrirModalNovoEmprestimoPatrimonio()" class="bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl shadow-lg hover:shadow-indigo-500/40 transition flex items-center gap-2 cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0">
+                <span>➕</span> Registrar Novo Empréstimo
               </button>
             </div>
           </div>
 
-          <!-- Cards de Indicadores Rápidos (KPIs) -->
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-            <div class="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3.5">
-              <span class="text-[10px] font-bold uppercase tracking-wider text-amber-700 block mb-0.5">🟡 Em Aberto (Com Retirante)</span>
-              <strong id="kpi-emp-aberto" class="text-xl font-black text-amber-900">0</strong>
-              <span class="text-[10px] text-amber-600 block mt-0.5">Bens fora da igreja</span>
+          <!-- Cards de Indicadores Rápidos (KPIs Modernos) -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex items-center gap-3.5">
+              <div class="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center text-2xl shrink-0 font-bold">
+                🟡
+              </div>
+              <div>
+                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Em Aberto / Em Uso</span>
+                <strong id="kpi-emp-aberto" class="text-2xl font-black text-amber-900">0</strong>
+                <span class="text-[10px] text-slate-500 block">Bens fora da igreja</span>
+              </div>
             </div>
-            <div class="bg-blue-50/70 border border-blue-200/80 rounded-xl p-3.5">
-              <span class="text-[10px] font-bold uppercase tracking-wider text-blue-700 block mb-0.5">⏳ Aguardando Aprovações</span>
-              <strong id="kpi-emp-pendente" class="text-xl font-black text-blue-900">0</strong>
-              <span class="text-[10px] text-blue-600 block mt-0.5">Falta OK setor/patrimônio</span>
+
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex items-center gap-3.5">
+              <div class="w-12 h-12 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 flex items-center justify-center text-2xl shrink-0 font-bold">
+                ⏳
+              </div>
+              <div>
+                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Aguardando OKs</span>
+                <strong id="kpi-emp-pendente" class="text-2xl font-black text-blue-900">0</strong>
+                <span class="text-[10px] text-slate-500 block">Setor / Patrimônio</span>
+              </div>
             </div>
-            <div class="bg-emerald-50/70 border border-emerald-200/80 rounded-xl p-3.5">
-              <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block mb-0.5">🟢 Devolvidos</span>
-              <strong id="kpi-emp-devolvido" class="text-xl font-black text-emerald-900">0</strong>
-              <span class="text-[10px] text-emerald-600 block mt-0.5">Devoluções finalizadas</span>
+
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex items-center gap-3.5">
+              <div class="w-12 h-12 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 flex items-center justify-center text-2xl shrink-0 font-bold">
+                🔴
+              </div>
+              <div>
+                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Em Atraso</span>
+                <strong id="kpi-emp-atrasado" class="text-2xl font-black text-rose-900">0</strong>
+                <span class="text-[10px] text-slate-500 block">Excederam o prazo</span>
+              </div>
             </div>
-            <div class="bg-rose-50/70 border border-rose-200/80 rounded-xl p-3.5">
-              <span class="text-[10px] font-bold uppercase tracking-wider text-rose-700 block mb-0.5">🔴 Atrasados</span>
-              <strong id="kpi-emp-atrasado" class="text-xl font-black text-rose-900">0</strong>
-              <span class="text-[10px] text-rose-600 block mt-0.5">Passou da previsão</span>
+
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex items-center gap-3.5">
+              <div class="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center text-2xl shrink-0 font-bold">
+                ✅
+              </div>
+              <div>
+                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Devoluções 100%</span>
+                <strong id="kpi-emp-devolvido" class="text-2xl font-black text-emerald-900">0</strong>
+                <span class="text-[10px] text-slate-500 block">Conferidos e baixados</span>
+              </div>
             </div>
           </div>
 
-          <!-- Barra de Busca e Filtros -->
-          <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-            <div class="relative w-full sm:w-80">
-              <input type="text" id="busca-pat-emprestimo" oninput="filtrarTabelaEmprestimosPatrimonio()" placeholder="Buscar por item, código, retirante ou setor..." class="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white" />
-              <span class="absolute left-3 top-2.5 text-slate-400 text-xs">🔍</span>
+          <!-- Caixa Principal de Listagem com Busca e Filtros -->
+          <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-5">
+            <!-- Barra de Busca Rápida e Filtros de Status -->
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 bg-slate-50/90 rounded-2xl border border-slate-200">
+              <div class="relative w-full sm:flex-1">
+                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">🔍</span>
+                <input type="text" id="busca-pat-emprestimo" oninput="filtrarTabelaEmprestimosPatrimonio()" placeholder="Buscar por item, código tombamento, membro retirante, setor ou motivo..." class="w-full pl-9 pr-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium text-slate-800" />
+              </div>
+              <div class="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+                <button type="button" onclick="setFiltroStatusEmprestimo('TODOS')" id="btn-flt-emp-todos" class="btn-flt-emp px-3.5 py-2 rounded-xl text-xs font-extrabold bg-indigo-600 text-white shadow-xs cursor-pointer transition">Todos</button>
+                <button type="button" onclick="setFiltroStatusEmprestimo('PENDENTE')" id="btn-flt-emp-pendente" class="btn-flt-emp px-3.5 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 cursor-pointer transition">⏳ Aguardando OKs</button>
+                <button type="button" onclick="setFiltroStatusEmprestimo('ABERTO')" id="btn-flt-emp-aberto" class="btn-flt-emp px-3.5 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 cursor-pointer transition">🟡 Em Aberto</button>
+                <button type="button" onclick="setFiltroStatusEmprestimo('ATRASADO')" id="btn-flt-emp-atrasado" class="btn-flt-emp px-3.5 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 cursor-pointer transition">🔴 Em Atraso</button>
+                <button type="button" onclick="setFiltroStatusEmprestimo('DEVOLVIDO')" id="btn-flt-emp-devolvido" class="btn-flt-emp px-3.5 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 cursor-pointer transition">✅ Devolvidos</button>
+              </div>
             </div>
-            <div class="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-              <button type="button" onclick="setFiltroStatusEmprestimo('TODOS')" id="btn-flt-emp-todos" class="btn-flt-emp px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white">Todos</button>
-              <button type="button" onclick="setFiltroStatusEmprestimo('ABERTO')" id="btn-flt-emp-aberto" class="btn-flt-emp px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200">Em Aberto</button>
-              <button type="button" onclick="setFiltroStatusEmprestimo('PENDENTE')" id="btn-flt-emp-pendente" class="btn-flt-emp px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200">Aguardando OK</button>
-              <button type="button" onclick="setFiltroStatusEmprestimo('DEVOLVIDO')" id="btn-flt-emp-devolvido" class="btn-flt-emp px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200">Devolvidos</button>
-              <button type="button" onclick="setFiltroStatusEmprestimo('ATRASADO')" id="btn-flt-emp-atrasado" class="btn-flt-emp px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200">Atrasados</button>
-            </div>
-          </div>
 
-          <!-- Tabela de Empréstimos -->
-          <div class="overflow-x-auto rounded-xl border border-slate-200">
-            <table class="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr class="border-b border-slate-200 text-slate-600 uppercase bg-slate-50 font-bold">
-                  <th class="py-3 px-3">Item / Código</th>
-                  <th class="py-3 px-3">Pessoa que Retirou (Contato)</th>
-                  <th class="py-3 px-3">Prazos (Retirada & Previsão)</th>
-                  <th class="py-3 px-3">Condição do Item</th>
-                  <th class="py-3 px-3 text-center">Saída (Setor & Patrimônio)</th>
-                  <th class="py-3 px-3 text-center">Reversa (Devolução)</th>
-                  <th class="py-3 px-3 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody id="tabela-patrimonio-emprestimos" class="divide-y divide-slate-100">
-                <!-- Renderizado via app.js -->
-              </tbody>
-            </table>
+            <!-- Tabela Executiva Perfeitamente Alinhada (6 Colunas) -->
+            <div class="overflow-x-auto rounded-2xl border border-slate-200">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="border-b border-slate-200 bg-slate-50/80 text-slate-700 font-extrabold text-[11px] uppercase tracking-wider">
+                    <th class="py-3.5 px-4">Item & Origem</th>
+                    <th class="py-3.5 px-4">Membro Retirante</th>
+                    <th class="py-3.5 px-4">Prazos & Situação</th>
+                    <th class="py-3.5 px-4 text-center min-w-[190px]">Aprovações (Setor ➔ Patrimônio)</th>
+                    <th class="py-3.5 px-4 text-center min-w-[170px]">Retirada & Assinatura</th>
+                    <th class="py-3.5 px-4 text-center min-w-[180px]">Devolução & Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="tabela-patrimonio-emprestimos" class="divide-y divide-slate-100 bg-white">
+                  <!-- Renderizado via app.js -->
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -25954,7 +25981,7 @@
 
 
 
-  <script src="/app.js?v=20261110_v205_clean_patrimonio"></script>
+  <script src="/app.js?v=20261110_v206_quadro_patrimonio"></script>
 
 
 

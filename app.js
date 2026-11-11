@@ -5937,9 +5937,9 @@ function setFiltroStatusEmprestimo(status) {
     const btn = document.getElementById(`btn-flt-emp-${s}`);
     if (btn) {
       if (s === status.toLowerCase()) {
-        btn.className = 'btn-flt-emp px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow-sm';
+        btn.className = 'btn-flt-emp px-3.5 py-2 rounded-xl text-xs font-extrabold bg-indigo-600 text-white shadow-xs cursor-pointer transition';
       } else {
-        btn.className = 'btn-flt-emp px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200';
+        btn.className = 'btn-flt-emp px-3.5 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 cursor-pointer transition';
       }
     }
   });
@@ -6099,10 +6099,14 @@ function renderPatrimonioEmprestimos() {
   if (filtrados.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" class="py-8 text-center text-slate-400">
-          <div class="flex flex-col items-center justify-center gap-2">
-            <span class="text-3xl">📦</span>
-            <p class="font-medium">Nenhum registro de empréstimo encontrado para os filtros selecionados.</p>
+        <td colspan="6" class="py-12 px-6 text-center bg-slate-50/50">
+          <div class="flex flex-col items-center justify-center gap-2.5">
+            <span class="text-4xl">📦</span>
+            <h4 class="font-bold text-slate-800 text-sm">Nenhum registro de empréstimo encontrado</h4>
+            <p class="text-xs text-slate-500 max-w-sm">Não há empréstimos correspondentes aos filtros selecionados. Tente limpar os filtros ou registre um novo empréstimo.</p>
+            <button type="button" onclick="setFiltroStatusEmprestimo('TODOS'); const b = document.getElementById('busca-pat-emprestimo'); if(b) b.value=''; filtrarTabelaEmprestimosPatrimonio();" class="mt-2 bg-white border border-slate-300 text-indigo-700 hover:bg-indigo-50 font-bold px-4 py-2 rounded-xl text-xs transition cursor-pointer shadow-2xs">
+              Limpar Filtros de Busca
+            </button>
           </div>
         </td>
       </tr>
@@ -6130,97 +6134,133 @@ function renderPatrimonioEmprestimos() {
       } catch (err) {}
     }
 
-    // Badge de Status do Ciclo
+    // Badge visual do status no ciclo
     let statusCicloBadge = '';
     if (isDevolvido) {
-      statusCicloBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">✅ Devolvido & Quitado</span>`;
+      statusCicloBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">✅ Devolvido</span>`;
     } else if (isAtrasado) {
       statusCicloBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300 animate-pulse">🔴 Em Atraso</span>`;
     } else if (isEmprestado) {
-      statusCicloBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">🟡 Em Uso Externo</span>`;
+      statusCicloBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">🟡 Em Aberto</span>`;
     } else if (isLiberadoParaRetirada) {
       statusCicloBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-100 text-blue-900 border border-blue-300">🟢 Pronto p/ Retirada</span>`;
     } else {
-      statusCicloBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300">⏳ Aguardando OKs</span>`;
+      statusCicloBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300">⏳ Aguarda OKs</span>`;
     }
 
     const zapLink = e.solicitante_telefone ? `https://wa.me/55${e.solicitante_telefone.replace(/\D/g, '')}` : '';
 
     return `
-      <tr class="hover:bg-slate-50 transition border-b border-slate-100">
-        <!-- 1. Item e Código -->
-        <td class="py-3 px-3">
-          <div class="flex items-start gap-2">
-            <span class="font-mono text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100 mt-0.5 whitespace-nowrap">
-              ${e.codigo || 'S/C'}
-            </span>
-            <div>
-              <strong class="text-slate-900 block text-xs leading-snug">${e.item}</strong>
-              <span class="text-[11px] text-slate-500 block">Setor: <strong>${e.setor || 'Patrimônio Geral'}</strong></span>
-              ${e.patrimonio_id ? `<span class="text-[9px] text-indigo-600 font-semibold block mt-0.5">🔗 Vinculado ao Inventário</span>` : ''}
+      <tr class="hover:bg-slate-50/80 transition-colors border-b border-slate-100 text-xs">
+        <!-- 1. Item & Origem -->
+        <td class="py-3.5 px-4 align-top">
+          <div class="space-y-1.5">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-mono text-[10px] font-black bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200">
+                ${e.codigo || 'S/C'}
+              </span>
+              ${e.patrimonio_id ? `
+                <span class="text-[9px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">
+                  🔗 Tombado
+                </span>
+              ` : ''}
+            </div>
+            <div class="font-extrabold text-slate-900 text-xs leading-snug">
+              ${e.item}
+            </div>
+            <div class="text-[11px] text-slate-500 flex items-center gap-1">
+              <span class="text-slate-400">Setor:</span> <strong class="text-slate-700">${e.setor || 'Patrimônio Geral'}</strong>
+            </div>
+            <div class="pt-0.5">
+              <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200">
+                <span>🔍</span> ${e.condicao_saida || 'Bom Estado'}
+              </span>
+              ${e.observacoes_saida ? `<p class="text-[10px] text-slate-400 mt-0.5 italic max-w-xs truncate" title="${e.observacoes_saida}">"${e.observacoes_saida}"</p>` : ''}
             </div>
           </div>
         </td>
 
-        <!-- 2. Retirante e Contato -->
-        <td class="py-3 px-3">
-          <div>
-            <strong class="text-slate-800 text-xs block">${e.solicitante_nome}</strong>
-            <div class="flex items-center gap-2 mt-0.5">
-              ${e.solicitante_telefone ? `
-                <a href="${zapLink}" target="_blank" class="text-[11px] text-emerald-700 hover:text-emerald-800 font-semibold inline-flex items-center gap-1" title="Chamar no WhatsApp">
-                  <span>📱</span> ${e.solicitante_telefone}
-                </a>
-              ` : '<span class="text-[10px] text-slate-400">Sem telefone</span>'}
-            </div>
-            ${e.solicitante_documento ? `<span class="text-[10px] text-slate-500 block">Doc/Função: ${e.solicitante_documento}</span>` : ''}
-            ${e.motivo ? `<p class="text-[10px] text-slate-500 mt-1 italic">"${e.motivo}"</p>` : ''}
-          </div>
-        </td>
-
-        <!-- 3. Prazos & Status do Ciclo -->
-        <td class="py-3 px-3">
+        <!-- 2. Membro Retirante -->
+        <td class="py-3.5 px-4 align-top">
           <div class="space-y-1">
-            <div class="text-[11px] text-slate-600">
-              <span class="text-slate-400 text-[10px] block">Retirada:</span>
-              <strong>${formatarDataHora(e.data_retirada)}</strong>
+            <div class="flex items-center gap-1.5">
+              <div class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs shrink-0 font-bold">
+                👤
+              </div>
+              <strong class="text-slate-900 text-xs block leading-tight">${e.solicitante_nome}</strong>
             </div>
-            <div class="text-[11px] text-slate-800">
-              <span class="text-slate-400 text-[10px] block">Previsão Entrega:</span>
-              <strong class="text-indigo-700">${formatarDataHora(e.previsao_devolucao)}</strong>
+            <div class="text-[11px] pt-0.5">
+              ${e.solicitante_telefone ? `
+                <a href="${zapLink}" target="_blank" class="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[10px]" title="Abrir conversa no WhatsApp">
+                  <span>💬</span> ${e.solicitante_telefone}
+                </a>
+              ` : '<span class="text-[10px] text-slate-400 italic">Sem telefone</span>'}
             </div>
-            <div class="mt-1">${statusCicloBadge}</div>
+            ${e.solicitante_documento ? `
+              <div class="text-[10px] text-slate-500">
+                Função/Doc: <strong>${e.solicitante_documento}</strong>
+              </div>
+            ` : ''}
+            ${e.motivo ? `
+              <div class="text-[10px] text-slate-600 bg-slate-50 p-1.5 rounded-lg border border-slate-200 mt-1">
+                <span class="text-slate-400 font-semibold block text-[9px] uppercase">Finalidade:</span>
+                <span class="font-medium">${e.motivo}</span>
+              </div>
+            ` : ''}
           </div>
         </td>
 
-        <!-- 4. Aprovações Obrigatórias de Saída -->
-        <td class="py-3 px-3">
-          <div class="space-y-1.5 min-w-[170px]">
-            <!-- 1º OK: Setor -->
-            <div class="p-1.5 rounded-lg border text-[10px] ${aprovSetorOk ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-900'}">
-              <span class="font-bold block">1. Resp. do Setor:</span>
-              <span class="text-[10px] font-semibold text-slate-700 block truncate">${e.responsavel_setor || 'Responsável Setor'}</span>
+        <!-- 3. Prazos & Situação -->
+        <td class="py-3.5 px-4 align-top">
+          <div class="space-y-1.5">
+            <div class="p-2 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+              <div class="text-[10px] text-slate-500">
+                <span class="text-slate-400 block font-semibold uppercase text-[9px]">Saída / Retirada:</span>
+                <strong class="text-slate-800 font-mono text-[11px]">${formatarDataHora(e.data_retirada)}</strong>
+              </div>
+              <div class="text-[10px] text-slate-800 border-t border-slate-200 pt-1">
+                <span class="text-slate-400 block font-semibold uppercase text-[9px]">Previsão de Entrega:</span>
+                <strong class="${isAtrasado ? 'text-rose-600 font-black' : 'text-indigo-700 font-bold'} font-mono text-[11px]">${formatarDataHora(e.previsao_devolucao)}</strong>
+              </div>
+            </div>
+            <div class="pt-0.5 text-center">${statusCicloBadge}</div>
+          </div>
+        </td>
+
+        <!-- 4. Aprovações (Setor ➔ Patrimônio) -->
+        <td class="py-3.5 px-4 align-top min-w-[190px]">
+          <div class="space-y-2">
+            <!-- Etapa 1: Setor -->
+            <div class="p-2 rounded-xl border text-[11px] ${aprovSetorOk ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950' : 'bg-amber-50/70 border-amber-200 text-amber-950'}">
+              <div class="flex items-center justify-between text-[10px] font-bold">
+                <span class="${aprovSetorOk ? 'text-emerald-800' : 'text-amber-800'}">1º OK: Setor</span>
+                ${aprovSetorOk ? '<span class="text-emerald-700">✓ Aprovado</span>' : '<span class="text-amber-700">⏳ Pendente</span>'}
+              </div>
+              <div class="text-[10px] text-slate-700 font-semibold truncate mt-0.5">${e.responsavel_setor || 'Responsável Setor'}</div>
               ${aprovSetorOk ? `
-                <span class="font-bold text-emerald-700 block mt-0.5">✓ Aprovado por ${e.operador_aprovador_setor || 'Setor'}</span>
+                <span class="text-[9px] text-emerald-700 block mt-1">Por ${e.operador_aprovador_setor || 'Setor'} em ${e.data_aprovacao_setor || ''}</span>
               ` : `
-                <button onclick="aprovarEmprestimoSetor(${e.id})" class="mt-1 w-full px-2 py-1 rounded bg-amber-600 hover:bg-amber-700 text-white font-bold text-[10px] shadow-sm transition">
-                  Dar Aprovação do Setor
+                <button onclick="aprovarEmprestimoSetor(${e.id})" class="mt-1.5 w-full py-1.5 px-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-[10px] shadow-sm transition cursor-pointer flex items-center justify-center gap-1">
+                  <span>✓</span> Dar Aprovação do Setor
                 </button>
               `}
             </div>
 
-            <!-- 2º OK: Patrimônio (Depende estritamente do OK prévio do Setor) -->
-            <div class="p-1.5 rounded-lg border text-[10px] ${okPatrimonioOk ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : aprovSetorOk ? 'bg-blue-50 border-blue-200 text-blue-900' : 'bg-slate-50 border-slate-200 text-slate-500'}">
-              <span class="font-bold block">2. Resp. do Patrimônio:</span>
-              <span class="text-[10px] font-semibold text-slate-700 block truncate">${e.responsavel_patrimonio || 'Marcos Silva'}</span>
+            <!-- Etapa 2: Patrimônio (Requer prévia aprovação do Setor) -->
+            <div class="p-2 rounded-xl border text-[11px] ${okPatrimonioOk ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950' : aprovSetorOk ? 'bg-blue-50/70 border-blue-200 text-blue-950' : 'bg-slate-50 border-slate-200 text-slate-400'}">
+              <div class="flex items-center justify-between text-[10px] font-bold">
+                <span class="${okPatrimonioOk ? 'text-emerald-800' : aprovSetorOk ? 'text-blue-800' : 'text-slate-400'}">2º OK: Patrimônio</span>
+                ${okPatrimonioOk ? '<span class="text-emerald-700">✓ Liberado</span>' : aprovSetorOk ? '<span class="text-blue-700">⏳ Liberar</span>' : '<span class="text-slate-400">🔒 Bloqueado</span>'}
+              </div>
+              <div class="text-[10px] text-slate-700 font-semibold truncate mt-0.5">${e.responsavel_patrimonio || 'Marcos Silva'}</div>
               ${okPatrimonioOk ? `
-                <span class="font-bold text-emerald-700 block mt-0.5">✓ Liberado por ${e.operador_ok_patrimonio || 'Patrimônio'}</span>
+                <span class="text-[9px] text-emerald-700 block mt-1">Por ${e.operador_ok_patrimonio || 'Patrimônio'} em ${e.data_ok_patrimonio || ''}</span>
               ` : !aprovSetorOk ? `
-                <div class="mt-1 w-full px-2 py-1 rounded bg-slate-100 text-slate-400 font-semibold text-[10px] border border-slate-200 text-center flex items-center justify-center gap-1 cursor-not-allowed" title="A liberação do Patrimônio só fica disponível após o Responsável do Setor aprovar">
-                  <span>🔒</span> Aguarda Liberação do Setor
+                <div class="mt-1.5 py-1 px-2 rounded-lg bg-slate-100 text-slate-400 font-medium text-[9px] text-center border border-slate-200">
+                  Aguardando aprovação do Setor
                 </div>
               ` : `
-                <button onclick="darOkEmprestimoPatrimonio(${e.id})" class="mt-1 w-full px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] shadow-sm transition flex items-center justify-center gap-1 animate-pulse">
+                <button onclick="darOkEmprestimoPatrimonio(${e.id})" class="mt-1.5 w-full py-1.5 px-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-[10px] shadow-md transition cursor-pointer flex items-center justify-center gap-1 animate-pulse">
                   <span>✓</span> Dar OK do Patrimônio
                 </button>
               `}
@@ -6228,101 +6268,96 @@ function renderPatrimonioEmprestimos() {
           </div>
         </td>
 
-        <!-- 5. Ação de Retirada & Assinatura Digital do Retirante -->
-        <td class="py-3 px-3 text-center">
+        <!-- 5. Retirada & Assinatura Digital -->
+        <td class="py-3.5 px-4 align-top text-center min-w-[170px]">
           ${e.assinatura_retirada_base64 ? `
-            <div class="flex flex-col items-center gap-1">
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
-                ✍️ Assinado pelo Retirante
+            <div class="p-2.5 rounded-xl bg-emerald-50/60 border border-emerald-200 flex flex-col items-center gap-1.5">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                ✍️ Assinado Digitalmente
               </span>
-              <img src="${e.assinatura_retirada_base64}" alt="Assinatura" class="h-8 max-w-[120px] object-contain border bg-white rounded p-0.5 shadow-sm" />
-              <span class="text-[9px] text-slate-500">${e.assinatura_retirada_em || formatarDataHora(e.data_retirada)}</span>
+              <div class="bg-white p-1 rounded-lg border border-emerald-200 shadow-2xs">
+                <img src="${e.assinatura_retirada_base64}" alt="Assinatura" class="h-10 max-w-[130px] object-contain" />
+              </div>
+              <span class="text-[9px] text-slate-500 font-mono">${e.assinatura_retirada_em || formatarDataHora(e.data_retirada)}</span>
+              <button onclick="imprimirTermoEmprestimo(${e.id})" class="text-[10px] font-bold text-indigo-700 hover:text-indigo-900 underline mt-0.5 cursor-pointer">
+                Ver Termo de Cautela
+              </button>
             </div>
           ` : (isEmprestado || isDevolvido) ? `
-            <div class="flex flex-col items-center gap-1">
-              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col items-center gap-1">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
                 ✓ Retirada Efetivada
               </span>
-              <span class="text-[9px] text-slate-500">${formatarDataHora(e.data_retirada)}</span>
-              <button onclick="abrirModalAssinaturaDigital(${e.id})" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 underline mt-0.5">
+              <span class="text-[10px] text-slate-500 font-mono">${formatarDataHora(e.data_retirada)}</span>
+              <button onclick="abrirModalAssinaturaDigital(${e.id})" class="mt-1 w-full py-1 px-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[10px] border border-indigo-200 transition cursor-pointer">
                 📱 Colher Assinatura
               </button>
             </div>
           ` : ambosAprovaramSaida ? `
-            <div class="flex flex-col items-center gap-1.5 min-w-[140px]">
-              <button onclick="abrirModalAssinaturaDigital(${e.id})" class="w-full px-2.5 py-2 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-md transition flex items-center justify-center gap-1.5 animate-bounce">
+            <div class="p-2.5 rounded-xl bg-indigo-50/50 border border-indigo-200 flex flex-col items-center gap-2">
+              <span class="text-[10px] font-extrabold text-indigo-900 uppercase tracking-wider">Pronto p/ Retirada</span>
+              <button onclick="abrirModalAssinaturaDigital(${e.id})" class="w-full py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer">
                 <span>📱</span> Assinar no Celular
               </button>
-              <button onclick="confirmarRetiradaFisicaItem(${e.id})" class="text-[10px] font-semibold text-slate-500 hover:text-slate-800 underline">
-                Ou efetivar sem assinar
+              <button onclick="confirmarRetiradaFisicaItem(${e.id})" class="text-[10px] font-semibold text-slate-500 hover:text-slate-800 underline cursor-pointer">
+                Confirmar saída sem assinar
               </button>
             </div>
           ` : `
-            <div class="p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-400 text-[10px] flex flex-col items-center gap-1">
-              <span class="text-base">🔒</span>
-              <span class="font-bold text-slate-600">Retirada Bloqueada</span>
-              <span class="text-[9px] text-slate-400 text-center leading-tight">Aguardando OK do Setor e do Patrimônio</span>
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-400 text-center flex flex-col items-center gap-1">
+              <span class="text-xl">🔒</span>
+              <span class="font-bold text-slate-600 text-[11px]">Saída Bloqueada</span>
+              <span class="text-[9px] text-slate-400 leading-tight">Aguardando aprovação do Setor e do Patrimônio</span>
             </div>
           `}
         </td>
 
-        <!-- 6. Devolução Reversa (Regra 3: Só conclui com ambos os OKs) -->
-        <td class="py-3 px-3 text-center">
-          ${!isEmprestado && !isDevolvido ? `
-            <span class="text-[11px] text-slate-400 italic">Aguardando saída</span>
-          ` : isDevolvido ? `
-            <div class="space-y-1">
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
-                ✅ Devolução Concluída
-              </span>
-              <div class="text-[9px] text-slate-500 text-left space-y-0.5">
-                <div>Retorno: <strong>${formatarDataHora(e.data_devolucao_real)}</strong></div>
-                <div>Condição: <strong class="text-emerald-800">${e.condicao_retorno}</strong></div>
-                <div>Setor: ✓ ${e.operador_retorno_setor || 'OK'}</div>
-                <div>Patrimônio: ✓ ${e.operador_retorno_patrimonio || 'OK'}</div>
+        <!-- 6. Devolução & Ações -->
+        <td class="py-3.5 px-4 align-top text-center min-w-[180px]">
+          <div class="space-y-2">
+            ${!isEmprestado && !isDevolvido ? `
+              <div class="p-2 rounded-xl bg-slate-50 border border-slate-200 text-[10px] text-slate-400 italic">
+                Aguardando efetivar retirada física
               </div>
-            </div>
-          ` : `
-            <div class="space-y-1.5">
-              <button onclick="abrirModalDevolucaoPatrimonio(${e.id})" class="w-full px-2.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 shadow-sm transition flex items-center justify-center gap-1 whitespace-nowrap">
-                <span>🔄</span> Registrar Entrega
+            ` : isDevolvido ? `
+              <div class="p-2 rounded-xl bg-emerald-50/70 border border-emerald-200 text-left space-y-1">
+                <div class="inline-flex items-center gap-1 text-[10px] font-black text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded-md">
+                  ✅ Devolução Concluída
+                </div>
+                <div class="text-[10px] text-slate-600 space-y-0.5 pt-0.5">
+                  <div>Retorno: <strong class="text-slate-800 font-mono">${formatarDataHora(e.data_devolucao_real)}</strong></div>
+                  <div>Vistoria: <strong class="text-emerald-800">${e.condicao_retorno || 'Excelente'}</strong></div>
+                  <div class="text-[9px] text-slate-500">Conferido por Setor e Patrimônio</div>
+                </div>
+              </div>
+            ` : `
+              <button onclick="abrirModalDevolucaoPatrimonio(${e.id})" class="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer">
+                <span>🔄</span> Registrar Devolução
               </button>
 
               ${e.data_devolucao_real ? `
-                <div class="space-y-1 pt-1 border-t border-slate-200 text-[10px]">
-                  <div class="text-slate-500 text-[9px]">Entrega: ${formatarDataHora(e.data_devolucao_real)}</div>
-                  ${retornoSetorOk ? `
-                    <span class="text-[10px] font-bold text-emerald-700 block">✓ Setor Conferido</span>
-                  ` : `
-                    <button onclick="darOkRetornoSetor(${e.id})" class="w-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded hover:bg-amber-100">
-                      OK Conferência Setor
-                    </button>
-                  `}
-                  ${retornoPatrimonioOk ? `
-                    <span class="text-[10px] font-bold text-emerald-700 block">✓ Baixa Patrimônio OK</span>
-                  ` : `
-                    <button onclick="darOkRetornoPatrimonio(${e.id})" class="w-full text-[10px] font-bold bg-blue-50 text-blue-900 border border-blue-200 px-2 py-0.5 rounded hover:bg-blue-100">
-                      OK Baixa Patrimônio
-                    </button>
-                  `}
+                <div class="p-2 rounded-xl bg-amber-50 border border-amber-200 text-left space-y-1 text-[10px]">
+                  <div class="font-bold text-amber-900">Devolvido em: ${formatarDataHora(e.data_devolucao_real)}</div>
+                  <div class="flex items-center gap-1">
+                    ${retornoSetorOk ? '<span class="text-emerald-700 font-bold">✓ Setor OK</span>' : `<button onclick="darOkRetornoSetor(${e.id})" class="text-[9px] font-bold bg-white border border-amber-300 text-amber-900 px-1.5 py-0.5 rounded">Dar OK Setor</button>`}
+                    ${retornoPatrimonioOk ? '<span class="text-emerald-700 font-bold">✓ Patr. OK</span>' : `<button onclick="darOkRetornoPatrimonio(${e.id})" class="text-[9px] font-bold bg-white border border-blue-300 text-blue-900 px-1.5 py-0.5 rounded">Dar OK Patr.</button>`}
+                  </div>
                 </div>
               ` : ''}
-            </div>
-          `}
-        </td>
+            `}
 
-        <!-- 7. Ações -->
-        <td class="py-3 px-3 text-right">
-          <div class="flex items-center justify-end gap-1.5">
-            <button onclick="abrirModalAssinaturaDigital(${e.id})" class="p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition" title="Abrir QR Code / Assinatura no Celular">
-              📱
-            </button>
-            <button onclick="imprimirTermoEmprestimo(${e.id})" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition" title="Gerar Termo de Cautela e Empréstimo (PDF / Imprimir)">
-              📄
-            </button>
-            <button onclick="excluirEmprestimoPatrimonio(${e.id})" class="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg transition" title="Excluir Registro">
-              🗑️
-            </button>
+            <!-- Botões de Ações Rápidas -->
+            <div class="flex items-center justify-center gap-1.5 pt-1 border-t border-slate-100">
+              <button type="button" onclick="abrirModalAssinaturaDigital(${e.id})" class="p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl transition cursor-pointer" title="Abrir QR Code / Assinatura no Celular">
+                📱
+              </button>
+              <button type="button" onclick="imprimirTermoEmprestimo(${e.id})" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition cursor-pointer" title="Imprimir Termo de Cautela (PDF)">
+                📄
+              </button>
+              <button type="button" onclick="excluirEmprestimoPatrimonio(${e.id})" class="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl transition cursor-pointer" title="Excluir Registro de Empréstimo">
+                🗑️
+              </button>
+            </div>
           </div>
         </td>
       </tr>
