@@ -2273,7 +2273,7 @@ const TITULOS_ABAS = {
 
 
 
-  acessos: ['Controle de Acessos & Usuários por Setor', 'Cadastre usuários (secretários, tesoureiros, responsáveis por patrimônio e líderes) e defina permissões de acesso simultâneo']
+  acessos: ['Controle de Acessos & Usuários', 'Gestão de credenciais, operadores e permissões por setor']
 
 
 
@@ -2858,6 +2858,16 @@ function renderOperatorSelector() {
       badge.textContent = 'DESCONECTADO';
       badge.className = 'inline-block text-[9px] sm:text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded-md';
     }
+  }
+
+  const sessaoNome = document.getElementById('card-sessao-nome');
+  const sessaoPerfil = document.getElementById('card-sessao-perfil');
+  const sessaoAvatar = document.getElementById('card-sessao-avatar');
+  if (sessaoNome) sessaoNome.textContent = CURRENT_OPERATOR ? (CURRENT_OPERATOR.nome || 'Operador') : 'Marcos Silva';
+  if (sessaoPerfil) sessaoPerfil.textContent = CURRENT_OPERATOR ? (CURRENT_OPERATOR.perfil || 'ADMIN') : 'ADMIN';
+  if (sessaoAvatar && CURRENT_OPERATOR) {
+    const parts = (CURRENT_OPERATOR.nome || 'OP').trim().split(/\s+/);
+    sessaoAvatar.textContent = parts.length > 1 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : parts[0].slice(0, 2).toUpperCase();
   }
 
   if (!select) return;
@@ -7694,6 +7704,8 @@ function renderUsuarios(termoBusca = FILTRO_USUARIOS_TERMO, tipoFiltro = FILTRO_
 
   const badgeMenuUsr = document.getElementById('badge-usuarios');
   if (badgeMenuUsr) badgeMenuUsr.textContent = totalUsers;
+
+  renderOperatorSelector();
 
   const usrCont = document.getElementById('lista-usuarios');
   if (!usrCont) return;
