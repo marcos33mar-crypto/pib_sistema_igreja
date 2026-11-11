@@ -19500,6 +19500,8 @@
 
 
                 <option value="Ativo">🟢 Ativos</option>
+                    <option value="Criança">👶 Crianças</option>
+                    <option value="Aluno do Viver">📘 Alunos do Viver</option>
 
 
 
@@ -19998,6 +20000,33 @@
 
 
               </h4>
+              <!-- FOTO DO MEMBRO -->
+              <div class="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 bg-white rounded-2xl border border-slate-200">
+                <div class="relative shrink-0">
+                  <div id="mem-foto-placeholder" class="w-24 h-24 rounded-2xl bg-indigo-50/70 border-2 border-dashed border-indigo-300 text-indigo-400 flex flex-col items-center justify-center font-bold text-xs shadow-inner">
+                    <span class="text-2xl mb-1">📷</span>
+                    <span>Sem Foto</span>
+                  </div>
+                  <img id="mem-foto-preview" src="" alt="Foto do Membro" class="w-24 h-24 rounded-2xl object-cover border-2 border-indigo-500 shadow-sm hidden" />
+                </div>
+                <div class="flex-1 text-center sm:text-left space-y-2">
+                  <div>
+                    <h5 class="font-extrabold text-slate-800 text-sm">Foto Oficial do Membro</h5>
+                    <p class="text-[11px] text-slate-500">Foto para carteirinha oficial, ficha 360º e identificação no rol de membros.</p>
+                  </div>
+                  <div class="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
+                    <label for="mem-foto-input" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition cursor-pointer inline-flex items-center gap-1.5 shadow-2xs">
+                      <span>📁</span> Selecionar Foto
+                    </label>
+                    <input type="file" id="mem-foto-input" accept="image/*" onchange="aoSelecionarFotoMembro(event)" class="hidden" />
+                    <button type="button" id="btn-remover-foto-mem" onclick="removerFotoMembro()" class="bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs px-3 py-2 rounded-xl transition cursor-pointer hidden inline-flex items-center gap-1">
+                      <span>✕</span> Remover Foto
+                    </button>
+                  </div>
+                  <input type="hidden" id="mem-foto-base64" value="" />
+                </div>
+              </div>
+
 
 
 
@@ -21510,6 +21539,8 @@
 
 
                     <option value="Ativo" selected>🟢 Ativo</option>
+                    <option value="Criança">👶 Criança</option>
+                    <option value="Aluno do Viver">📘 Aluno do Viver</option>
 
 
 
@@ -21677,18 +21708,40 @@
 
 
 
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <!-- MINISTÉRIOS 1 E 2 (SEM CÉLULA/GRUPO FAMILIAR) -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                 <div>
-                  <label class="font-semibold text-slate-700 block mb-1">Ministério</label>
+                  <label class="font-semibold text-slate-700 block mb-1">Ministério 1</label>
                   <select id="mem-ministerio" class="w-full border border-slate-300 rounded-xl px-3 py-2.5 bg-white"></select>
                 </div>
                 <div>
-                  <label class="font-semibold text-slate-700 block mb-1">Função no Ministério</label>
+                  <label class="font-semibold text-slate-700 block mb-1">Função no Ministério 1</label>
                   <input type="text" id="mem-funcao-min" placeholder="Ex: Líder, Integrante, Vocal" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 bg-white" />
                 </div>
                 <div>
-                  <label class="font-semibold text-slate-700 block mb-1">Célula / Grupo Familiar (Opcional)</label>
-                  <select id="mem-celula" class="w-full border border-slate-300 rounded-xl px-3 py-2.5 bg-white"></select>
+                  <label class="font-semibold text-slate-700 block mb-1">Ministério 2 (Opcional)</label>
+                  <select id="mem-ministerio-2" class="w-full border border-slate-300 rounded-xl px-3 py-2.5 bg-white"></select>
+                </div>
+                <div>
+                  <label class="font-semibold text-slate-700 block mb-1">Função no Ministério 2</label>
+                  <input type="text" id="mem-funcao-min-2" placeholder="Ex: Músico, Apoio, Professor" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 bg-white" />
+                </div>
+              </div>
+              <input type="hidden" id="mem-celula" value="" />
+
+              <!-- SITUAÇÃO DE TRANSFERÊNCIA / INATIVAÇÃO E MOTIVO -->
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-amber-50/60 p-3.5 rounded-xl border border-amber-200">
+                <div>
+                  <label class="font-bold text-amber-950 block mb-1">Situação de Transferência / Inativação</label>
+                  <select id="mem-tipo-transferencia" class="w-full border border-amber-300 rounded-xl px-3 py-2.5 bg-white font-medium text-slate-800">
+                    <option value="">-- Regular / Em Comunhão (Sem Transferência) --</option>
+                    <option value="Transferido">🟡 Transferido</option>
+                    <option value="Inativo">⚪ Inativo</option>
+                  </select>
+                </div>
+                <div class="sm:col-span-2">
+                  <label class="font-bold text-amber-950 block mb-1">Motivo da Transferência / Inativação & Detalhes</label>
+                  <input type="text" id="mem-motivo-transferencia" placeholder="Ex: Mudança de endereço; Carta de transferência enviada para outra igreja; Desligamento solicitado..." class="w-full border border-amber-300 rounded-xl px-3.5 py-2.5 bg-white text-slate-800" />
                 </div>
               </div>
             <!-- OBSERVAÇÕES & CONSIDERAÇÕES PASTORAIS DO MEMBRO -->
@@ -25658,7 +25711,7 @@
 
 
 
-  <script src="/app.js?v=20261111_v214_dashboard_visao_geral_realtime"></script>
+  <script src="/app.js?v=20261111_v215_membros_foto_transferencia_min2"></script>
 
 
 

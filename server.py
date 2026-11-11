@@ -980,6 +980,16 @@ def init_db():
 
             ("data_casamento", "TEXT DEFAULT ''"),
 
+            ("foto_base64", "TEXT DEFAULT ''"),
+
+            ("ministerio_id_2", "INTEGER DEFAULT NULL"),
+
+            ("funcao_ministerio_2", "TEXT DEFAULT ''"),
+
+            ("tipo_transferencia", "TEXT DEFAULT ''"),
+
+            ("motivo_transferencia", "TEXT DEFAULT ''"),
+
         ]
 
         for col_name, col_type in novas_cols_membros:
@@ -3730,9 +3740,11 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                          profissao, conjuge, data_casamento,
 
+                         foto_base64, ministerio_id_2, funcao_ministerio_2, tipo_transferencia, motivo_transferencia,
+
                          cargo_eclesiastico, status, sala_ebd, celula_id, observacoes, criado_em)
 
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
 
                         (
 
@@ -3784,6 +3796,16 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                             body.get("data_casamento", "").strip(),
 
+                            body.get("foto_base64", "").strip(),
+
+                            int(body["ministerio_id_2"]) if body.get("ministerio_id_2") else None,
+
+                            body.get("funcao_ministerio_2", "").strip(),
+
+                            body.get("tipo_transferencia", "").strip(),
+
+                            body.get("motivo_transferencia", "").strip(),
+
                             body.get("cargo_eclesiastico", "Membro"),
 
                             status_membro,
@@ -3815,6 +3837,20 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                             "INSERT OR IGNORE INTO membro_ministerio (membro_id, ministerio_id, funcao) VALUES (?, ?, ?)",
 
                             (membro_id, int(min_id), funcao),
+
+                        )
+
+                    min_id_2 = body.get("ministerio_id_2")
+
+                    funcao_2 = body.get("funcao_ministerio_2", "Voluntário")
+
+                    if min_id_2:
+
+                        cur.execute(
+
+                            "INSERT OR IGNORE INTO membro_ministerio (membro_id, ministerio_id, funcao) VALUES (?, ?, ?)",
+
+                            (membro_id, int(min_id_2), funcao_2),
 
                         )
 
@@ -3938,6 +3974,12 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     conjuge = body.get("conjuge", (atual["conjuge"] if "conjuge" in atual.keys() and atual["conjuge"] else ""))
                     data_casamento = body.get("data_casamento", (atual["data_casamento"] if "data_casamento" in atual.keys() and atual["data_casamento"] else ""))
 
+                    foto_base64 = body.get("foto_base64") if "foto_base64" in body else (atual["foto_base64"] if "foto_base64" in atual.keys() and atual["foto_base64"] else "")
+                    ministerio_id_2 = int(body["ministerio_id_2"]) if body.get("ministerio_id_2") else (atual["ministerio_id_2"] if "ministerio_id_2" in atual.keys() and atual["ministerio_id_2"] else None)
+                    funcao_ministerio_2 = body.get("funcao_ministerio_2") if "funcao_ministerio_2" in body else (atual["funcao_ministerio_2"] if "funcao_ministerio_2" in atual.keys() and atual["funcao_ministerio_2"] else "")
+                    tipo_transferencia = body.get("tipo_transferencia") if "tipo_transferencia" in body else (atual["tipo_transferencia"] if "tipo_transferencia" in atual.keys() and atual["tipo_transferencia"] else "")
+                    motivo_transferencia = body.get("motivo_transferencia") if "motivo_transferencia" in body else (atual["motivo_transferencia"] if "motivo_transferencia" in atual.keys() and atual["motivo_transferencia"] else "")
+
                     status = body.get("status", atual["status"] or "Ativo")
 
                     sala_ebd = body.get("sala_ebd", (atual["sala_ebd"] if "sala_ebd" in atual.keys() and atual["sala_ebd"] else "")).strip()
@@ -3966,6 +4008,10 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                             profissao=?, conjuge=?, data_casamento=?,
 
+                            foto_base64=?, ministerio_id_2=?, funcao_ministerio_2=?,
+
+                            tipo_transferencia=?, motivo_transferencia=?,
+
                             status=?, sala_ebd=?, cargo_eclesiastico=?, celula_id=?, observacoes=?
 
                         WHERE id=?""",
@@ -3981,6 +4027,10 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                             estado_civil, genero, familia, rg, cidade_nascimento, estado_nascimento, cpf,
 
                             profissao, conjuge, data_casamento,
+
+                            foto_base64, ministerio_id_2, funcao_ministerio_2,
+
+                            tipo_transferencia, motivo_transferencia,
 
                             status, sala_ebd, cargo, celula_id or None, observacoes, membro_id
 
@@ -4070,13 +4120,17 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
 
-                    # Atualiza vínculo de ministério se enviado no formulário
+                    # Atualiza vínculos de ministério 1 e 2 se enviados no formulário
 
-                    if "ministerio_id" in body:
+                    if "ministerio_id" in body or "ministerio_id_2" in body:
 
                         min_id = body.get("ministerio_id")
 
                         funcao_min = (body.get("funcao_ministerio") or "Voluntário").strip() or "Voluntário"
+
+                        min_id_2 = body.get("ministerio_id_2")
+
+                        funcao_min_2 = (body.get("funcao_ministerio_2") or "Voluntário").strip() or "Voluntário"
 
                         cur.execute("DELETE FROM membro_ministerio WHERE membro_id=?", (membro_id,))
 
@@ -4088,7 +4142,19 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                                 VALUES (?, ?, ?)""",
 
-                                (membro_id, int(min_id), funcao_min)
+                                (membro_id, int(min_id), funcao_min),
+
+                            )
+
+                        if min_id_2:
+
+                            cur.execute(
+
+                                """INSERT INTO membro_ministerio (membro_id, ministerio_id, funcao) 
+
+                                VALUES (?, ?, ?)""",
+
+                                (membro_id, int(min_id_2), funcao_min_2),
 
                             )
 

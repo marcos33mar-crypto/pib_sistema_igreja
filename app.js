@@ -5491,19 +5491,41 @@ function renderMembros() {
 
     const statusBadge = m.status === 'Ativo'
       ? 'bg-emerald-100 text-emerald-800'
-      : m.status === 'Em Disciplina'
-        ? 'bg-rose-100 text-rose-800'
-        : 'bg-amber-100 text-amber-800';
+      : m.status === 'Criança'
+        ? 'bg-sky-100 text-sky-800'
+        : m.status === 'Aluno do Viver'
+          ? 'bg-indigo-100 text-indigo-800'
+          : m.status === 'Transferido'
+            ? 'bg-amber-100 text-amber-800'
+            : m.status === 'Inativo'
+              ? 'bg-slate-200 text-slate-700'
+              : m.status === 'Em Disciplina'
+                ? 'bg-rose-100 text-rose-800'
+                : 'bg-amber-100 text-amber-800';
+
+    const transBadge = m.tipo_transferencia
+      ? `<span class="ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-300" title="${m.motivo_transferencia ? 'Motivo: ' + m.motivo_transferencia : ''}">📦 ${m.tipo_transferencia}</span>`
+      : '';
+
+    const fotoThumb = m.foto_base64
+      ? `<img src="${m.foto_base64}" alt="${m.nome}" class="w-9 h-9 rounded-full object-cover border border-indigo-200 shrink-0 shadow-2xs" />`
+      : `<div class="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center shrink-0 border border-indigo-200">${(m.nome || '?').charAt(0).toUpperCase()}</div>`;
 
     return `
       <tr class="hover:bg-indigo-50/40 transition">
         <td class="py-3 px-2 cursor-pointer" onclick="abrirFicha360(${m.id})">
-          <div class="font-bold text-indigo-950 hover:text-indigo-600 transition">${m.nome}</div>
-          <div class="text-[11px] text-slate-500">${m.familia || 'Sem família'} • ${m.telefone || 'Sem tel.'}</div>
+          <div class="flex items-center gap-2.5">
+            ${fotoThumb}
+            <div>
+              <div class="font-bold text-indigo-950 hover:text-indigo-600 transition">${m.nome}</div>
+              <div class="text-[11px] text-slate-500">${m.familia || 'Sem família'} • ${m.telefone || 'Sem tel.'}</div>
+            </div>
+          </div>
         </td>
         <td class="py-3 px-2">
           <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700">${m.cargo_eclesiastico}</span>
           <span class="ml-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${statusBadge}">${m.status}</span>
+          ${transBadge}
         </td>
         <td class="py-3 px-2 text-slate-700 font-medium">${m.celula_nome || '<span class="text-slate-400">Não vinculado</span>'}</td>
         <td class="py-3 px-2">${badgesMin}</td>
@@ -5538,13 +5560,20 @@ function abrirFicha360(membroId) {
     `<option value="${c.id}" ${m.celula_id === c.id ? 'selected' : ''}>${c.nome} (${c.bairro})</option>`
   ).join('');
 
+  const fotoFicha = m.foto_base64
+    ? `<img src="${m.foto_base64}" alt="${m.nome}" class="w-14 h-14 rounded-2xl object-cover border-2 border-indigo-200 shrink-0 shadow-sm" />`
+    : `<div class="w-14 h-14 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xl shrink-0 shadow-sm">${(m.nome || '?').charAt(0).toUpperCase()}</div>`;
+
   const html = `
     <div class="space-y-4 text-xs">
-      <div class="flex items-center justify-between border-b border-slate-200 pb-3">
-        <div>
-          <span class="text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full">Visão 360º Interligada</span>
-          <h3 class="text-lg font-extrabold text-slate-900 mt-1">${m.nome}</h3>
-          <p class="text-slate-500">Matrícula #${String(m.id).padStart(4, '0')} • Cadastrado em ${formatDateBR(m.criado_em)}</p>
+      <div class="flex items-center justify-between border-b border-slate-200 pb-3 gap-3">
+        <div class="flex items-center gap-3">
+          ${fotoFicha}
+          <div>
+            <span class="text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full">Visão 360º Interligada</span>
+            <h3 class="text-lg font-extrabold text-slate-900 mt-0.5">${m.nome}</h3>
+            <p class="text-slate-500">Matrícula #${String(m.id).padStart(4, '0')} • Cadastrado em ${formatDateBR(m.criado_em)}</p>
+          </div>
         </div>
         <div class="flex items-center gap-2">
           <button type="button" onclick="fecharModalCustom(); editarMembro(${m.id});" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-2 rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm cursor-pointer">
@@ -5563,6 +5592,8 @@ function abrirFicha360(membroId) {
             <label class="block text-[11px] font-semibold text-slate-600 mb-1">Status Eclesiástico</label>
             <select id="edit360-status" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-semibold">
               <option value="Ativo" ${m.status === 'Ativo' ? 'selected' : ''}>🟢 Ativo em Comunhão</option>
+              <option value="Criança" ${m.status === 'Criança' ? 'selected' : ''}>👶 Criança</option>
+              <option value="Aluno do Viver" ${m.status === 'Aluno do Viver' ? 'selected' : ''}>📘 Aluno do Viver</option>
               <option value="Em Disciplina" ${m.status === 'Em Disciplina' ? 'selected' : ''}>🔴 Em Acompanhamento</option>
               <option value="Transferido" ${m.status === 'Transferido' ? 'selected' : ''}>🟡 Transferido</option>
               <option value="Inativo" ${m.status === 'Inativo' ? 'selected' : ''}>⚪ Inativo</option>
@@ -5605,6 +5636,21 @@ function abrirFicha360(membroId) {
             <input type="date" id="edit360-data-casamento" value="${m.data_casamento || ''}" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white" />
           </div>
         </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-amber-50/70 p-2.5 rounded-lg border border-amber-200">
+          <div>
+            <label class="block text-[11px] font-bold text-amber-900 mb-1">Transferência / Inativação</label>
+            <select id="edit360-tipo-trans" class="w-full border border-amber-300 rounded-lg px-2.5 py-1.5 bg-white text-xs">
+              <option value="" ${!m.tipo_transferencia ? 'selected' : ''}>Regular (Em Comunhão)</option>
+              <option value="Transferido" ${m.tipo_transferencia === 'Transferido' ? 'selected' : ''}>📦 Transferido</option>
+              <option value="Inativo" ${m.tipo_transferencia === 'Inativo' ? 'selected' : ''}>⚪ Inativo</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-amber-900 mb-1">Motivo / Igreja de Destino</label>
+            <input type="text" id="edit360-motivo-trans" value="${escapeHtml(m.motivo_transferencia || '')}" placeholder="Motivo da transferência ou inativação" class="w-full border border-amber-300 rounded-lg px-2.5 py-1.5 bg-white text-xs" />
+          </div>
+        </div>
+
         <div class="flex justify-end">
           <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl shadow transition">
             💾 Salvar Alterações na Ficha 360º
@@ -5654,6 +5700,8 @@ async function salvarEdicaoMembro360(e, membroId) {
     profissao: document.getElementById('edit360-profissao') ? document.getElementById('edit360-profissao').value : '',
     conjuge: document.getElementById('edit360-conjuge') ? document.getElementById('edit360-conjuge').value : '',
     data_casamento: document.getElementById('edit360-data-casamento') ? document.getElementById('edit360-data-casamento').value : '',
+    tipo_transferencia: document.getElementById('edit360-tipo-trans')?.value || '',
+    motivo_transferencia: (document.getElementById('edit360-motivo-trans')?.value || '').trim(),
     observacoes: document.getElementById('edit360-obs').value
   });
   closeModal();
@@ -7537,6 +7585,83 @@ function switchSecretariaSubtab(subtab) {
   }
 }
 
+function aoSelecionarFotoMembro(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  if (!file.type.startsWith('image/')) {
+    alert('Por favor, selecione um arquivo de imagem válido (JPG, PNG, WEBP).');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const maxDim = 360;
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > maxDim) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        }
+      } else {
+        if (height > maxDim) {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+
+      const base64Res = canvas.toDataURL('image/jpeg', 0.85);
+
+      const inputBase64 = document.getElementById('mem-foto-base64');
+      if (inputBase64) inputBase64.value = base64Res;
+
+      const previewEl = document.getElementById('mem-foto-preview');
+      if (previewEl) {
+        previewEl.src = base64Res;
+        previewEl.classList.remove('hidden');
+      }
+
+      const phEl = document.getElementById('mem-foto-placeholder');
+      if (phEl) phEl.classList.add('hidden');
+
+      const btnRem = document.getElementById('btn-remover-foto-mem');
+      if (btnRem) btnRem.classList.remove('hidden');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removerFotoMembro() {
+  const inputBase64 = document.getElementById('mem-foto-base64');
+  if (inputBase64) inputBase64.value = '';
+
+  const fileInput = document.getElementById('mem-foto-input');
+  if (fileInput) fileInput.value = '';
+
+  const previewEl = document.getElementById('mem-foto-preview');
+  if (previewEl) {
+    previewEl.src = '';
+    previewEl.classList.add('hidden');
+  }
+
+  const phEl = document.getElementById('mem-foto-placeholder');
+  if (phEl) phEl.classList.remove('hidden');
+
+  const btnRem = document.getElementById('btn-remover-foto-mem');
+  if (btnRem) btnRem.classList.add('hidden');
+}
+
 function abrirNovoCadastroMembro() {
   const form = document.getElementById('form-membro');
   if (form) form.reset();
@@ -7562,6 +7687,13 @@ function abrirNovoCadastroMembro() {
   if (document.getElementById('mem-profissao')) document.getElementById('mem-profissao').value = '';
   if (document.getElementById('mem-conjuge')) document.getElementById('mem-conjuge').value = '';
   if (document.getElementById('mem-data-casamento')) document.getElementById('mem-data-casamento').value = '';
+  if (document.getElementById('mem-tipo-transferencia')) document.getElementById('mem-tipo-transferencia').value = '';
+  if (document.getElementById('mem-motivo-transferencia')) document.getElementById('mem-motivo-transferencia').value = '';
+  if (document.getElementById('mem-ministerio-2')) document.getElementById('mem-ministerio-2').value = '';
+  if (document.getElementById('mem-funcao-min-2')) document.getElementById('mem-funcao-min-2').value = '';
+
+  removerFotoMembro();
+  popularSelectsCadastroMembro();
 
   switchSecretariaSubtab('cadastro');
   setTimeout(() => {
@@ -7608,16 +7740,49 @@ function editarMembro(id) {
   if (document.getElementById('mem-sala-ebd')) document.getElementById('mem-sala-ebd').value = m.sala_ebd || '';
   if (document.getElementById('mem-observacoes')) document.getElementById('mem-observacoes').value = m.observacoes || '';
 
+  // Foto do Membro
+  const fotoInp = document.getElementById('mem-foto-base64');
+  const fotoPrev = document.getElementById('mem-foto-preview');
+  const fotoPh = document.getElementById('mem-foto-placeholder');
+  const btnRem = document.getElementById('btn-remover-foto-mem');
+  if (fotoInp) fotoInp.value = m.foto_base64 || '';
+  if (m.foto_base64) {
+    if (fotoPrev) { fotoPrev.src = m.foto_base64; fotoPrev.classList.remove('hidden'); }
+    if (fotoPh) fotoPh.classList.add('hidden');
+    if (btnRem) btnRem.classList.remove('hidden');
+  } else {
+    if (fotoPrev) { fotoPrev.src = ''; fotoPrev.classList.add('hidden'); }
+    if (fotoPh) fotoPh.classList.remove('hidden');
+    if (btnRem) btnRem.classList.add('hidden');
+  }
+
+  // Situação de Transferência / Inativação e Motivo
+  if (document.getElementById('mem-tipo-transferencia')) {
+    document.getElementById('mem-tipo-transferencia').value = m.tipo_transferencia || '';
+  }
+  if (document.getElementById('mem-motivo-transferencia')) {
+    document.getElementById('mem-motivo-transferencia').value = m.motivo_transferencia || '';
+  }
+
   popularSelectsCadastroMembro();
   if (document.getElementById('mem-celula')) document.getElementById('mem-celula').value = m.celula_id || '';
 
-  const minVinculado = (m.ministerios && m.ministerios.length > 0) ? m.ministerios[0] : null;
-  if (minVinculado) {
-    if (document.getElementById('mem-ministerio')) document.getElementById('mem-ministerio').value = minVinculado.ministerio_id || '';
-    if (document.getElementById('mem-funcao-min')) document.getElementById('mem-funcao-min').value = minVinculado.funcao || 'Voluntário';
-  } else {
-    if (document.getElementById('mem-ministerio')) document.getElementById('mem-ministerio').value = '';
-    if (document.getElementById('mem-funcao-min')) document.getElementById('mem-funcao-min').value = '';
+  // Ministérios 1 e 2
+  const minVinculado1 = (m.ministerios && m.ministerios.length > 0) ? m.ministerios[0] : null;
+  const minVinculado2 = (m.ministerios && m.ministerios.length > 1) ? m.ministerios[1] : null;
+
+  if (document.getElementById('mem-ministerio')) {
+    document.getElementById('mem-ministerio').value = minVinculado1 ? minVinculado1.ministerio_id : (m.ministerio_id || '');
+  }
+  if (document.getElementById('mem-funcao-min')) {
+    document.getElementById('mem-funcao-min').value = minVinculado1 ? minVinculado1.funcao : (m.funcao_ministerio || '');
+  }
+
+  if (document.getElementById('mem-ministerio-2')) {
+    document.getElementById('mem-ministerio-2').value = minVinculado2 ? minVinculado2.ministerio_id : (m.ministerio_id_2 || '');
+  }
+  if (document.getElementById('mem-funcao-min-2')) {
+    document.getElementById('mem-funcao-min-2').value = minVinculado2 ? minVinculado2.funcao : (m.funcao_ministerio_2 || '');
   }
 
   const titulo = document.getElementById('titulo-cadastro-membro');
@@ -7637,22 +7802,22 @@ function editarMembro(id) {
 }
 
 function popularSelectsCadastroMembro() {
-  const selCelula = document.getElementById('mem-celula');
-  if (selCelula) {
-    const valAtual = selCelula.value;
-    const celulas = STATE.celulas || [];
-    selCelula.innerHTML = '<option value="">-- Sem vínculo com célula / grupo --</option>' + 
-      celulas.map(c => `<option value="${c.id}">${c.nome} (${c.bairro || 'Sem bairro'})</option>`).join('');
-    if (valAtual) selCelula.value = valAtual;
-  }
-
   const selMin = document.getElementById('mem-ministerio');
   if (selMin) {
     const valAtual = selMin.value;
     const mins = STATE.ministerios || [];
-    selMin.innerHTML = '<option value="">-- Selecione o Ministério --</option>' + 
+    selMin.innerHTML = '<option value="">-- Selecione o Ministério 1 --</option>' + 
       mins.map(m => `<option value="${m.id}">${m.nome} (Líder: ${m.lider || 'Geral'})</option>`).join('');
     if (valAtual) selMin.value = valAtual;
+  }
+
+  const selMin2 = document.getElementById('mem-ministerio-2');
+  if (selMin2) {
+    const valAtual2 = selMin2.value;
+    const mins = STATE.ministerios || [];
+    selMin2.innerHTML = '<option value="">-- Selecione o Ministério 2 (Opcional) --</option>' + 
+      mins.map(m => `<option value="${m.id}">${m.nome} (Líder: ${m.lider || 'Geral'})</option>`).join('');
+    if (valAtual2) selMin2.value = valAtual2;
   }
 }
 
@@ -7736,8 +7901,13 @@ async function salvarMembro(e) {
     status: document.getElementById('mem-status')?.value || 'Ativo',
     sala_ebd: (document.getElementById('mem-sala-ebd')?.value || '').trim(),
     celula_id: document.getElementById('mem-celula')?.value ? parseInt(document.getElementById('mem-celula').value) : null,
+    foto_base64: document.getElementById('mem-foto-base64')?.value || '',
     ministerio_id: document.getElementById('mem-ministerio')?.value ? parseInt(document.getElementById('mem-ministerio').value) : null,
     funcao_ministerio: (document.getElementById('mem-funcao-min')?.value || 'Voluntário').trim(),
+    ministerio_id_2: document.getElementById('mem-ministerio-2')?.value ? parseInt(document.getElementById('mem-ministerio-2').value) : null,
+    funcao_ministerio_2: (document.getElementById('mem-funcao-min-2')?.value || '').trim(),
+    tipo_transferencia: document.getElementById('mem-tipo-transferencia')?.value || '',
+    motivo_transferencia: (document.getElementById('mem-motivo-transferencia')?.value || '').trim(),
     observacoes: (document.getElementById('mem-observacoes')?.value || '').trim()
   };
 
@@ -7757,6 +7927,7 @@ async function salvarMembro(e) {
   if (res.status === 200) {
     alert(isEdicao ? `✓ Cadastro de "${payload.nome}" atualizado com sucesso!` : `✓ Membro "${payload.nome}" cadastrado com sucesso!`);
     document.getElementById('form-membro')?.reset();
+    if (typeof removerFotoMembro === 'function') removerFotoMembro();
     if (document.getElementById('mem-id')) document.getElementById('mem-id').value = '';
     await fetchBootstrap();
     switchSecretariaSubtab('lista');
@@ -9404,7 +9575,9 @@ function emitirCredencial(membroId) {
 
 
 
-        <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center font-bold">✚</div>
+        ${m.foto_base64
+          ? `<img src="${m.foto_base64}" alt="Foto" class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover border-2 border-indigo-400 shadow-md shrink-0" />`
+          : `<div class="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-xl shadow-md shrink-0">✚</div>`}
 
 
 
