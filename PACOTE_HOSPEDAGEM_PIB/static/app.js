@@ -3932,42 +3932,8 @@ function populateSelects() {
   // Popula anos do sistema (Exercício e Análise Orçamentária)
   const anos = getAnosDisponiveis();
 
-  // 1. Seletor de Exercício no Dashboard e na Planilha (Organizado por Vigente, Histórico e Futuro)
-  const anoAtualVigente = 2026;
-  const anosPassados = anos.filter(a => Number(a) < anoAtualVigente).sort((a, b) => b - a);
-  const anosFuturos = anos.filter(a => Number(a) > anoAtualVigente).sort((a, b) => a - b);
-
-  let anoDashboardOptions = '';
-  // Grupo 1: Vigente
-  anoDashboardOptions += `<optgroup label="⭐ Exercício Vigente">
-    <option value="${anoAtualVigente}" ${Number(ANO_MATRIZ_ATIVO) === anoAtualVigente ? 'selected' : ''}>
-      Exercício ${anoAtualVigente} (Atual)
-    </option>
-  </optgroup>`;
-
-  // Grupo 2: Histórico Consolidado
-  if (anosPassados.length > 0) {
-    anoDashboardOptions += `<optgroup label="📁 Histórico Consolidado">` +
-      anosPassados.map(a => `
-        <option value="${a}" ${Number(a) === Number(ANO_MATRIZ_ATIVO) ? 'selected' : ''}>
-          Exercício ${a}
-        </option>
-      `).join('') + `</optgroup>`;
-  }
-
-  // Grupo 3: Planejamento / Projeções
-  if (anosFuturos.length > 0) {
-    anoDashboardOptions += `<optgroup label="🔮 Planejamento / Futuro">` +
-      anosFuturos.map(a => `
-        <option value="${a}" ${Number(a) === Number(ANO_MATRIZ_ATIVO) ? 'selected' : ''}>
-          Exercício ${a}
-        </option>
-      `).join('') + `</optgroup>`;
-  }
-
-  setHTML('sel-ano-dashboard', anoDashboardOptions);
-  setHTML('sel-ano-planilha', anoDashboardOptions);
-  atualizarBotoesNavegacaoAno();
+  // 1. Atualiza elementos do novo Seletor Vertical de Exercício (Stepper Compacto)
+  atualizarDisplayAnoExercicio();
 
   // 2. Seletores de Análise Orçamentária dos 15 Ministérios
   const anoRealizadoOptions = anos.map(a => `
@@ -3999,22 +3965,47 @@ function populateSelects() {
   }
 }
 
-function atualizarBotoesNavegacaoAno() {
+function atualizarDisplayAnoExercicio() {
   const anoAtual = Number(ANO_MATRIZ_ATIVO) || 2026;
-  const anoAnt = anoAtual - 1;
-  const anoProx = anoAtual + 1;
+  const anoVigenteOficial = 2026;
 
   ['planilha', 'dash'].forEach(sufixo => {
-    const elAnt = document.getElementById(`label-ano-ant-${sufixo}`);
-    const elProx = document.getElementById(`label-ano-prox-${sufixo}`);
-    const btnAnt = document.getElementById(`btn-ano-anterior-${sufixo}`);
-    const btnProx = document.getElementById(`btn-ano-proximo-${sufixo}`);
+    const elDisp = document.getElementById(`display-ano-exercicio-${sufixo}`);
+    const elBadge = document.getElementById(`badge-ano-atual-${sufixo}`);
+    const elHidden = document.getElementById(`sel-ano-${sufixo === 'dash' ? 'dashboard' : 'planilha'}`);
 
-    if (elAnt) elAnt.textContent = String(anoAnt);
-    if (elProx) elProx.textContent = String(anoProx);
-    if (btnAnt) btnAnt.title = `Ir para o Exercício ${anoAnt}`;
-    if (btnProx) btnProx.title = `Ir para o Exercício ${anoProx}`;
+    if (elDisp) elDisp.textContent = String(anoAtual);
+    if (elHidden) elHidden.value = String(anoAtual);
+
+    if (elBadge) {
+      if (anoAtual === anoVigenteOficial) {
+        elBadge.textContent = 'Vigente';
+        elBadge.className = 'text-[9px] font-black uppercase text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded-md shadow-2xs';
+      } else if (anoAtual < anoVigenteOficial) {
+        elBadge.textContent = 'Histórico';
+        elBadge.className = 'text-[9px] font-black uppercase text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded-md shadow-2xs';
+      } else {
+        elBadge.textContent = 'Futuro';
+        elBadge.className = 'text-[9px] font-black uppercase text-indigo-700 bg-indigo-100 px-1.5 py-0.2 rounded-md shadow-2xs';
+      }
+    }
   });
+
+  // Atualiza título da planilha se visível
+  const elTituloPlan = document.getElementById('titulo-planilha-ano');
+  if (elTituloPlan) {
+    elTituloPlan.textContent = `Matriz Financeira Mensal — Exercício ${anoAtual}`;
+  }
+}
+
+function aoRolarScrollAno(e) {
+  if (!e) return;
+  e.preventDefault();
+  if (e.deltaY < 0) {
+    navegarAnoExercicio(1);
+  } else if (e.deltaY > 0) {
+    navegarAnoExercicio(-1);
+  }
 }
 
 function navegarAnoExercicio(delta) {
@@ -4029,14 +4020,8 @@ function selecionarAnoDashboard(ano) {
   const numAno = Number(ano) || 2026;
   ANO_MATRIZ_ATIVO = numAno;
 
-  // Sincroniza selects de exercício no Dashboard e na Planilha
-  ['sel-ano-dashboard', 'sel-ano-planilha'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el && Number(el.value) !== numAno) el.value = String(numAno);
-  });
-
-  // Atualiza indicadores visuais dos botões de navegação anterior/próximo
-  atualizarBotoesNavegacaoAno();
+  // Atualiza os displays do novo Stepper Vertical
+  atualizarDisplayAnoExercicio();
 
   // Sincroniza inputs nos slides de projeção
   const inputMatriz = document.getElementById('input-ano-matriz');
@@ -4044,12 +4029,6 @@ function selecionarAnoDashboard(ano) {
 
   const inputSlideMin = document.getElementById('input-ano-slide-min');
   if (inputSlideMin && Number(inputSlideMin.value) !== numAno) inputSlideMin.value = String(numAno);
-
-  // Atualiza título da planilha se visível
-  const elTituloPlan = document.getElementById('titulo-planilha-ano');
-  if (elTituloPlan) {
-    elTituloPlan.textContent = `Matriz Financeira Mensal — Exercício ${numAno}`;
-  }
 
   renderDashboard();
   renderBadgesAndKPIs();
