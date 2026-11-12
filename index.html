@@ -2593,7 +2593,7 @@
 
       </div>
       <div class="text-[10px] text-slate-500 font-medium mt-1 tracking-wider" id="versao-sistema-tag">
-        Versão 2.26 • Build 20261112
+        Versão 2.27 • Build 20261112
       </div>
 
 
@@ -2983,46 +2983,33 @@
 
 
 
-          <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
+          <!-- Navegador Rápido de Exercício no Dashboard (Opção 1) -->
+          <div class="flex items-center bg-slate-50 border border-slate-200 rounded-2xl p-1 shadow-2xs gap-1">
+            <button type="button" 
+                    onclick="navegarAnoExercicio(-1)" 
+                    id="btn-ano-anterior-dash" 
+                    title="Ir para o ano anterior" 
+                    class="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white hover:bg-indigo-600 text-slate-700 hover:text-white font-bold text-xs border border-slate-200 hover:border-indigo-600 transition shadow-2xs cursor-pointer">
+              <span>◀</span>
+              <span id="label-ano-ant-dash" class="hidden sm:inline font-semibold">2025</span>
+            </button>
 
+            <div class="flex items-center gap-1.5 px-2.5 py-0.5 bg-white border border-slate-300 rounded-xl shadow-2xs">
+              <span class="text-xs">📅</span>
+              <select id="sel-ano-dashboard" 
+                      onchange="selecionarAnoDashboard(this.value)" 
+                      class="bg-transparent text-indigo-900 font-black text-xs py-0.5 focus:outline-none cursor-pointer pr-1">
+              </select>
+            </div>
 
-
-
-
-
-
-            <label for="sel-ano-dashboard" class="text-xs font-bold text-slate-600 uppercase flex items-center gap-1">
-
-
-
-
-
-
-
-              <span>📅</span> Exercício:
-
-
-
-
-
-
-
-            </label>
-
-
-
-
-
-
-
-            <select id="sel-ano-dashboard" onchange="selecionarAnoDashboard(this.value)" class="bg-white text-indigo-900 font-black text-xs px-2.5 py-1 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-2xs"></select>
-
-
-
-
-
-
-
+            <button type="button" 
+                    onclick="navegarAnoExercicio(1)" 
+                    id="btn-ano-proximo-dash" 
+                    title="Ir para o próximo ano" 
+                    class="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white hover:bg-indigo-600 text-slate-700 hover:text-white font-bold text-xs border border-slate-200 hover:border-indigo-600 transition shadow-2xs cursor-pointer">
+              <span id="label-ano-prox-dash" class="hidden sm:inline font-semibold">2027</span>
+              <span>▶</span>
+            </button>
           </div>
 
 
@@ -6090,11 +6077,33 @@
 
                 <div class="flex flex-wrap items-center gap-3">
                   <h3 id="titulo-planilha-ano" class="font-extrabold text-slate-800 text-base">Matriz Financeira Mensal — Exercício 2026</h3>
-                  <div class="flex items-center gap-1.5 bg-indigo-50/70 border border-indigo-200 px-2.5 py-1 rounded-xl">
-                    <label for="sel-ano-planilha" class="text-xs font-bold text-indigo-900 uppercase flex items-center gap-1">
-                      <span>📅</span> Exercício:
-                    </label>
-                    <select id="sel-ano-planilha" onchange="selecionarAnoDashboard(this.value)" class="bg-white text-indigo-950 font-black text-xs px-2 py-0.5 rounded-lg border border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-2xs"></select>
+                  <!-- Navegador Rápido de Exercício com Setas (Opção 1) -->
+                  <div class="flex items-center bg-indigo-50/90 border border-indigo-200/90 rounded-2xl p-1 shadow-2xs gap-1">
+                    <button type="button" 
+                            onclick="navegarAnoExercicio(-1)" 
+                            id="btn-ano-anterior-planilha" 
+                            title="Ir para o ano anterior" 
+                            class="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white hover:bg-indigo-600 text-indigo-700 hover:text-white font-bold text-xs border border-indigo-200 hover:border-indigo-600 transition shadow-2xs cursor-pointer">
+                      <span>◀</span>
+                      <span id="label-ano-ant-planilha" class="hidden sm:inline font-semibold">2025</span>
+                    </button>
+
+                    <div class="flex items-center gap-1.5 px-2.5 py-0.5 bg-white border border-indigo-300 rounded-xl shadow-2xs">
+                      <span class="text-xs">📅</span>
+                      <select id="sel-ano-planilha" 
+                              onchange="selecionarAnoDashboard(this.value)" 
+                              class="bg-transparent text-indigo-950 font-black text-xs py-0.5 focus:outline-none cursor-pointer pr-1">
+                      </select>
+                    </div>
+
+                    <button type="button" 
+                            onclick="navegarAnoExercicio(1)" 
+                            id="btn-ano-proximo-planilha" 
+                            title="Ir para o próximo ano" 
+                            class="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white hover:bg-indigo-600 text-indigo-700 hover:text-white font-bold text-xs border border-indigo-200 hover:border-indigo-600 transition shadow-2xs cursor-pointer">
+                      <span id="label-ano-prox-planilha" class="hidden sm:inline font-semibold">2027</span>
+                      <span>▶</span>
+                    </button>
                   </div>
                 </div>
 
@@ -25411,7 +25420,7 @@
 
 
 
-  <script src="/app.js?v=20261112_v226_seguranca_estrita_fix"></script>
+  <script src="/app.js?v=20261112_v227_navegador_exercicio_fix"></script>
 
 
 

@@ -3932,14 +3932,42 @@ function populateSelects() {
   // Popula anos do sistema (Exercício e Análise Orçamentária)
   const anos = getAnosDisponiveis();
 
-  // 1. Seletor de Exercício no Dashboard e na Planilha
-  const anoDashboardOptions = anos.map(a => `
-    <option value="${a}" ${Number(a) === Number(ANO_MATRIZ_ATIVO) ? 'selected' : ''}>
-      Exercício ${a}${Number(a) === 2026 ? ' (Atual)' : ''}
+  // 1. Seletor de Exercício no Dashboard e na Planilha (Organizado por Vigente, Histórico e Futuro)
+  const anoAtualVigente = 2026;
+  const anosPassados = anos.filter(a => Number(a) < anoAtualVigente).sort((a, b) => b - a);
+  const anosFuturos = anos.filter(a => Number(a) > anoAtualVigente).sort((a, b) => a - b);
+
+  let anoDashboardOptions = '';
+  // Grupo 1: Vigente
+  anoDashboardOptions += `<optgroup label="⭐ Exercício Vigente">
+    <option value="${anoAtualVigente}" ${Number(ANO_MATRIZ_ATIVO) === anoAtualVigente ? 'selected' : ''}>
+      Exercício ${anoAtualVigente} (Atual)
     </option>
-  `).join('');
+  </optgroup>`;
+
+  // Grupo 2: Histórico Consolidado
+  if (anosPassados.length > 0) {
+    anoDashboardOptions += `<optgroup label="📁 Histórico Consolidado">` +
+      anosPassados.map(a => `
+        <option value="${a}" ${Number(a) === Number(ANO_MATRIZ_ATIVO) ? 'selected' : ''}>
+          Exercício ${a}
+        </option>
+      `).join('') + `</optgroup>`;
+  }
+
+  // Grupo 3: Planejamento / Projeções
+  if (anosFuturos.length > 0) {
+    anoDashboardOptions += `<optgroup label="🔮 Planejamento / Futuro">` +
+      anosFuturos.map(a => `
+        <option value="${a}" ${Number(a) === Number(ANO_MATRIZ_ATIVO) ? 'selected' : ''}>
+          Exercício ${a}
+        </option>
+      `).join('') + `</optgroup>`;
+  }
+
   setHTML('sel-ano-dashboard', anoDashboardOptions);
   setHTML('sel-ano-planilha', anoDashboardOptions);
+  atualizarBotoesNavegacaoAno();
 
   // 2. Seletores de Análise Orçamentária dos 15 Ministérios
   const anoRealizadoOptions = anos.map(a => `
@@ -3971,6 +3999,32 @@ function populateSelects() {
   }
 }
 
+function atualizarBotoesNavegacaoAno() {
+  const anoAtual = Number(ANO_MATRIZ_ATIVO) || 2026;
+  const anoAnt = anoAtual - 1;
+  const anoProx = anoAtual + 1;
+
+  ['planilha', 'dash'].forEach(sufixo => {
+    const elAnt = document.getElementById(`label-ano-ant-${sufixo}`);
+    const elProx = document.getElementById(`label-ano-prox-${sufixo}`);
+    const btnAnt = document.getElementById(`btn-ano-anterior-${sufixo}`);
+    const btnProx = document.getElementById(`btn-ano-proximo-${sufixo}`);
+
+    if (elAnt) elAnt.textContent = String(anoAnt);
+    if (elProx) elProx.textContent = String(anoProx);
+    if (btnAnt) btnAnt.title = `Ir para o Exercício ${anoAnt}`;
+    if (btnProx) btnProx.title = `Ir para o Exercício ${anoProx}`;
+  });
+}
+
+function navegarAnoExercicio(delta) {
+  const anoAtual = Number(ANO_MATRIZ_ATIVO) || 2026;
+  const novoAno = anoAtual + delta;
+  if (novoAno >= 2020 && novoAno <= 2035) {
+    selecionarAnoDashboard(novoAno);
+  }
+}
+
 function selecionarAnoDashboard(ano) {
   const numAno = Number(ano) || 2026;
   ANO_MATRIZ_ATIVO = numAno;
@@ -3980,6 +4034,9 @@ function selecionarAnoDashboard(ano) {
     const el = document.getElementById(id);
     if (el && Number(el.value) !== numAno) el.value = String(numAno);
   });
+
+  // Atualiza indicadores visuais dos botões de navegação anterior/próximo
+  atualizarBotoesNavegacaoAno();
 
   // Sincroniza inputs nos slides de projeção
   const inputMatriz = document.getElementById('input-ano-matriz');
