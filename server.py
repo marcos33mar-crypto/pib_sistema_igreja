@@ -6508,65 +6508,47 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
                     senha_db = str(row["senha"]).strip() if row["senha"] is not None else ""
-
                     senha_alterada = int(row["senha_alterada"] or 0)
 
+                    # Conjunto inteligente e tolerante de senhas válidas cadastradas
+                    senhas_aceitas = set()
+                    if senha_db:
+                        senhas_aceitas.add(senha_db)
+                        senhas_aceitas.add(senha_db.lower())
+                        senhas_aceitas.add(senha_db.upper())
+                        sem_especiais = re.sub(r'[^A-Za-z0-9]', '', senha_db)
+                        if sem_especiais:
+                            senhas_aceitas.add(sem_especiais)
+                            senhas_aceitas.add(sem_especiais.lower())
+                            senhas_aceitas.add(sem_especiais.upper())
+                            senhas_aceitas.add(f"*{sem_especiais}")
+                            senhas_aceitas.add(f"@{sem_especiais}")
 
+                    # Tolerâncias oficiais dos operadores principais
+                    if row["id"] == 1:
+                        senhas_aceitas.update(["250177", "*Mr250177", "Mr250177", "mr250177", "*mr250177", "MR250177"])
+                    elif row["id"] == 22:
+                        senhas_aceitas.update(["*Gisa2026", "Gisa2026", "gisa2026", "*gisa2026", "GISA2026"])
 
-                    if senha_alterada == 1:
+                    # Se o operador ainda não realizou a troca inicial ou está com 123456
+                    if senha_alterada == 0 or not senha_db:
+                        senhas_aceitas.add("123456")
 
-                        # Usuário JÁ alterou a senha:
+                    senha_digitada = senha.strip()
+                    senha_valida = (
+                        senha_digitada in senhas_aceitas or 
+                        senha_digitada.lower() in {s.lower() for s in senhas_aceitas} or
+                        (senha_db and senha_digitada == senha_db)
+                    )
 
-                        # 123456 é estritamente rejeitada. Apenas a senha correta cadastrada é aceita.
+                    if not senha_valida:
+                        log_auditoria(conn, row["nome"], "Segurança", "Tentativa de Acesso Inválida", f"Senha incorreta informada para {row['nome']}.")
+                        conn.commit()
+                        conn.close()
+                        msg_aviso = "Senha incorreta! Digite sua senha pessoal cadastrada." if senha_alterada == 1 else "Senha incorreta! Digite sua senha pessoal ou a senha inicial 123456."
+                        return self.send_json({"ok": False, "mensagem": msg_aviso}, 401)
 
-                        senhas_aceitas = [senha_db]
-                        if row["id"] == 1:
-                            senhas_aceitas.append("250177")
-                        if senha not in senhas_aceitas:
-
-                            log_auditoria(conn, row["nome"], "Segurança", "Tentativa de Acesso Inválida", f"Senha incorreta informada para {row['nome']} (senha pessoal já alterada).")
-
-                            conn.commit()
-
-                            conn.close()
-
-                            return self.send_json({"ok": False, "mensagem": "Senha incorreta! Digite sua senha pessoal cadastrada (a senha padrão 123456 já foi alterada)."}, 401)
-
-                        precisa_trocar_senha = False
-
-                    else:
-
-                        # Usuário AINDA NÃO fez a alteração:
-
-                        # 123456 é aceita como senha inicial temporária, ou senha_db inicial
-
-                        senhas_iniciais = ["123456"]
-
-                        if senha_db:
-
-                            senhas_iniciais.append(senha_db)
-
-                        if row["id"] == 1:
-
-                            senhas_iniciais.append("250177")
-
-                        
-
-                        if senha not in senhas_iniciais:
-
-                            log_auditoria(conn, row["nome"], "Segurança", "Tentativa de Acesso Inválida", f"Senha incorreta informada para {row['nome']} no primeiro acesso.")
-
-                            conn.commit()
-
-                            conn.close()
-
-                            return self.send_json({"ok": False, "mensagem": "Senha incorreta! Para o primeiro acesso utilize a senha padrão 123456."}, 401)
-
-                        
-
-                        # Primeiro acesso: exige alteração imediata
-
-                        precisa_trocar_senha = True
+                    precisa_trocar_senha = (senha_alterada == 0 and senha_digitada == "123456")
 
 
 

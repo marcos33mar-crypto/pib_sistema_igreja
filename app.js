@@ -2815,6 +2815,34 @@ function renderOperatorSelector() {
   `).join('');
 }
 
+function aoMudarOperadorLogin() {
+  const select = document.getElementById('login-operador-id');
+  const senhaInput = document.getElementById('login-senha');
+  const erroDiv = document.getElementById('login-erro');
+  const boxNaoCad = document.getElementById('login-box-nao-cadastrado');
+  if (erroDiv) erroDiv.classList.add('hidden');
+  if (senhaInput) senhaInput.value = '';
+
+  if (select && select.value === 'nao_cadastrado') {
+    if (boxNaoCad) boxNaoCad.classList.remove('hidden');
+  } else {
+    if (boxNaoCad) boxNaoCad.classList.add('hidden');
+  }
+  senhaInput?.focus();
+}
+
+function limparSelecaoLogin() {
+  const select = document.getElementById('login-operador-id');
+  const senhaInput = document.getElementById('login-senha');
+  const erroDiv = document.getElementById('login-erro');
+  const boxNaoCad = document.getElementById('login-box-nao-cadastrado');
+  if (select) select.value = '';
+  if (senhaInput) senhaInput.value = '';
+  if (erroDiv) erroDiv.classList.add('hidden');
+  if (boxNaoCad) boxNaoCad.classList.add('hidden');
+  select?.focus();
+}
+
 function fecharTelaLogin() {
   const tela = document.getElementById('tela-login');
   if (tela) {
