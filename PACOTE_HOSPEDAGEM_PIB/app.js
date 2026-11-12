@@ -18206,6 +18206,7 @@ function filtrarAtas() {
 
 
 async function salvarAta(e) {
+  if (typeof pararGravacaoVozAta === 'function' && typeof VOZ_ATA_GRAVANDO !== 'undefined' && VOZ_ATA_GRAVANDO) { pararGravacaoVozAta(); }
 
   if (e && e.preventDefault) e.preventDefault();
 
@@ -18460,6 +18461,8 @@ function editarAta(id) {
 
 
 function cancelarEdicaoAta() {
+  if (typeof pararGravacaoVozAta === 'function' && typeof VOZ_ATA_GRAVANDO !== 'undefined' && VOZ_ATA_GRAVANDO) { pararGravacaoVozAta(); }
+  const elAudioC = document.getElementById('voz-ata-audio-player-container'); if (elAudioC) elAudioC.classList.add('hidden');
 
   ATA_EDITANDO_ID = null;
 
@@ -18633,6 +18636,313 @@ async function excluirAnexoAta(id) {
 
   }
 
+}
+
+
+// ============================================================================
+// MÓDULO DE GRAVAÇÃO E TRANSCRIÇÃO DE VOZ (ASSEMBLEIAS E ATAS OFICIAIS)
+// ============================================================================
+let VOZ_ATA_GRAVANDO = false;
+let VOZ_ATA_RECOGNITION = null;
+let VOZ_ATA_MEDIA_RECORDER = null;
+let VOZ_ATA_AUDIO_STREAM = null;
+let VOZ_ATA_AUDIO_CHUNKS = [];
+let VOZ_ATA_TIMER_INTERVAL = null;
+let VOZ_ATA_SEGUNDOS = 0;
+let VOZ_ATA_BASE_TEXTO = '';
+let VOZ_ATA_TRANSCRICAO_ATUAL = '';
+
+function alternarGravacaoVozAta() {
+  if (VOZ_ATA_GRAVANDO) {
+    pararGravacaoVozAta();
+  } else {
+    iniciarGravacaoVozAta();
+  }
+}
+
+async function iniciarGravacaoVozAta() {
+  const btn = document.getElementById('btn-voz-ata');
+  const btnTexto = document.getElementById('btn-voz-ata-texto');
+  const btnTimer = document.getElementById('btn-voz-ata-timer');
+  const statusBar = document.getElementById('voz-ata-status-bar');
+  const statusMsg = document.getElementById('voz-ata-status-msg');
+  const textarea = document.getElementById('ata-conteudo');
+
+  if (!textarea) {
+    alert('Campo de texto da ata não encontrado.');
+    return;
+  }
+
+  VOZ_ATA_BASE_TEXTO = textarea.value || '';
+  VOZ_ATA_TRANSCRICAO_ATUAL = '';
+  VOZ_ATA_AUDIO_CHUNKS = [];
+
+  // Checa suporte a SpeechRecognition nativo
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  // 1. Inicia captura do microfone e gravação de áudio
+  try {
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      VOZ_ATA_AUDIO_STREAM = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (typeof MediaRecorder !== 'undefined') {
+        VOZ_ATA_MEDIA_RECORDER = new MediaRecorder(VOZ_ATA_AUDIO_STREAM);
+        VOZ_ATA_MEDIA_RECORDER.ondataavailable = function(e) {
+          if (e.data && e.data.size > 0) {
+            VOZ_ATA_AUDIO_CHUNKS.push(e.data);
+          }
+        };
+        VOZ_ATA_MEDIA_RECORDER.onstop = function() {
+          if (VOZ_ATA_AUDIO_CHUNKS.length > 0) {
+            try {
+              const audioBlob = new Blob(VOZ_ATA_AUDIO_CHUNKS, { type: 'audio/webm' });
+              const audioUrl = URL.createObjectURL(audioBlob);
+              const player = document.getElementById('voz-ata-audio-player');
+              const downloadLink = document.getElementById('voz-ata-download-link');
+              const container = document.getElementById('voz-ata-audio-player-container');
+              if (player) player.src = audioUrl;
+              if (downloadLink) {
+                downloadLink.href = audioUrl;
+                const d = new Date();
+                const stamp = d.toISOString().slice(0, 10).replace(/-/g, '') + '_' + String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0');
+                downloadLink.download = `Audio_Assembleia_${stamp}.webm`;
+              }
+              if (container) container.classList.remove('hidden');
+            } catch (errAudio) {
+              console.warn('Aviso no processamento do áudio:', errAudio);
+            }
+          }
+        };
+        VOZ_ATA_MEDIA_RECORDER.start(1000);
+      }
+    }
+  } catch (errMic) {
+    console.warn('Microfone não acessível para gravação de áudio:', errMic);
+    if (!SpeechRecognition) {
+      alert('Não foi possível acessar o microfone ou o navegador bloqueou a permissão. Permita o uso do microfone para ditar a ata.');
+      return;
+    }
+  }
+
+  // 2. Transcrição de fala em tempo real
+  if (SpeechRecognition) {
+    try {
+      VOZ_ATA_RECOGNITION = new SpeechRecognition();
+      VOZ_ATA_RECOGNITION.continuous = true;
+      VOZ_ATA_RECOGNITION.interimResults = true;
+      VOZ_ATA_RECOGNITION.lang = 'pt-BR';
+      VOZ_ATA_RECOGNITION.maxAlternatives = 1;
+
+      VOZ_ATA_RECOGNITION.onresult = function(event) {
+        let textoParcial = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const resultado = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            let frase = resultado.trim();
+            if (frase) {
+              frase = frase.charAt(0).toUpperCase() + frase.slice(1);
+              VOZ_ATA_TRANSCRICAO_ATUAL += (VOZ_ATA_TRANSCRICAO_ATUAL ? ' ' : '') + frase + '.';
+            }
+          } else {
+            textoParcial += resultado;
+          }
+        }
+
+        let textoFinal = VOZ_ATA_BASE_TEXTO ? VOZ_ATA_BASE_TEXTO.trim() + '\n\n' : '';
+        if (VOZ_ATA_TRANSCRICAO_ATUAL) {
+          textoFinal += VOZ_ATA_TRANSCRICAO_ATUAL;
+        }
+        if (textoParcial) {
+          textoFinal += (VOZ_ATA_TRANSCRICAO_ATUAL ? ' ' : '') + '« ' + textoParcial.trim() + '... »';
+        }
+        textarea.value = textoFinal;
+        textarea.scrollTop = textarea.scrollHeight;
+      };
+
+      VOZ_ATA_RECOGNITION.onerror = function(event) {
+        console.warn('Aviso no reconhecimento de fala:', event.error);
+        if (event.error === 'not-allowed') {
+          alert('Acesso ao microfone foi bloqueado pelo navegador. Por favor, autorize o microfone para utilizar a transcrição de voz.');
+          pararGravacaoVozAta();
+        }
+      };
+
+      VOZ_ATA_RECOGNITION.onend = function() {
+        if (VOZ_ATA_GRAVANDO) {
+          try { VOZ_ATA_RECOGNITION.start(); } catch(e){}
+        }
+      };
+
+      VOZ_ATA_RECOGNITION.start();
+    } catch (errRec) {
+      console.warn('Erro ao inicializar SpeechRecognition:', errRec);
+    }
+  } else {
+    if (typeof showLiveToast === 'function') {
+      showLiveToast('🎙️ Gravando áudio! (Dica: utilize Google Chrome ou Microsoft Edge para transcrição direta em texto)');
+    }
+  }
+
+  // 3. Atualiza UI para estado gravando
+  VOZ_ATA_GRAVANDO = true;
+  VOZ_ATA_SEGUNDOS = 0;
+
+  if (btn) {
+    btn.className = 'inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-sm transition-all duration-200 cursor-pointer animate-pulse ring-2 ring-rose-400 ring-offset-2';
+  }
+  if (btnTexto) btnTexto.textContent = 'Parar Gravação';
+  if (btnTimer) {
+    btnTimer.classList.remove('hidden');
+    btnTimer.textContent = '00:00';
+  }
+  if (statusBar) statusBar.classList.remove('hidden');
+  if (statusMsg) statusMsg.textContent = 'Ouvindo assembleia... Fale claramente ao microfone para transcrever.';
+
+  clearInterval(VOZ_ATA_TIMER_INTERVAL);
+  VOZ_ATA_TIMER_INTERVAL = setInterval(function() {
+    VOZ_ATA_SEGUNDOS++;
+    const min = String(Math.floor(VOZ_ATA_SEGUNDOS / 60)).padStart(2, '0');
+    const seg = String(VOZ_ATA_SEGUNDOS % 60).padStart(2, '0');
+    if (btnTimer) btnTimer.textContent = `${min}:${seg}`;
+  }, 1000);
+}
+
+function pararGravacaoVozAta() {
+  VOZ_ATA_GRAVANDO = false;
+  clearInterval(VOZ_ATA_TIMER_INTERVAL);
+
+  if (VOZ_ATA_RECOGNITION) {
+    try {
+      VOZ_ATA_RECOGNITION.onend = null;
+      VOZ_ATA_RECOGNITION.stop();
+    } catch (e) {}
+    VOZ_ATA_RECOGNITION = null;
+  }
+
+  if (VOZ_ATA_MEDIA_RECORDER && VOZ_ATA_MEDIA_RECORDER.state !== 'inactive') {
+    try {
+      VOZ_ATA_MEDIA_RECORDER.stop();
+    } catch (e) {}
+  }
+  if (VOZ_ATA_AUDIO_STREAM) {
+    try {
+      VOZ_ATA_AUDIO_STREAM.getTracks().forEach(t => t.stop());
+    } catch (e) {}
+    VOZ_ATA_AUDIO_STREAM = null;
+  }
+
+  const textarea = document.getElementById('ata-conteudo');
+  if (textarea && textarea.value) {
+    textarea.value = textarea.value.replace(/«[^»]*»/g, '').trim();
+  }
+
+  const btn = document.getElementById('btn-voz-ata');
+  const btnTexto = document.getElementById('btn-voz-ata-texto');
+  const btnTimer = document.getElementById('btn-voz-ata-timer');
+  const statusBar = document.getElementById('voz-ata-status-bar');
+
+  if (btn) {
+    btn.className = 'inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-violet-600 hover:bg-violet-700 shadow-sm transition-all duration-200 cursor-pointer';
+  }
+  if (btnTexto) btnTexto.textContent = 'Gravar & Transcrever Voz';
+  if (btnTimer) btnTimer.classList.add('hidden');
+  if (statusBar) statusBar.classList.add('hidden');
+
+  if (typeof showLiveToast === 'function') {
+    showLiveToast('✅ Gravação e transcrição concluídas com sucesso!');
+  }
+}
+
+function estruturarTextoAta() {
+  const textarea = document.getElementById('ata-conteudo');
+  if (!textarea) return;
+
+  const textoOriginal = textarea.value.trim();
+  if (!textoOriginal) {
+    alert('O campo de texto está vazio. Fale ao microfone ou digite as deliberações antes de estruturar a ata.');
+    return;
+  }
+
+  const titulo = document.getElementById('ata-titulo')?.value?.trim() || 'ASSEMBLEIA GERAL ORDINÁRIA';
+  const tipo = document.getElementById('ata-tipo')?.value || 'Assembleia Geral';
+  const data = document.getElementById('ata-data')?.value || new Date().toISOString().slice(0, 10);
+  const local = document.getElementById('ata-local')?.value?.trim() || 'Templo Sede da Igreja';
+  const presidente = document.getElementById('ata-presidente')?.value?.trim() || 'Pastor Presidente';
+  const secretario = document.getElementById('ata-secretario')?.value?.trim() || 'Secretário(a) Geral';
+  const pauta = document.getElementById('ata-pauta')?.value?.trim() || 'Conforme convocação estatutária.';
+
+  let dataExtenso = data;
+  try {
+    const partes = data.split('-');
+    if (partes.length === 3) {
+      const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+      dataExtenso = `${parseInt(partes[2], 10)} de ${meses[parseInt(partes[1], 10) - 1]} de ${partes[0]}`;
+    }
+  } catch (e) {}
+
+  const confirmacao = confirm(
+    'Deseja estruturar o texto atual no formato de ATA OFICIAL ECLESIÁSTICA?\n\n' +
+    'O conteúdo já registrado será organizado em seções formais (Abertura, Quórum, Deliberações e Encerramento).'
+  );
+  if (!confirmacao) return;
+
+  const textoEstruturado = 
+`ATA DE ${titulo.toUpperCase()}
+
+1. ABERTURA E ORAÇÃO:
+Aos ${dataExtenso}, no ${local}, reuniu-se a igreja em ${tipo}, sob a presidência do(a) irmão(ã) ${presidente}, e secretariado por mim, ${secretario}. A reunião foi aberta com oração e louvor ao Senhor.
+
+2. VERIFICAÇÃO DE QUÓRUM E PAUTA:
+Constatou-se quórum estatutário regular com os membros em plena comunhão presentes. A pauta da reunião foi apresentada: "${pauta}".
+
+3. DISCUSSÕES E DELIBERAÇÕES REGISTRADAS:
+${textoOriginal}
+
+4. ENCERRAMENTO E ASSINATURAS:
+Nada mais havendo a tratar e nenhuma outra manifestação pendente, o Presidente deu por encerrada a presente assembleia com oração e a bênção apostólica. Para constar, eu, ${secretario}, lavrei a presente ata que, após lida e achada conforme, segue devidamente assinada.
+
+_______________________________________
+${presidente}
+Presidente da Mesa
+
+_______________________________________
+${secretario}
+Secretário(a)`;
+
+  textarea.value = textoEstruturado;
+  textarea.scrollTop = 0;
+
+  if (typeof showLiveToast === 'function') {
+    showLiveToast('📋 Ata estruturada no formato oficial com sucesso!');
+  }
+}
+
+function inserirLinhaAta() {
+  const textarea = document.getElementById('ata-conteudo');
+  if (!textarea) return;
+
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const val = textarea.value;
+
+  textarea.value = val.substring(0, start) + '\n\n' + val.substring(end);
+  textarea.selectionStart = textarea.selectionEnd = start + 2;
+  textarea.focus();
+}
+
+function limparTextoAta() {
+  const textarea = document.getElementById('ata-conteudo');
+  if (!textarea) return;
+
+  if (!textarea.value.trim()) return;
+
+  if (confirm('Tem certeza que deseja limpar todo o texto da ata?')) {
+    textarea.value = '';
+    const container = document.getElementById('voz-ata-audio-player-container');
+    if (container) container.classList.add('hidden');
+    if (typeof showLiveToast === 'function') {
+      showLiveToast('Texto da ata limpo.');
+    }
+  }
 }
 
 
