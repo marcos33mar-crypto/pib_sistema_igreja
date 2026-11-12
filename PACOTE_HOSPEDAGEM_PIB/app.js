@@ -4412,6 +4412,11 @@ function renderGraficosBI(resAno) {
   }
 }
 
+
+let FILTRO_FLUXO_MATRIZ = 'TODOS';
+let MES_DESTAQUE_MATRIZ = 0;
+let GRUPOS_MATRIZ_RECOLHIDOS = new Set();
+
 function renderMatrizTesouraria() {
   const { rows, entMes, saiMes, totalEntradas, totalSaidas, saldoTotal } = calcularResumoAnoMatriz(ANO_MATRIZ_ATIVO);
 
@@ -4490,6 +4495,8 @@ function renderMatrizTesouraria() {
   const busca = (document.getElementById('busca-rubrica-matriz')?.value || '').toLowerCase();
 
   const filtradas = rows.filter(r => {
+    if (FILTRO_FLUXO_MATRIZ === 'ENTRADA' && r.tipo_fluxo !== 'ENTRADA') return false;
+    if (FILTRO_FLUXO_MATRIZ === 'SAIDA' && r.tipo_fluxo !== 'SAIDA') return false;
     const okG = !filtroGrupo || r.grupo === filtroGrupo;
     const okB = !busca || r.rubrica.toLowerCase().includes(busca) || r.grupo.toLowerCase().includes(busca);
     return okG && okB;
@@ -4517,42 +4524,62 @@ function renderMatrizTesouraria() {
     const subPerc = totalEntradas > 0 ? ((subTotal / totalEntradas) * 100).toFixed(1) + '%' : '0%';
     const subMedia = subTotal / 12.0;
 
-    // Linha de Cabeçalho/Subtotal do Grupo
+    const isRecolhido = GRUPOS_MATRIZ_RECOLHIDOS.has(grupoNome);
+    const grupoNomeEsc = grupoNome.replace(/'/g, "\\'");
+
+    // Linha de Cabeçalho/Subtotal do Grupo (Clicável para recolher/expandir individualmente!)
     html += `
-      <tr class="${isEntradaGroup ? 'bg-emerald-900/10 text-emerald-950' : 'bg-slate-200/80 text-slate-900'} font-extrabold">
-        <td class="py-2 px-3 sticky left-0 ${isEntradaGroup ? 'bg-emerald-100' : 'bg-slate-200'} z-10 uppercase text-[10px] tracking-wider">
-          ${isEntradaGroup ? '🟢' : '🔴'} ${grupoNome}
+      <tr onclick="alternarGrupoIndividualMatriz('${grupoNomeEsc}')" class="${isEntradaGroup ? 'bg-emerald-900/10 text-emerald-950 hover:bg-emerald-100/60' : 'bg-slate-200/80 text-slate-900 hover:bg-slate-200'} font-extrabold cursor-pointer transition select-none" title="Clique para ${isRecolhido ? 'expandir' : 'recolher'} o grupo ${grupoNome}">
+        <td class="py-2 px-3 sticky left-0 ${isEntradaGroup ? 'bg-emerald-100' : 'bg-slate-200'} z-10 uppercase text-[10px] tracking-wider flex items-center justify-between gap-2">
+          <span>${isEntradaGroup ? '🟢' : '🔴'} ${isRecolhido ? '📁' : '📂'} ${grupoNome} (${itens.length})</span>
+          <span class="text-[9px] font-bold opacity-75 px-1 rounded bg-black/10">${isRecolhido ? '+ Expandir' : '- Recolher'}</span>
         </td>
-        ${subMes.map(v => `<td class="py-2 px-2 text-right font-mono">${formatNum(v)}</td>`).join('')}
+        ${subMes.map((v, mIdx) => {
+          const isDestaque = (mIdx + 1 === MES_DESTAQUE_MATRIZ);
+          return `<td class="py-2 px-2 text-right font-mono ${isDestaque ? 'bg-amber-100 text-indigo-950 font-black border-x-2 border-indigo-400' : ''}">${formatNum(v)}</td>`;
+        }).join('')}
         <td class="py-2 px-3 text-right font-mono bg-slate-300/60">${formatBRL(subTotal)}</td>
         <td class="py-2 px-2 text-right font-mono">${subPerc}</td>
         <td class="py-2 px-2 text-right font-mono">${formatNum(subMedia)}</td>
       </tr>
     `;
 
-    // Linhas das Rubricas (Células Clicáveis para Edição!)
-    itens.forEach(item => {
-      const percItem = totalEntradas > 0 ? ((item.total_anual / totalEntradas) * 100).toFixed(1) + '%' : '0%';
-      html += `
-        <tr class="hover:bg-indigo-50/40 transition bg-white">
-          <td class="py-2 px-3 sticky left-0 bg-white z-10 font-medium text-slate-800 border-r border-slate-100 flex items-center justify-between gap-2">
-            <span>${item.rubrica}</span>
-          </td>
-          ${item.meses.map((val, idx) => `
-            <td onclick="editarCelulaMatriz(${item.id}, ${idx + 1}, '${item.rubrica.replace(/'/g, "'")}', ${val})"
-                title="Clique para editar ${item.rubrica} em ${NOMES_MESES[idx]}/${ANO_MATRIZ_ATIVO}"
-                class="cell-editable py-2 px-2 text-right font-mono ${val > 0 ? (isEntradaGroup ? 'text-emerald-700 font-semibold' : 'text-slate-800') : 'text-slate-300'}">
-              ${formatNum(val)}
+    // Linhas das Rubricas (apenas se o grupo não estiver recolhido)
+    if (!isRecolhido) {
+      itens.forEach(item => {
+        const percItem = totalEntradas > 0 ? ((item.total_anual / totalEntradas) * 100).toFixed(1) + '%' : '0%';
+        html += `
+          <tr class="hover:bg-indigo-50/40 transition bg-white">
+            <td class="py-2 px-3 sticky left-0 bg-white z-10 font-medium text-slate-800 border-r border-slate-100 flex items-center justify-between gap-2">
+              <span class="truncate">${item.rubrica}</span>
+              <button
+                type="button"
+                onclick="abrirModalConta12Meses(${item.id})"
+                class="text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-1.5 py-0.5 rounded border border-indigo-200 transition cursor-pointer shrink-0 ml-1.5 shadow-2xs"
+                title="Ver e preencher os 12 meses de ${item.rubrica}"
+              >
+                📅 12M
+              </button>
             </td>
-          `).join('')}
-          <td class="py-2 px-3 text-right font-mono font-bold ${isEntradaGroup ? 'text-emerald-700 bg-emerald-50/50' : 'text-rose-700 bg-rose-50/40'}">
-            ${formatBRL(item.total_anual)}
-          </td>
-          <td class="py-2 px-2 text-right font-mono text-slate-500">${percItem}</td>
-          <td class="py-2 px-2 text-right font-mono text-slate-500">${formatNum(item.media_mensal)}</td>
-        </tr>
-      `;
-    });
+            ${item.meses.map((val, idx) => {
+              const isDestaque = (idx + 1 === MES_DESTAQUE_MATRIZ);
+              return `
+                <td onclick="editarCelulaMatriz(${item.id}, ${idx + 1}, '${item.rubrica.replace(/'/g, "\\'")}', ${val})"
+                    title="Clique para editar ${item.rubrica} em ${NOMES_MESES[idx]}/${ANO_MATRIZ_ATIVO}"
+                    class="cell-editable py-2 px-2 text-right font-mono ${isDestaque ? 'bg-amber-100/70 border-x-2 border-indigo-300 font-extrabold' : ''} ${val > 0 ? (isEntradaGroup ? 'text-emerald-700 font-semibold' : 'text-slate-800') : 'text-slate-300'}">
+                  ${formatNum(val)}
+                </td>
+              `;
+            }).join('')}
+            <td class="py-2 px-3 text-right font-mono font-bold ${isEntradaGroup ? 'text-emerald-700 bg-emerald-50/50' : 'text-rose-700 bg-rose-50/40'}">
+              ${formatBRL(item.total_anual)}
+            </td>
+            <td class="py-2 px-2 text-right font-mono text-slate-500">${percItem}</td>
+            <td class="py-2 px-2 text-right font-mono text-slate-500">${formatNum(item.media_mensal)}</td>
+          </tr>
+        `;
+      });
+    }
   });
 
   // Rodapé Consolidado: TOTAL ENTRADAS, TOTAL DESPESAS, % DESPESAS vs ENTRADAS e SALDO MENSAL
@@ -19540,4 +19567,191 @@ function atualizarPillsFiltroAtas(ativo) {
       btn.className = 'btn-filtro-ata-rapido px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition cursor-pointer';
     }
   });
+}
+
+
+// ============================================================================
+// CONTROLES INTERATIVOS DA PLANILHA MENSAL (FILTROS, FOCO NO MÊS, 12M)
+// ============================================================================
+function filtrarFluxoMatriz(tipo) {
+  FILTRO_FLUXO_MATRIZ = tipo || 'TODOS';
+  const btnTodos = document.getElementById('btn-filtro-fluxo-todos');
+  const btnEntradas = document.getElementById('btn-filtro-fluxo-entradas');
+  const btnSaidas = document.getElementById('btn-filtro-fluxo-saidas');
+
+  const activeTodos = 'px-3.5 py-1.5 rounded-lg transition bg-white text-slate-900 shadow-xs cursor-pointer font-bold';
+  const activeEntrada = 'px-3.5 py-1.5 rounded-lg transition bg-emerald-600 text-white shadow-xs cursor-pointer font-bold';
+  const activeSaida = 'px-3.5 py-1.5 rounded-lg transition bg-rose-600 text-white shadow-xs cursor-pointer font-bold';
+
+  const inactiveTodos = 'px-3.5 py-1.5 rounded-lg transition text-slate-600 hover:text-slate-900 cursor-pointer font-bold';
+  const inactiveEntrada = 'px-3.5 py-1.5 rounded-lg transition text-slate-600 hover:text-emerald-700 cursor-pointer font-bold';
+  const inactiveSaida = 'px-3.5 py-1.5 rounded-lg transition text-slate-600 hover:text-rose-700 cursor-pointer font-bold';
+
+  if (btnTodos) btnTodos.className = (FILTRO_FLUXO_MATRIZ === 'TODOS') ? activeTodos : inactiveTodos;
+  if (btnEntradas) btnEntradas.className = (FILTRO_FLUXO_MATRIZ === 'ENTRADA') ? activeEntrada : inactiveEntrada;
+  if (btnSaidas) btnSaidas.className = (FILTRO_FLUXO_MATRIZ === 'SAIDA') ? activeSaida : inactiveSaida;
+
+  renderMatrizTesouraria();
+}
+
+function alterarMesDestaqueMatriz(mes) {
+  MES_DESTAQUE_MATRIZ = parseInt(mes, 10) || 0;
+  
+  // Atualiza destaque no thead
+  for (let m = 1; m <= 12; m++) {
+    const thCols = document.querySelectorAll(`.th-mes-col-${m}`);
+    thCols.forEach(th => {
+      if (m === MES_DESTAQUE_MATRIZ) {
+        th.className = `py-3 px-2 text-right th-mes-col th-mes-col-${m} bg-amber-400 text-slate-950 font-black border-b border-amber-300`;
+      } else {
+        th.className = `py-3 px-2 text-right th-mes-col th-mes-col-${m} bg-slate-900 text-white border-b border-slate-700`;
+      }
+    });
+  }
+
+  renderMatrizTesouraria();
+}
+
+function alternarTodosGruposMatriz(expandir) {
+  const { rows } = calcularResumoAnoMatriz(ANO_MATRIZ_ATIVO);
+  const todosGrupos = [...new Set(rows.map(r => r.grupo))];
+  if (expandir) {
+    GRUPOS_MATRIZ_RECOLHIDOS.clear();
+  } else {
+    todosGrupos.forEach(g => GRUPOS_MATRIZ_RECOLHIDOS.add(g));
+  }
+  renderMatrizTesouraria();
+}
+
+function alternarGrupoIndividualMatriz(grupoNome) {
+  if (GRUPOS_MATRIZ_RECOLHIDOS.has(grupoNome)) {
+    GRUPOS_MATRIZ_RECOLHIDOS.delete(grupoNome);
+  } else {
+    GRUPOS_MATRIZ_RECOLHIDOS.add(grupoNome);
+  }
+  renderMatrizTesouraria();
+}
+
+function limparBuscaMatriz() {
+  const inp = document.getElementById('busca-rubrica-matriz');
+  if (inp) inp.value = '';
+  renderMatrizTesouraria();
+}
+
+function abrirModalConta12Meses(rowId) {
+  const item = (STATE.matriz_tesouraria || []).find(r => Number(r.id) === Number(rowId));
+  if (!item) {
+    alert('Conta não encontrada na matriz financeira.');
+    return;
+  }
+
+  const isEntrada = item.tipo_fluxo === 'ENTRADA';
+  const mesesInputs = item.meses.map((val, idx) => `
+    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+      <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+        ${NOMES_MESES[idx]}/${item.ano}
+      </label>
+      <div class="relative">
+        <span class="absolute left-2.5 top-2 text-slate-400 text-xs">R$</span>
+        <input
+          type="number"
+          step="0.01"
+          id="modal-12m-mes-${idx + 1}"
+          value="${Number(val || 0).toFixed(2)}"
+          oninput="recalcularTotalModal12M()"
+          class="w-full pl-8 pr-2 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800 text-right focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
+    </div>
+  `).join('');
+
+  const html = `
+    <form onsubmit="salvarModalConta12Meses(event, ${item.id})" class="space-y-4 text-xs">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+        <div>
+          <span class="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full ${isEntrada ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+            ${isEntrada ? '🟢 ENTRADA / RECEITA' : '🔴 SAÍDA / DESPESA'} • ${escapeHtml(item.grupo)}
+          </span>
+          <h3 class="text-base font-extrabold text-slate-900 mt-1">${escapeHtml(item.rubrica)}</h3>
+          <p class="text-slate-500 text-[11px]">Exercício financeiro de <strong>${item.ano}</strong> (Preenchimento Completo dos 12 Meses)</p>
+        </div>
+        <button type="button" onclick="fecharModalCustom()" class="px-2.5 py-1 text-slate-400 hover:text-slate-700 font-bold text-sm">✕</button>
+      </div>
+
+      <!-- GRID 12 MESES -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+        ${mesesInputs}
+      </div>
+
+      <!-- RESUMO CONSOLIDADO DA CONTA -->
+      <div class="p-3 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center justify-between text-xs">
+        <div>
+          <span class="text-indigo-900 font-bold block text-[11px]">Total Anual Acumulado:</span>
+          <span id="modal-12m-total" class="text-base font-extrabold ${isEntrada ? 'text-emerald-700' : 'text-rose-700'}">${formatBRL(item.total_anual)}</span>
+        </div>
+        <div>
+          <span class="text-indigo-900 font-bold block text-[11px]">Média Mensal:</span>
+          <span id="modal-12m-media" class="text-sm font-extrabold text-slate-800">${formatBRL(item.media_mensal)}</span>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+        <button type="button" onclick="fecharModalCustom()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition cursor-pointer">
+          Cancelar
+        </button>
+        <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-extrabold transition shadow flex items-center gap-1.5 cursor-pointer">
+          <span>💾</span> Salvar 12 Meses
+        </button>
+      </div>
+    </form>
+  `;
+
+  if (typeof abrirModalCustom === 'function') {
+    abrirModalCustom(html, false, 'largo');
+  }
+}
+
+function recalcularTotalModal12M() {
+  let total = 0;
+  for (let m = 1; m <= 12; m++) {
+    const inp = document.getElementById(`modal-12m-mes-${m}`);
+    if (inp) {
+      total += parseFloat(inp.value) || 0;
+    }
+  }
+  const media = total / 12.0;
+  const elTot = document.getElementById('modal-12m-total');
+  const elMed = document.getElementById('modal-12m-media');
+  if (elTot) elTot.textContent = formatBRL(total);
+  if (elMed) elMed.textContent = formatBRL(media);
+}
+
+async function salvarModalConta12Meses(e, rowId) {
+  if (e && e.preventDefault) e.preventDefault();
+  const item = (STATE.matriz_tesouraria || []).find(r => Number(r.id) === Number(rowId));
+  if (!item) return;
+
+  const novosMeses = [];
+  for (let m = 1; m <= 12; m++) {
+    const inp = document.getElementById(`modal-12m-mes-${m}`);
+    novosMeses.push(parseFloat(inp?.value) || 0);
+  }
+
+  fecharModalCustom();
+  if (typeof showLiveToast === 'function') {
+    showLiveToast(`Salvando valores de ${item.rubrica}...`);
+  }
+
+  for (let m = 1; m <= 12; m++) {
+    const vAntigo = Number(item.meses[m - 1] || 0);
+    const vNovo = Number(novosMeses[m - 1] || 0);
+    if (Math.abs(vAntigo - vNovo) > 0.001) {
+      await apiPost('/api/matriz/celula', { id: rowId, mes: m, valor: vNovo });
+    }
+  }
+
+  await fetchBootstrap();
+  if (typeof showLiveToast === 'function') {
+    showLiveToast(`✅ 12 meses de ${item.rubrica} atualizados com sucesso!`);
+  }
 }
