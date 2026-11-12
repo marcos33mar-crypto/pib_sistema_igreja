@@ -2751,7 +2751,11 @@ async function fetchBootstrap() {
     } else {
       CURRENT_OPERATOR = null;
       renderOperatorSelector();
-      abrirTelaLogin();
+      const telaLogin = document.getElementById('tela-login');
+      const isLoginAberto = telaLogin && !telaLogin.classList.contains('hidden') && telaLogin.style.display !== 'none';
+      if (!isLoginAberto) {
+        abrirTelaLogin();
+      }
     }
   } catch (err) {
     console.error('Erro no bootstrap:', err);
@@ -2815,6 +2819,29 @@ function renderOperatorSelector() {
   `).join('');
 }
 
+function alternarVisibilidadeSenha(inputId, btnEl = null) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const isPass = input.type === 'password';
+  input.type = isPass ? 'text' : 'password';
+
+  const btn = btnEl || (typeof event !== 'undefined' && event && event.currentTarget) || input.parentElement?.querySelector('button');
+  if (btn) {
+    btn.textContent = isPass ? '🙈' : '👁️';
+    btn.title = isPass ? 'Ocultar senha' : 'Ver senha';
+  }
+}
+
+function monitorarCapsLockLogin(e) {
+  const capswarn = document.getElementById('capslock-warning-login');
+  if (!capswarn) return;
+  if (e && e.getModifierState && e.getModifierState('CapsLock')) {
+    capswarn.classList.remove('hidden');
+  } else {
+    capswarn.classList.add('hidden');
+  }
+}
+
 function aoMudarOperadorLogin() {
   const select = document.getElementById('login-operador-id');
   const senhaInput = document.getElementById('login-senha');
@@ -2876,6 +2903,12 @@ function abrirTelaLogin(operadorIdPreselecionado = null) {
   const boxCustom = document.getElementById('login-box-usuario-custom');
   const customInput = document.getElementById('login-usuario-custom');
   const boxNaoCad = document.getElementById('login-box-nao-cadastrado');
+
+  // Proteção contra sobrescrita durante digitação do operador
+  const telaJaAberta = tela && !tela.classList.contains('hidden') && tela.style.display !== 'none';
+  if (telaJaAberta && ((senhaInput && senhaInput.value) || (customInput && customInput.value) || document.activeElement === senhaInput || document.activeElement === customInput)) {
+    return;
+  }
 
   if (erroDiv) erroDiv.classList.add('hidden');
   if (senhaInput) senhaInput.value = '';

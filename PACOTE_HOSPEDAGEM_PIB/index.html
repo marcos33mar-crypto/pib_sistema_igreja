@@ -2593,7 +2593,7 @@
 
       </div>
       <div class="text-[10px] text-slate-500 font-medium mt-1 tracking-wider" id="versao-sistema-tag">
-        Versão 2.24 • Build 20261112
+        Versão 2.25 • Build 20261112
       </div>
 
 
@@ -24889,7 +24889,7 @@
               <span>🔄</span> Trocar Usuário
             </button>
           </div>
-          <select id="login-operador-id" onchange="aoMudarOperadorLogin()" required class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 bg-slate-50 font-bold text-slate-800 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
+          <select id="login-operador-id" onchange="aoMudarOperadorLogin()" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 bg-slate-50 font-bold text-slate-800 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
             <option value="">-- Selecione seu Usuário Cadastrado --</option>
             <option value="1">Marcos Silva (Administrador) [ADMIN]</option>
             <option value="22">Gislene Aparecida da Silva Santos [CUSTOM]</option>
@@ -24927,10 +24927,13 @@
         <div id="bloco-campo-senha">
           <label class="font-bold text-slate-700 block mb-1.5">Senha de Acesso *</label>
           <div class="relative">
-            <input type="password" id="login-senha" placeholder="Digite sua senha de acesso" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none pr-10 font-medium" autocomplete="new-password" data-lpignore="true" />
-            <button type="button" onclick="alternarVisibilidadeSenha('login-senha')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-700 text-sm cursor-pointer" title="Mostrar/Ocultar senha">
+            <input type="password" id="login-senha" onkeyup="monitorarCapsLockLogin(event)" onkeydown="monitorarCapsLockLogin(event)" placeholder="Digite sua senha de acesso" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none pr-10 font-medium" autocomplete="new-password" data-lpignore="true" />
+            <button type="button" onclick="alternarVisibilidadeSenha('login-senha', this)" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-700 text-sm cursor-pointer p-0.5" title="Mostrar/Ocultar senha">
               👁️
             </button>
+          </div>
+          <div id="capslock-warning-login" class="hidden text-[11px] text-amber-800 font-bold bg-amber-100 border border-amber-300 rounded-xl px-3 py-1.5 mt-1.5 flex items-center gap-1.5 shadow-2xs">
+            <span>⚠️</span> <span>Aviso: A tecla Fixa / Caps Lock está ativada.</span>
           </div>
         </div>
 
@@ -25408,7 +25411,7 @@
 
 
 
-  <script src="/app.js?v=20261112_v224_login_multioperador_fix"></script>
+  <script src="/app.js?v=20261112_v225_login_digitacao_fix"></script>
 
 
 
