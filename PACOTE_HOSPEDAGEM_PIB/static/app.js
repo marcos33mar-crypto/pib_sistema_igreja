@@ -2059,9 +2059,8 @@ function temPermissaoSetor(tabName, operador = CURRENT_OPERATOR) {
 
 
   if (tabName === 'atas') {
-
-    return permitidas.includes('atas');
-
+    if (!operador || operador.perfil === 'ADMIN') return true;
+    return permitidas.includes('atas') || permitidas.includes('secretaria') || permitidas.includes('*');
   }
 
   if (tabName === 'pedidos') {
@@ -3941,6 +3940,12 @@ function renderBadgesAndKPIs() {
   const badgeUsr = document.getElementById('badge-usuarios');
   if (badgeUsr) badgeUsr.textContent = (STATE.usuarios || []).length;
 
+  const totalAtasCount = (STATE.atas || []).length;
+  const badgeAtas = document.getElementById('badge-atas');
+  if (badgeAtas) badgeAtas.textContent = totalAtasCount;
+  const badgeSubAtas = document.getElementById('badge-sub-atas');
+  if (badgeSubAtas) badgeSubAtas.textContent = totalAtasCount;
+
   const badgeOnl = document.getElementById('online-count-badge');
   if (badgeOnl) badgeOnl.textContent = `${STATE.clientes_conectados || 1} tela(s) ativa(s)`;
 
@@ -4992,6 +4997,7 @@ function renderAll() {
   renderEscalas();
   renderCelulas();
   renderPatrimonioEUsuarios();
+  renderAtas();
   if (ACTIVE_TAB === 'relatorios') {
     renderRelatorios();
   }
@@ -17506,6 +17512,8 @@ function alternarMenuAtas(menu) {
 
     if (secLista) secLista.classList.remove('hidden');
 
+    renderAtas();
+
   }
 
 
@@ -17823,8 +17831,15 @@ function filtrarAtas() {
 
 
   const filtradas = todas.filter(a => {
-
-    if (filtroTipo && a.tipo !== filtroTipo) return false;
+    if (filtroTipo) {
+      if (filtroTipo === 'anexo') {
+        if (!a.tem_anexo && !a.nome_arquivo && !a.arquivo_base64) return false;
+      } else if (filtroTipo === 'Assembleia') {
+        if (!(a.tipo || '').includes('Assembleia')) return false;
+      } else if (a.tipo !== filtroTipo) {
+        return false;
+      }
+    }
 
     if (filtroAno) {
 
@@ -17849,7 +17864,7 @@ function filtrarAtas() {
                     (a.folha_numero || '').toLowerCase().includes(busca) ||
 
                     (a.pauta || '').toLowerCase().includes(busca) ||
-
+                    (a.conteudo || '').toLowerCase().includes(busca) ||
                     (a.observacoes || '').toLowerCase().includes(busca) ||
 
                     (a.nome_arquivo || '').toLowerCase().includes(busca);
@@ -18152,6 +18167,24 @@ function filtrarAtas() {
           <!-- BOTÕES DE AÇÃO -->
 
           <div class="flex items-center lg:flex-col gap-2 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100">
+
+            <button
+
+              type="button"
+
+              onclick="consultarAtaModal(${a.id})"
+
+              class="flex-1 lg:flex-initial px-3.5 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+
+              title="Consultar, ler e visualizar a ata completa"
+
+            >
+
+              <span>🔍</span>
+
+              <span>Consultar</span>
+
+            </button>
 
             <button
 
@@ -19293,3 +19326,218 @@ Ele será obrigado a cadastrar uma nova senha pessoal segura (com letras, númer
   }
 }
 
+
+
+// ============================================================================
+// MODAL DE CONSULTA & FILTROS RÁPIDOS DE ATAS OFICIAIS
+// ============================================================================
+function consultarAtaModal(id) {
+  const ata = (STATE.atas || []).find(a => Number(a.id) === Number(id));
+  if (!ata) {
+    alert('Ata não encontrada no arquivo oficial.');
+    return;
+  }
+
+  const dataFmt = ata.data_reuniao 
+    ? ata.data_reuniao.split('-').reverse().join('/') 
+    : 'Data não informada';
+
+  const temAnexo = ata.tem_anexo || ata.nome_arquivo || ata.arquivo_base64;
+  const nomeArq = ata.nome_arquivo || `ata_${ata.id}.pdf`;
+  const tipoArq = (ata.tipo_arquivo || '').toLowerCase() || (nomeArq.endsWith('.docx') ? 'docx' : 'pdf');
+  const isPdf = tipoArq === 'pdf';
+
+  const html = `
+    <div class="p-6 max-w-4xl mx-auto space-y-6 text-slate-800">
+      <!-- CABEÇALHO DO MODAL DE CONSULTA -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-200 gap-3">
+        <div class="flex items-center gap-3">
+          <span class="w-12 h-12 rounded-2xl bg-violet-100 text-violet-700 flex items-center justify-center text-2xl shadow-xs">📜</span>
+          <div>
+            <span class="text-[10px] font-extrabold uppercase tracking-widest text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-200">
+              ${escapeHtml(ata.tipo || 'Assembleia Geral')}
+            </span>
+            <h2 class="text-lg sm:text-xl font-extrabold text-slate-900 mt-1 leading-snug">
+              ${escapeHtml(ata.titulo)}
+            </h2>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onclick="window.print()"
+            class="px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+            title="Imprimir ou Salvar como PDF Oficial"
+          >
+            <span>🖨️</span>
+            <span>Imprimir Ata</span>
+          </button>
+          <button
+            type="button"
+            onclick="fecharModalCustom(); editarAta(${ata.id});"
+            class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition border border-slate-200 flex items-center gap-1.5 cursor-pointer"
+          >
+            <span>✏️</span>
+            <span>Editar</span>
+          </button>
+          <button
+            type="button"
+            onclick="fecharModalCustom()"
+            class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-700 font-bold text-xs transition cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <!-- METADADOS DA SESSÃO / LIVRO / FOLHA -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-slate-50 p-4 rounded-2xl border border-slate-200">
+        <div>
+          <span class="text-slate-400 block text-[11px] font-semibold">Data da Reunião:</span>
+          <span class="font-extrabold text-slate-800">📅 ${dataFmt}</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block text-[11px] font-semibold">Local:</span>
+          <span class="font-extrabold text-slate-800">📍 ${escapeHtml(ata.local_reuniao || 'Templo Sede')}</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block text-[11px] font-semibold">Livro / Registro:</span>
+          <span class="font-extrabold text-slate-800">📖 ${escapeHtml(ata.livro_numero || 'Não informado')}</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block text-[11px] font-semibold">Folha / Fls:</span>
+          <span class="font-extrabold text-slate-800">📄 ${escapeHtml(ata.folha_numero || 'Não informado')}</span>
+        </div>
+      </div>
+
+      <!-- MESA DIRETORA -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        <div class="p-3 bg-white rounded-xl border border-slate-200 flex items-center gap-2.5">
+          <span class="text-lg">👔</span>
+          <div>
+            <span class="text-slate-400 block text-[10px] font-bold uppercase tracking-wider">Presidente da Mesa:</span>
+            <span class="font-bold text-slate-800">${escapeHtml(ata.presidente || 'Não informado')}</span>
+          </div>
+        </div>
+        <div class="p-3 bg-white rounded-xl border border-slate-200 flex items-center gap-2.5">
+          <span class="text-lg">✍️</span>
+          <div>
+            <span class="text-slate-400 block text-[10px] font-bold uppercase tracking-wider">Secretário(a) da Sessão:</span>
+            <span class="font-bold text-slate-800">${escapeHtml(ata.secretario || 'Não informado')}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAUTA OFICIAL -->
+      ${ata.pauta ? `
+        <div class="space-y-1.5">
+          <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+            <span>📋</span> Pauta da Convocação:
+          </h4>
+          <div class="p-3.5 bg-white rounded-xl border border-slate-200 text-xs text-slate-700 whitespace-pre-line leading-relaxed font-medium">
+            ${escapeHtml(ata.pauta)}
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- TEXTO INTEGRAL / TRANSCRIÇÃO / DELIBERAÇÕES DA ATA -->
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-extrabold uppercase tracking-wider text-violet-700 flex items-center gap-1.5">
+          <span>📜</span> Texto Integral & Deliberações da Ata:
+        </h4>
+        <div class="p-5 bg-white rounded-2xl border border-violet-200 shadow-2xs text-xs sm:text-sm text-slate-800 whitespace-pre-line leading-relaxed font-sans min-h-[140px]">
+          ${ata.conteudo ? escapeHtml(ata.conteudo) : '<span class="text-slate-400 italic">Nenhum texto integral registrado para esta ata. Você pode editar a ata e ditar ou digitar as considerações e deliberações.</span>'}
+        </div>
+      </div>
+
+      <!-- OBSERVAÇÕES COMPLEMENTARES -->
+      ${ata.observacoes ? `
+        <div class="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs text-amber-900">
+          <span class="font-bold block text-[11px] mb-0.5">Observações Adicionais:</span>
+          <span>${escapeHtml(ata.observacoes)}</span>
+        </div>
+      ` : ''}
+
+      <!-- DOCUMENTO ANEXO -->
+      ${temAnexo ? `
+        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between gap-3 flex-wrap">
+          <div class="flex items-center gap-2">
+            <span class="text-2xl">${isPdf ? '📄' : '📝'}</span>
+            <div>
+              <span class="font-bold text-xs text-slate-800 block">${escapeHtml(nomeArq)}</span>
+              <span class="text-[11px] text-slate-400">Documento Oficial Digitalizado Anexo (${escapeHtml(tipoArq.toUpperCase())})</span>
+            </div>
+          </div>
+          <a
+            href="/api/atas/anexo?id=${ata.id}"
+            target="_blank"
+            class="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
+          >
+            <span>Abrir / Baixar Arquivo</span>
+            <span>↗</span>
+          </a>
+        </div>
+      ` : ''}
+
+      <!-- ASSINATURAS OFICIAIS (PARA IMPRESSÃO) -->
+      <div class="pt-8 mt-6 border-t border-slate-200 grid grid-cols-2 gap-8 text-center text-xs">
+        <div>
+          <div class="border-b border-slate-400 mb-1 w-3/4 mx-auto"></div>
+          <span class="font-bold text-slate-800 block">${escapeHtml(ata.presidente || 'Presidente da Mesa')}</span>
+          <span class="text-[10px] text-slate-500">Presidente da Assembleia</span>
+        </div>
+        <div>
+          <div class="border-b border-slate-400 mb-1 w-3/4 mx-auto"></div>
+          <span class="font-bold text-slate-800 block">${escapeHtml(ata.secretario || 'Secretário(a) Geral')}</span>
+          <span class="text-[10px] text-slate-500">Secretário(a) da Assembleia</span>
+        </div>
+      </div>
+    </div>
+  `;
+
+  if (typeof abrirModalCustom === 'function') {
+    abrirModalCustom(html, true, 'largo');
+  }
+}
+
+function setFiltroAtasRapido(tipo) {
+  const selectTipo = document.getElementById('filtro-atas-tipo');
+  if (selectTipo) {
+    if (tipo === 'anexo') {
+      selectTipo.value = '';
+    } else if (tipo === 'Assembleia') {
+      selectTipo.value = 'Assembleia Geral Ordinária';
+    } else {
+      selectTipo.value = tipo;
+    }
+  }
+  filtrarAtas();
+  atualizarPillsFiltroAtas(tipo);
+}
+
+function limparFiltrosAtas() {
+  const selectTipo = document.getElementById('filtro-atas-tipo');
+  const selectAno = document.getElementById('filtro-atas-ano');
+  const inputBusca = document.getElementById('filtro-atas-busca');
+  if (selectTipo) selectTipo.value = '';
+  if (selectAno) selectAno.value = '';
+  if (inputBusca) inputBusca.value = '';
+  filtrarAtas();
+  atualizarPillsFiltroAtas('');
+}
+
+function atualizarPillsFiltroAtas(ativo) {
+  document.querySelectorAll('.btn-filtro-ata-rapido').forEach(btn => {
+    const txt = btn.textContent.trim();
+    let matches = false;
+    if (!ativo && txt.includes('Todas')) matches = true;
+    else if (ativo === 'anexo' && txt.includes('Anexo')) matches = true;
+    else if (ativo && txt.includes(ativo.substring(0, 3))) matches = true;
+
+    if (matches) {
+      btn.className = 'btn-filtro-ata-rapido px-2.5 py-1 rounded-lg bg-violet-600 text-white font-bold transition cursor-pointer shadow-2xs';
+    } else {
+      btn.className = 'btn-filtro-ata-rapido px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition cursor-pointer';
+    }
+  });
+}

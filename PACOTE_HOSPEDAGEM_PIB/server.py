@@ -2407,7 +2407,7 @@ def build_bootstrap_data(req_handler=None):
 
                        local_reuniao, presidente, secretario, livro_numero, folha_numero,
 
-                       pauta, observacoes, nome_arquivo, tipo_arquivo, tamanho_arquivo,
+                       pauta, conteudo, observacoes, nome_arquivo, tipo_arquivo, tamanho_arquivo,
 
                        CASE WHEN arquivo_base64 IS NOT NULL AND LENGTH(arquivo_base64) > 0 THEN 1 ELSE 0 END as tem_anexo,
 
@@ -3017,7 +3017,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                                    local_reuniao, presidente, secretario, livro_numero, folha_numero,
 
-                                   pauta, observacoes, nome_arquivo, tipo_arquivo, tamanho_arquivo,
+                                   pauta, conteudo, observacoes, nome_arquivo, tipo_arquivo, tamanho_arquivo,
 
                                    CASE WHEN arquivo_base64 IS NOT NULL AND LENGTH(arquivo_base64) > 0 THEN 1 ELSE 0 END as tem_anexo,
 
@@ -3045,7 +3045,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                                    local_reuniao, presidente, secretario, livro_numero, folha_numero,
 
-                                   pauta, observacoes, nome_arquivo, tipo_arquivo, tamanho_arquivo,
+                                   pauta, conteudo, observacoes, nome_arquivo, tipo_arquivo, tamanho_arquivo,
 
                                    CASE WHEN arquivo_base64 IS NOT NULL AND LENGTH(arquivo_base64) > 0 THEN 1 ELSE 0 END as tem_anexo,
 
