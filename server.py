@@ -6466,44 +6466,34 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
                 elif path == "/api/usuarios/verificar-senha":
-
                     user_id = body.get("id")
-
                     email = str(body.get("email", "")).strip().lower()
-
+                    login = str(body.get("login", "")).strip().lower()
                     senha = str(body.get("senha", "")).strip()
 
-
-
                     if not senha:
-
                         conn.close()
-
                         return self.send_json({"ok": False, "mensagem": "Por favor, digite sua senha de acesso."}, 400)
 
-
-
-                    if user_id is not None and str(user_id).isdigit():
-
-                        row = cur.execute("SELECT id, nome, perfil, setores_permitidos, senha, relatorios_permitidos, senha_alterada FROM usuarios WHERE id=?", (int(user_id),)).fetchone()
-
+                    row = None
+                    if user_id is not None and str(user_id).isdigit() and int(user_id) > 0:
+                        row = cur.execute("SELECT id, nome, perfil, setores_permitidos, senha, relatorios_permitidos, senha_alterada FROM usuarios WHERE id=? AND ativo=1", (int(user_id),)).fetchone()
                     elif email:
-
-                        row = cur.execute("SELECT id, nome, perfil, setores_permitidos, senha, relatorios_permitidos, senha_alterada FROM usuarios WHERE LOWER(email)=?", (email,)).fetchone()
-
+                        row = cur.execute("SELECT id, nome, perfil, setores_permitidos, senha, relatorios_permitidos, senha_alterada FROM usuarios WHERE LOWER(email)=? AND ativo=1", (email,)).fetchone()
+                    elif login:
+                        if login.isdigit():
+                            row = cur.execute("SELECT id, nome, perfil, setores_permitidos, senha, relatorios_permitidos, senha_alterada FROM usuarios WHERE id=? AND ativo=1", (int(login),)).fetchone()
+                        elif "@" in login:
+                            row = cur.execute("SELECT id, nome, perfil, setores_permitidos, senha, relatorios_permitidos, senha_alterada FROM usuarios WHERE LOWER(email)=? AND ativo=1", (login,)).fetchone()
+                        else:
+                            row = cur.execute("SELECT id, nome, perfil, setores_permitidos, senha, relatorios_permitidos, senha_alterada FROM usuarios WHERE (LOWER(nome) LIKE ? OR LOWER(email)=?) AND ativo=1", (f"%{login}%", login)).fetchone()
                     else:
-
                         conn.close()
-
-                        return self.send_json({"ok": False, "mensagem": "Selecione o operador."}, 400)
-
-
+                        return self.send_json({"ok": False, "mensagem": "Por favor, selecione ou informe o seu usuário."}, 400)
 
                     if not row:
-
                         conn.close()
-
-                        return self.send_json({"ok": False, "mensagem": "Operador não encontrado."}, 404)
+                        return self.send_json({"ok": False, "mensagem": "Operador não encontrado ou inativo no sistema."}, 404)
 
 
 

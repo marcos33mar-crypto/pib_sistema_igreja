@@ -2820,15 +2820,27 @@ function aoMudarOperadorLogin() {
   const senhaInput = document.getElementById('login-senha');
   const erroDiv = document.getElementById('login-erro');
   const boxNaoCad = document.getElementById('login-box-nao-cadastrado');
+  const boxCustom = document.getElementById('login-box-usuario-custom');
+  const customInput = document.getElementById('login-usuario-custom');
+
   if (erroDiv) erroDiv.classList.add('hidden');
   if (senhaInput) senhaInput.value = '';
 
-  if (select && select.value === 'nao_cadastrado') {
+  const val = select ? select.value : '';
+
+  if (val === 'nao_cadastrado') {
     if (boxNaoCad) boxNaoCad.classList.remove('hidden');
+    if (boxCustom) boxCustom.classList.add('hidden');
+  } else if (val === 'manual') {
+    if (boxCustom) boxCustom.classList.remove('hidden');
+    if (boxNaoCad) boxNaoCad.classList.add('hidden');
+    customInput?.focus();
+    return;
   } else {
     if (boxNaoCad) boxNaoCad.classList.add('hidden');
+    if (boxCustom) boxCustom.classList.add('hidden');
+    senhaInput?.focus();
   }
-  senhaInput?.focus();
 }
 
 function limparSelecaoLogin() {
@@ -2836,10 +2848,15 @@ function limparSelecaoLogin() {
   const senhaInput = document.getElementById('login-senha');
   const erroDiv = document.getElementById('login-erro');
   const boxNaoCad = document.getElementById('login-box-nao-cadastrado');
+  const boxCustom = document.getElementById('login-box-usuario-custom');
+  const customInput = document.getElementById('login-usuario-custom');
+
   if (select) select.value = '';
   if (senhaInput) senhaInput.value = '';
+  if (customInput) customInput.value = '';
   if (erroDiv) erroDiv.classList.add('hidden');
   if (boxNaoCad) boxNaoCad.classList.add('hidden');
+  if (boxCustom) boxCustom.classList.add('hidden');
   select?.focus();
 }
 
@@ -2856,24 +2873,43 @@ function abrirTelaLogin(operadorIdPreselecionado = null) {
   const select = document.getElementById('login-operador-id');
   const senhaInput = document.getElementById('login-senha');
   const erroDiv = document.getElementById('login-erro');
+  const boxCustom = document.getElementById('login-box-usuario-custom');
+  const customInput = document.getElementById('login-usuario-custom');
+  const boxNaoCad = document.getElementById('login-box-nao-cadastrado');
 
   if (erroDiv) erroDiv.classList.add('hidden');
   if (senhaInput) senhaInput.value = '';
+  if (customInput) customInput.value = '';
+  if (boxCustom) boxCustom.classList.add('hidden');
+  if (boxNaoCad) boxNaoCad.classList.add('hidden');
 
-  if (select && STATE.usuarios && STATE.usuarios.length > 0) {
-    const alvoId = operadorIdPreselecionado || (CURRENT_OPERATOR ? CURRENT_OPERATOR.id : STATE.usuarios[0].id);
-    select.innerHTML = STATE.usuarios.map(u => `
-      <option value="${u.id}" ${Number(u.id) === Number(alvoId) ? 'selected' : ''}>
-        ${u.nome} [${u.perfil}]
-      </option>
-    `).join('');
+  if (select) {
+    let html = '<option value="">-- Selecione seu Usuário Cadastrado --</option>';
+    if (Array.isArray(STATE.usuarios) && STATE.usuarios.length > 0) {
+      html += STATE.usuarios.filter(u => u.ativo !== 0).map(u => `
+        <option value="${u.id}" ${operadorIdPreselecionado && Number(u.id) === Number(operadorIdPreselecionado) ? 'selected' : ''}>
+          ${u.nome} [${u.perfil}]
+        </option>
+      `).join('');
+    }
+    html += '<option value="manual">✍️ Digitar Outro Usuário / E-mail</option>';
+    html += '<option value="nao_cadastrado">⚠️ Não sou cadastrado / Solicitar Acesso</option>';
+    select.innerHTML = html;
+
+    if (operadorIdPreselecionado) {
+      select.value = String(operadorIdPreselecionado);
+    }
   }
 
   if (tela) {
     tela.classList.remove('hidden');
     tela.style.display = '';
     setTimeout(() => {
-      senhaInput?.focus();
+      if (select && select.value && select.value !== 'manual' && select.value !== 'nao_cadastrado') {
+        senhaInput?.focus();
+      } else {
+        select?.focus();
+      }
     }, 150);
   }
 }
@@ -2932,9 +2968,44 @@ async function executarLoginSistema(e) {
   const erroDiv = document.getElementById('login-erro');
   const erroTexto = document.getElementById('login-erro-texto');
   const btnEntrar = document.getElementById('btn-entrar-login');
+  const customInput = document.getElementById('login-usuario-custom');
 
-  const userId = Number(select?.value || (STATE.usuarios && STATE.usuarios[0] ? STATE.usuarios[0].id : 1));
+  const selectVal = select ? select.value : '';
   const senha = (senhaInput?.value || '').trim();
+
+  if (!selectVal) {
+    if (erroDiv && erroTexto) {
+      erroTexto.textContent = 'Por favor, selecione seu usuário na lista ou escolha a opção de digitar usuário/e-mail.';
+      erroDiv.classList.remove('hidden');
+    }
+    select?.focus();
+    return;
+  }
+
+  if (selectVal === 'nao_cadastrado') {
+    if (erroDiv && erroTexto) {
+      erroTexto.textContent = 'Acesso restrito a operadores cadastrados. Solicite seu cadastro ao administrador.';
+      erroDiv.classList.remove('hidden');
+    }
+    return;
+  }
+
+  let payload = { senha };
+
+  if (selectVal === 'manual') {
+    const loginCustom = (customInput?.value || '').trim();
+    if (!loginCustom) {
+      if (erroDiv && erroTexto) {
+        erroTexto.textContent = 'Por favor, digite seu nome, e-mail ou identificador de operador.';
+        erroDiv.classList.remove('hidden');
+      }
+      customInput?.focus();
+      return;
+    }
+    payload.login = loginCustom;
+  } else {
+    payload.id = Number(selectVal);
+  }
 
   if (!senha) {
     if (erroDiv && erroTexto) {
@@ -2956,14 +3027,14 @@ async function executarLoginSistema(e) {
     const res = await fetch('/api/usuarios/verificar-senha', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: userId, senha })
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
 
     if (res.ok && data.ok) {
       if (erroDiv) erroDiv.classList.add('hidden');
 
-      const userDb = (STATE.usuarios || []).find(u => Number(u.id) === Number(userId));
+      const userDb = (STATE.usuarios || []).find(u => Number(u.id) === Number(data.id));
       const user = {
         id: data.id,
         nome: data.nome,
@@ -3006,7 +3077,7 @@ async function executarLoginSistema(e) {
       showLiveToast(`✅ Acesso autorizado! Bem-vindo(a), ${user.nome}!`);
     } else {
       if (erroDiv && erroTexto) {
-        erroTexto.textContent = data.mensagem || 'Senha incorreta! Digite a senha cadastrada para este operador no Controle de Acessos.';
+        erroTexto.textContent = data.mensagem || 'Senha incorreta para este operador! Digite a senha cadastrada no Controle de Acessos.';
         erroDiv.classList.remove('hidden');
       }
       senhaInput?.select();
@@ -3021,7 +3092,7 @@ async function executarLoginSistema(e) {
   } finally {
     if (btnEntrar) {
       btnEntrar.disabled = false;
-      btnEntrar.innerHTML = '<span>🔐</span> Entrar no Sistema';
+      btnEntrar.innerHTML = '<span>🔓</span> Entrar no Sistema';
     }
   }
 }

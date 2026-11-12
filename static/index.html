@@ -2593,7 +2593,7 @@
 
       </div>
       <div class="text-[10px] text-slate-500 font-medium mt-1 tracking-wider" id="versao-sistema-tag">
-        Versão 2.23 • Build 20261111
+        Versão 2.24 • Build 20261112
       </div>
 
 
@@ -24881,303 +24881,79 @@
 
 
 
-      <form id="form-login-sistema" onsubmit="executarLoginSistema(event)" class="space-y-4 text-xs">
-
-
-
-
-
-
-
+      <form id="form-login-sistema" onsubmit="executarLoginSistema(event)" class="space-y-4 text-xs" autocomplete="off">
         <div>
-
-
-
-
-
-
-
           <div class="flex items-center justify-between mb-1.5">
-
-
-
             <label class="font-bold text-slate-700 block">Selecione o seu Usuário *</label>
-
-
-
             <button type="button" onclick="limparSelecaoLogin()" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold hover:underline cursor-pointer flex items-center gap-1">
-
-
-
               <span>🔄</span> Trocar Usuário
-
-
-
             </button>
-
-
-
           </div>
-
-
-
-
-
-
-
           <select id="login-operador-id" onchange="aoMudarOperadorLogin()" required class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 bg-slate-50 font-bold text-slate-800 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
             <option value="">-- Selecione seu Usuário Cadastrado --</option>
             <option value="1">Marcos Silva (Administrador) [ADMIN]</option>
             <option value="22">Gislene Aparecida da Silva Santos [CUSTOM]</option>
-            <option value="nao_cadastrado">⚠️ Não sou cadastrado / Outro Usuário</option>
+            <option value="manual">✍️ Digitar Outro Usuário / E-mail</option>
+            <option value="nao_cadastrado">⚠️ Não sou cadastrado / Solicitar Acesso</option>
           </select>
-
-
-
-
-
-
-
         </div>
 
-
-
-
-
-
+        <!-- Campo para Digitar Usuário / E-mail Manualmente -->
+        <div id="login-box-usuario-custom" class="hidden bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-1.5">
+          <label class="font-bold text-slate-700 block text-xs">Identificador do Operador (Nome ou E-mail) *</label>
+          <input type="text" id="login-usuario-custom" placeholder="Ex: gislene, admin@igreja.org ou seu nome" autocomplete="off" class="w-full border border-slate-300 rounded-xl px-3.5 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium" />
+          <p class="text-[11px] text-slate-500">Digite seu nome, e-mail cadastrado ou ID para entrar diretamente.</p>
+        </div>
 
         <!-- Alerta Informativo para Usuário Não Cadastrado (Não trava o formulário) -->
-
-
-
         <div id="login-box-nao-cadastrado" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs space-y-2.5">
-
-
-
           <div class="flex items-start gap-2.5">
-
-
-
             <span class="text-xl">⚠️</span>
-
-
-
             <div>
-
-
-
               <strong class="text-amber-900 block font-bold mb-1">Acesso Restrito a Operadores Cadastrados</strong>
-
-
-
               <p class="text-amber-800 leading-relaxed text-[11px]">
-
-
-
-                Você ainda não possui um cadastro ativo no sistema. Para obter acesso aos módulos da igreja, solicite ao <strong>Administrador (Marcos Silva)</strong> o cadastramento do seu usuário no Controle de Acessos.
-
-
-
+                Se você ainda não possui cadastro ativo, solicite ao <strong>Administrador (Marcos Silva)</strong> o cadastramento do seu usuário no Controle de Acessos.
               </p>
-
-
-
             </div>
-
-
-
           </div>
-
-
-
           <div class="pt-2 border-t border-amber-200/80 flex items-center justify-between gap-2">
-
-
-
             <span class="text-[11px] text-amber-700 font-medium">Já possui cadastro?</span>
-
-
-
             <button type="button" onclick="limparSelecaoLogin()" class="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl shadow-xs transition cursor-pointer">
-
-
-
               Selecionar meu Nome na Lista
-
-
-
             </button>
-
-
-
           </div>
-
-
-
         </div>
-
-
-
-
-
-
 
         <div id="bloco-campo-senha">
-
-
-
-
-
-
-
           <label class="font-bold text-slate-700 block mb-1.5">Senha de Acesso *</label>
-
-
-
-
-
-
-
           <div class="relative">
-
-
-
-
-
-
-
-            <input type="password" id="login-senha" placeholder="Digite sua senha de acesso" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none pr-10 font-medium" autocomplete="current-password" />
-
-
-
-
-
-
-
+            <input type="password" id="login-senha" placeholder="Digite sua senha de acesso" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none pr-10 font-medium" autocomplete="new-password" data-lpignore="true" />
             <button type="button" onclick="alternarVisibilidadeSenha('login-senha')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-700 text-sm cursor-pointer" title="Mostrar/Ocultar senha">
-
-
-
-
-
-
-
               👁️
-
-
-
-
-
-
-
             </button>
-
-
-
-
-
-
-
           </div>
-
-
-
-
-
-
-
         </div>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+        <!-- Orientação Prática e Desmistificação de Avisos do Navegador -->
+        <div class="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-[11px] text-slate-600 flex items-start gap-2">
+          <span class="text-indigo-600 font-bold shrink-0 text-sm">💡</span>
+          <span class="leading-relaxed">
+            Todos os operadores cadastrados podem acessar normalmente selecionando seu nome ou digitando o e-mail. <em>(Se o Google Chrome exibir aviso de "sincronização de senhas pausada", é um lembrete exclusivo do navegador/Google e não interfere no sistema PIB).</em>
+          </span>
+        </div>
 
         <div id="login-erro" class="hidden text-rose-700 font-bold bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs flex items-center justify-between gap-2">
-
-
-
-
-
-
-
           <div class="flex items-center gap-2">
-
-
-
             <span>❌</span> <span id="login-erro-texto">Senha incorreta! Tente novamente.</span>
-
-
-
           </div>
-
-
-
           <button type="button" onclick="limparSelecaoLogin()" class="text-[11px] text-rose-700 font-bold underline hover:text-rose-900 whitespace-nowrap cursor-pointer">
-
-
-
             Trocar
-
-
-
           </button>
-
-
-
-
-
-
-
         </div>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         <button type="submit" id="btn-entrar-login" class="w-full bg-slate-900 hover:bg-indigo-600 text-white font-bold text-sm py-3 rounded-xl shadow-lg transition flex items-center justify-center gap-2 cursor-pointer">
-
-
-
-
-
-
-
           <span>🔓</span> Entrar no Sistema
-
-
-
-
-
-
-
         </button>
-
-
-
-
-
-
-
       </form>
 
 
@@ -25632,7 +25408,7 @@
 
 
 
-  <script src="/app.js?v=20261111_v223_estabilidade_senhas_fix"></script>
+  <script src="/app.js?v=20261112_v224_login_multioperador_fix"></script>
 
 
 
