@@ -4005,6 +4005,32 @@ function selecionarAnoDashboard(ano) {
   const numAno = Number(ano) || 2026;
   ANO_MATRIZ_ATIVO = numAno;
 
+  // Garante em memória e no backend que o ano selecionado tenha todas as contas padrão de 2026
+  const rowsAnoAtual = (STATE.matriz_tesouraria || []).filter(r => Number(r.ano) === numAno);
+  const rowsPadrao2026 = (STATE.matriz_tesouraria || []).filter(r => Number(r.ano) === 2026);
+  if (rowsPadrao2026.length > 0 && rowsAnoAtual.length < rowsPadrao2026.length) {
+    const chavesExistentes = new Set(rowsAnoAtual.map(r => `${r.tipo_fluxo}||${r.grupo}||${r.rubrica}`));
+    let faltouAlguma = false;
+    rowsPadrao2026.forEach(pad => {
+      const chave = `${pad.tipo_fluxo}||${pad.grupo}||${pad.rubrica}`;
+      if (!chavesExistentes.has(chave)) {
+        faltouAlguma = true;
+        STATE.matriz_tesouraria.push({
+          ...pad,
+          id: pad.id,
+          ano: numAno,
+          m1: 0, m2: 0, m3: 0, m4: 0, m5: 0, m6: 0, m7: 0, m8: 0, m9: 0, m10: 0, m11: 0, m12: 0,
+          meses: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          total_anual: 0,
+          media_mensal: 0
+        });
+      }
+    });
+    if (faltouAlguma) {
+      apiPost('/api/matriz/garantir-ano', { ano: numAno }).then(() => fetchBootstrap()).catch(() => {});
+    }
+  }
+
   // Atualiza os displays do novo Stepper Vertical
   atualizarDisplayAnoExercicio();
 
@@ -5246,9 +5272,7 @@ function abrirModalNovaRubrica() {
         <div>
           <label class="font-semibold text-slate-700 block mb-1">Exercício (Ano)</label>
           <select id="nrub-ano" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white font-bold">
-            <option value="2026" ${ANO_MATRIZ_ATIVO === 2026 ? 'selected' : ''}>2026</option>
-            <option value="2025" ${ANO_MATRIZ_ATIVO === 2025 ? 'selected' : ''}>2025</option>
-            <option value="2023" ${ANO_MATRIZ_ATIVO === 2023 ? 'selected' : ''}>2023</option>
+            ${Array.from({ length: 16 }, (_, i) => 2035 - i).map(a => `<option value="${a}" ${ANO_MATRIZ_ATIVO === a ? 'selected' : ''}>${a}</option>`).join('')}
           </select>
         </div>
         <div>

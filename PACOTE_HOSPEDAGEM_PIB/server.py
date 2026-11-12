@@ -1412,9 +1412,58 @@ def init_db():
                 VALUES ('Diretoria', 'Pastor Presidente & Diretoria Executiva', 0.0, 0.0, 0.0, 'Diretoria Estatutária da Igreja: Pastor Presidente, Vice-Presidente, Secretários e Tesoureiros.', '#1e293b')
             """)
 
+        # Garante que todos os anos de 2020 a 2035 tenham o plano de contas padrão completo sem perder nenhum valor já lançado
+        padronizar_matriz_todos_os_anos(conn)
+
         conn.commit()
 
         conn.close()
+
+
+def padronizar_matriz_todos_os_anos(conn):
+    """Garante que todos os exercícios contábeis (2020 a 2035) possuam todas as contas padrão de 2026, preservando 100% dos valores já lançados."""
+    cur = conn.cursor()
+    padrao_contas = []
+    vistos = set()
+    for _, tipo_fluxo, grupo, rubrica, _ in MATRIZ_2026:
+        chave = (tipo_fluxo, grupo, rubrica)
+        if chave not in vistos:
+            vistos.add(chave)
+            padrao_contas.append(chave)
+
+    for r26 in cur.execute("SELECT tipo_fluxo, grupo, rubrica FROM matriz_tesouraria WHERE ano=2026 ORDER BY id").fetchall():
+        chave = (r26["tipo_fluxo"], r26["grupo"], r26["rubrica"])
+        if chave not in vistos:
+            vistos.add(chave)
+            padrao_contas.append(chave)
+
+    zeros = [0.0] * 12
+    for ano in range(2020, 2036):
+        rows_ano = cur.execute(
+            "SELECT id, tipo_fluxo, grupo, rubrica, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12 FROM matriz_tesouraria WHERE ano=?",
+            (ano,),
+        ).fetchall()
+        existentes_map = {}
+        for r in rows_ano:
+            rid = r["id"]
+            chave = (r["tipo_fluxo"], r["grupo"], r["rubrica"])
+            soma = sum(abs(float(r[f"m{i}"] or 0)) for i in range(1, 13))
+            if chave not in vistos and soma == 0:
+                cur.execute("DELETE FROM matriz_tesouraria WHERE id=?", (rid,))
+            else:
+                if chave not in existentes_map:
+                    existentes_map[chave] = rid
+                elif soma == 0:
+                    cur.execute("DELETE FROM matriz_tesouraria WHERE id=?", (rid,))
+
+        for t, g, rub in padrao_contas:
+            if (t, g, rub) not in existentes_map:
+                cur.execute(
+                    """INSERT INTO matriz_tesouraria
+                    (ano, tipo_fluxo, grupo, rubrica, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (ano, t, g, rub, *zeros),
+                )
 
 
 
@@ -3641,13 +3690,18 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                     if 1990 <= ano <= 2100:
 
-                        existe = cur.execute("SELECT COUNT(*) as total FROM matriz_tesouraria WHERE ano=?", (ano,)).fetchone()["total"]
+                        existentes = set(
+                            (r["tipo_fluxo"], r["grupo"], r["rubrica"])
+                            for r in cur.execute("SELECT tipo_fluxo, grupo, rubrica FROM matriz_tesouraria WHERE ano=?", (ano,)).fetchall()
+                        )
 
-                        if existe == 0:
+                        zeros = [0.0] * 12
 
-                            zeros = [0.0] * 12
+                        inseridos = 0
 
-                            for _, tipo_fluxo, grupo, rubrica, _ in MATRIZ_2026:
+                        for _, tipo_fluxo, grupo, rubrica, _ in MATRIZ_2026:
+
+                            if (tipo_fluxo, grupo, rubrica) not in existentes:
 
                                 cur.execute(
 
@@ -3660,6 +3714,12 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                                     (ano, tipo_fluxo, grupo, rubrica, *zeros),
 
                                 )
+
+                                existentes.add((tipo_fluxo, grupo, rubrica))
+
+                                inseridos += 1
+
+                        if inseridos > 0:
 
                             conn.commit()
 
