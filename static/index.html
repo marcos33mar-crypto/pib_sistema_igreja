@@ -2593,7 +2593,7 @@
 
       </div>
       <div class="text-[10px] text-slate-500 font-medium mt-1 tracking-wider" id="versao-sistema-tag">
-        Versão 2.28 • Build 20261112
+        Versão 2.29 • Build 20261112
       </div>
 
 
@@ -2983,28 +2983,26 @@
 
 
 
-          <!-- Seletor Vertical de Exercício no Dashboard (Stepper Compacto) -->
-          <div class="inline-flex items-center bg-white border border-slate-200 hover:border-indigo-400 rounded-2xl px-2.5 py-1 shadow-xs transition group cursor-default select-none"
+          <!-- Seletor Vertical Limpo de Ano no Dashboard -->
+          <div class="inline-flex items-center bg-white border border-slate-300 hover:border-indigo-400 rounded-xl px-2.5 py-0.5 shadow-2xs transition select-none gap-2 cursor-default"
                onwheel="aoRolarScrollAno(event)"
-               title="Exercício contábil. Clique nas setas ▲/▼ ou gire a roda do mouse para mudar de ano.">
+               title="Alterar ano contábil (▲ / ▼ ou roda do mouse)">
             <input type="hidden" id="sel-ano-dashboard" value="2026" />
             <div class="flex items-center gap-1.5">
               <span class="text-xs">📅</span>
-              <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 hidden xs:inline">Exercício</span>
-              <strong id="display-ano-exercicio-dash" class="text-sm font-black text-slate-900 tracking-tight">2026</strong>
-              <span id="badge-ano-atual-dash" class="text-[9px] font-black uppercase text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded-md shadow-2xs">Vigente</span>
+              <strong id="display-ano-exercicio-dash" class="text-sm font-black text-slate-800">2026</strong>
             </div>
-            <div class="flex flex-col ml-2 pl-2 border-l border-slate-200 gap-0.5">
+            <div class="flex flex-col ml-1 pl-1.5 border-l border-slate-200">
               <button type="button" 
                       onclick="navegarAnoExercicio(1)" 
-                      title="Avançar exercício (▲)" 
-                      class="w-5 h-3 flex items-center justify-center text-[9px] font-black text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition cursor-pointer active:scale-90">
+                      title="Avançar ano" 
+                      class="w-4 h-3 flex items-center justify-center text-[8px] font-black text-slate-400 hover:text-indigo-600 rounded transition cursor-pointer active:scale-90">
                 ▲
               </button>
               <button type="button" 
                       onclick="navegarAnoExercicio(-1)" 
-                      title="Voltar exercício (▼)" 
-                      class="w-5 h-3 flex items-center justify-center text-[9px] font-black text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition cursor-pointer active:scale-90">
+                      title="Voltar ano" 
+                      class="w-4 h-3 flex items-center justify-center text-[8px] font-black text-slate-400 hover:text-indigo-600 rounded transition cursor-pointer active:scale-90">
                 ▼
               </button>
             </div>
@@ -6073,30 +6071,28 @@
 
 
 
-                <div class="flex flex-wrap items-center gap-3">
-                  <h3 id="titulo-planilha-ano" class="font-extrabold text-slate-800 text-base">Matriz Financeira Mensal — Exercício 2026</h3>
-                  <!-- Seletor Vertical de Exercício (Stepper Compacto) -->
-                  <div class="inline-flex items-center bg-white border border-indigo-200/90 hover:border-indigo-400 rounded-2xl px-2.5 py-1 shadow-xs transition group cursor-default select-none"
+                <div class="flex flex-wrap items-center gap-2.5">
+                  <h3 id="titulo-planilha-ano" class="font-extrabold text-slate-900 text-base">Matriz Financeira Mensal</h3>
+                  <!-- Seletor Vertical Limpo de Ano -->
+                  <div class="inline-flex items-center bg-white border border-slate-300 hover:border-indigo-400 rounded-xl px-2.5 py-0.5 shadow-2xs transition select-none gap-2 cursor-default"
                        onwheel="aoRolarScrollAno(event)"
-                       title="Exercício contábil. Clique nas setas ▲/▼ ou gire a roda do mouse para mudar de ano.">
+                       title="Alterar ano contábil (▲ / ▼ ou roda do mouse)">
                     <input type="hidden" id="sel-ano-planilha" value="2026" />
                     <div class="flex items-center gap-1.5">
                       <span class="text-xs">📅</span>
-                      <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 hidden xs:inline">Exercício</span>
-                      <strong id="display-ano-exercicio-planilha" class="text-sm font-black text-slate-900 tracking-tight">2026</strong>
-                      <span id="badge-ano-atual-planilha" class="text-[9px] font-black uppercase text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded-md shadow-2xs">Vigente</span>
+                      <strong id="display-ano-exercicio-planilha" class="text-sm font-black text-slate-800">2026</strong>
                     </div>
-                    <div class="flex flex-col ml-2 pl-2 border-l border-slate-200 gap-0.5">
+                    <div class="flex flex-col ml-1 pl-1.5 border-l border-slate-200">
                       <button type="button" 
                               onclick="navegarAnoExercicio(1)" 
-                              title="Avançar exercício (▲)" 
-                              class="w-5 h-3 flex items-center justify-center text-[9px] font-black text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition cursor-pointer active:scale-90">
+                              title="Avançar ano" 
+                              class="w-4 h-3 flex items-center justify-center text-[8px] font-black text-slate-400 hover:text-indigo-600 rounded transition cursor-pointer active:scale-90">
                         ▲
                       </button>
                       <button type="button" 
                               onclick="navegarAnoExercicio(-1)" 
-                              title="Voltar exercício (▼)" 
-                              class="w-5 h-3 flex items-center justify-center text-[9px] font-black text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition cursor-pointer active:scale-90">
+                              title="Voltar ano" 
+                              class="w-4 h-3 flex items-center justify-center text-[8px] font-black text-slate-400 hover:text-indigo-600 rounded transition cursor-pointer active:scale-90">
                         ▼
                       </button>
                     </div>
@@ -25416,7 +25412,7 @@
 
 
 
-  <script src="/app.js?v=20261112_v228_stepper_vertical_fix"></script>
+  <script src="/app.js?v=20261112_v229_stepper_limpo_fix"></script>
 
 
 

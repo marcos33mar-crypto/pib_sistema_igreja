@@ -3967,34 +3967,19 @@ function populateSelects() {
 
 function atualizarDisplayAnoExercicio() {
   const anoAtual = Number(ANO_MATRIZ_ATIVO) || 2026;
-  const anoVigenteOficial = 2026;
 
   ['planilha', 'dash'].forEach(sufixo => {
     const elDisp = document.getElementById(`display-ano-exercicio-${sufixo}`);
-    const elBadge = document.getElementById(`badge-ano-atual-${sufixo}`);
     const elHidden = document.getElementById(`sel-ano-${sufixo === 'dash' ? 'dashboard' : 'planilha'}`);
 
     if (elDisp) elDisp.textContent = String(anoAtual);
     if (elHidden) elHidden.value = String(anoAtual);
-
-    if (elBadge) {
-      if (anoAtual === anoVigenteOficial) {
-        elBadge.textContent = 'Vigente';
-        elBadge.className = 'text-[9px] font-black uppercase text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded-md shadow-2xs';
-      } else if (anoAtual < anoVigenteOficial) {
-        elBadge.textContent = 'Histórico';
-        elBadge.className = 'text-[9px] font-black uppercase text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded-md shadow-2xs';
-      } else {
-        elBadge.textContent = 'Futuro';
-        elBadge.className = 'text-[9px] font-black uppercase text-indigo-700 bg-indigo-100 px-1.5 py-0.2 rounded-md shadow-2xs';
-      }
-    }
   });
 
-  // Atualiza título da planilha se visível
+  // Mantém o título da planilha perfeitamente limpo, sem redundância do ano
   const elTituloPlan = document.getElementById('titulo-planilha-ano');
   if (elTituloPlan) {
-    elTituloPlan.textContent = `Matriz Financeira Mensal — Exercício ${anoAtual}`;
+    elTituloPlan.textContent = 'Matriz Financeira Mensal';
   }
 }
 
@@ -4622,7 +4607,7 @@ function renderMatrizTesouraria() {
   }
   const elTituloPlan = document.getElementById('titulo-planilha-ano');
   if (elTituloPlan) {
-    elTituloPlan.textContent = `Matriz Financeira Mensal — Exercício ${ANO_MATRIZ_ATIVO}`;
+    elTituloPlan.textContent = 'Matriz Financeira Mensal';
   }
 
   // Caixa de Diagnóstico Inteligente da Planilha
