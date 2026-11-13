@@ -2642,7 +2642,52 @@ async function fetchBootstrap() {
 
     // Auto-acesso instantâneo para Membros da Assembleia via QR Code (Sem Senha, Apenas Projeção)
     const urlParams = new URLSearchParams(window.location.search);
-    const isModoAssembleia = urlParams.get('modo') === 'assembleia' || urlParams.get('view') === 'assembleia' || urlParams.get('qrcode') === '1';
+    const veioPorQRCode = urlParams.get('modo') === 'assembleia' || urlParams.get('view') === 'assembleia' || urlParams.get('qrcode') === '1';
+
+    if (veioPorQRCode && !window._sessaoAssembleiaAtiva) {
+      window._projecaoEncerradaPeloUsuario = false;
+      window._sessaoAssembleiaAtiva = true;
+      window._slideInicialQR = urlParams.get('slide') === 'ministerios' ? 'ministerios' : 'geral';
+      try {
+        sessionStorage.removeItem('kairos_projecao_encerrada');
+        // Remove imediatamente o parâmetro da barra de endereços para uso único (ao sair ou recarregar, exige nova leitura do QR Code)
+        window.history.replaceState({ kairosBase: true }, document.title, window.location.pathname);
+        window.history.pushState({ kairosProjecaoAtiva: true }, document.title, window.location.pathname);
+      } catch (e) {}
+
+      if (!window._listenersSaidaProjecaoRegistrados) {
+        window._listenersSaidaProjecaoRegistrados = true;
+        // Se o usuário tocar no botão "Voltar" do celular, encerra completamente a projeção
+        window.addEventListener('popstate', () => {
+          if (window._sessaoAssembleiaAtiva || document.body.classList.contains('modo-assembleia-celular')) {
+            encerrarProjecaoAssembleia();
+          }
+        });
+        // Se o usuário minimizar o navegador, trocar de aplicativo ou sair da tela no celular, encerra completamente a projeção
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'hidden' && (window._sessaoAssembleiaAtiva || document.body.classList.contains('modo-assembleia-celular'))) {
+            encerrarProjecaoAssembleia();
+          }
+        });
+        window.addEventListener('pagehide', () => {
+          if (window._sessaoAssembleiaAtiva || document.body.classList.contains('modo-assembleia-celular')) {
+            encerrarProjecaoAssembleia();
+          }
+        });
+      }
+    }
+
+    // Se o usuário já encerrou/saiu da projeção no celular e não leu o QR Code novamente, mantém bloqueado
+    let projecaoTrancadaStorage = false;
+    try {
+      projecaoTrancadaStorage = sessionStorage.getItem('kairos_projecao_encerrada') === '1';
+    } catch (e) {}
+    if (!veioPorQRCode && (window._projecaoEncerradaPeloUsuario || projecaoTrancadaStorage)) {
+      encerrarProjecaoAssembleia();
+      return;
+    }
+
+    const isModoAssembleia = Boolean(window._sessaoAssembleiaAtiva);
 
     if (isModoAssembleia) {
       document.body.classList.add('modo-assembleia-celular');
@@ -2709,14 +2754,14 @@ async function fetchBootstrap() {
         }
       });
 
-      if (urlParams.get('slide') === 'ministerios') {
-        alternarSlideProjecao('ministerios');
+      // Define o slide inicial apenas no primeiro carregamento; nunca troca de slide sozinho!
+      if (!window._slideAssembleiaInicializado) {
+        window._slideAssembleiaInicializado = true;
+        alternarSlideProjecao(window._slideInicialQR || 'geral');
       } else {
-        alternarSlideProjecao('geral');
+        renderSlideTesouraria();
+        renderSlideMinisterios();
       }
-
-      renderSlideTesouraria();
-      renderSlideMinisterios();
 
       if (!jaMostrouToastAssembleia) {
         jaMostrouToastAssembleia = true;
@@ -2948,6 +2993,12 @@ function abrirTelaLogin(operadorIdPreselecionado = null) {
 }
 
 function sairDoSistema() {
+  // Se estiver na sessão de projeção ao vivo por QR Code no celular, encerra completamente a projeção
+  if (window._sessaoAssembleiaAtiva || document.body.classList.contains('modo-assembleia-celular') || (CURRENT_OPERATOR && CURRENT_OPERATOR.id === 'assembleia_ao_vivo')) {
+    encerrarProjecaoAssembleia();
+    return;
+  }
+
   const prevId = CURRENT_OPERATOR ? CURRENT_OPERATOR.id : null;
 
   try {
@@ -2991,6 +3042,113 @@ function sairDoSistema() {
 
   // Abre a tela de login exigindo credenciais novamente
   abrirTelaLogin(prevId);
+}
+
+function encerrarProjecaoAssembleia() {
+  // Se estiver em modo Tela Cheia (Fullscreen), sai primeiro da tela cheia
+  try {
+    if (document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {});
+    }
+  } catch (e) {}
+
+  const isModoCelular = window._sessaoAssembleiaAtiva || document.body.classList.contains('modo-assembleia-celular') || (CURRENT_OPERATOR && CURRENT_OPERATOR.id === 'assembleia_ao_vivo');
+
+  // Se for um operador autenticado normal no computador visualizando a aba Projeção, retorna ao Painel Executivo
+  if (!isModoCelular && CURRENT_OPERATOR && CURRENT_OPERATOR.id !== 'assembleia_ao_vivo') {
+    if (typeof switchTab === 'function') {
+      switchTab('dashboard');
+    }
+    return;
+  }
+
+  // No modo QR Code / Celular: encerra e trava completamente a projeção
+  window._sessaoAssembleiaAtiva = false;
+  window._projecaoEncerradaPeloUsuario = true;
+  window._slideAssembleiaInicializado = false;
+
+  if (window._pibAutoSyncInterval) {
+    clearInterval(window._pibAutoSyncInterval);
+    window._pibAutoSyncInterval = null;
+  }
+
+  // Remove definitivamente parâmetros da URL para impedir reabertura sem ler o QR Code novamente
+  try {
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    sessionStorage.setItem('kairos_projecao_encerrada', '1');
+    sessionStorage.removeItem('pib_sessao_autenticada');
+    sessionStorage.removeItem('pib_auth_user_id');
+  } catch (e) {}
+
+  CURRENT_OPERATOR = null;
+
+  // Fecha modais e oculta completamente o conteúdo da projeção
+  if (typeof closeModal === 'function') {
+    closeModal();
+  }
+
+  const tabProjecao = document.getElementById('tab-projecao');
+  if (tabProjecao) {
+    tabProjecao.classList.add('hidden');
+    tabProjecao.style.display = 'none';
+  }
+
+  const mainWrapper = document.getElementById('main-content-wrapper');
+  if (mainWrapper) {
+    mainWrapper.style.display = 'none';
+  }
+
+  const sidebar = document.getElementById('sidebar-menu');
+  if (sidebar) {
+    sidebar.style.display = 'none';
+  }
+
+  // Exibe a tela de Projeção Encerrada (exigindo nova leitura do QR Code)
+  const telaEncerrada = document.getElementById('tela-projecao-encerrada');
+  if (telaEncerrada) {
+    telaEncerrada.classList.remove('hidden');
+    telaEncerrada.style.display = 'flex';
+  }
+
+  // Tenta fechar a aba/janela do navegador do celular se tiver sido aberta por leitura externa
+  try {
+    window.close();
+  } catch (e) {}
+}
+
+function irParaLoginOperadorAposProjecao() {
+  window._projecaoEncerradaPeloUsuario = false;
+  window._sessaoAssembleiaAtiva = false;
+  try {
+    sessionStorage.removeItem('kairos_projecao_encerrada');
+  } catch (e) {}
+  document.body.classList.remove('modo-assembleia-celular');
+
+  const telaEncerrada = document.getElementById('tela-projecao-encerrada');
+  if (telaEncerrada) {
+    telaEncerrada.classList.add('hidden');
+    telaEncerrada.style.display = 'none';
+  }
+
+  const mainWrapper = document.getElementById('main-content-wrapper');
+  if (mainWrapper) {
+    mainWrapper.style.display = '';
+  }
+
+  const sidebar = document.getElementById('sidebar-menu');
+  if (sidebar) {
+    sidebar.style.display = '';
+  }
+
+  const tabProjecao = document.getElementById('tab-projecao');
+  if (tabProjecao) {
+    tabProjecao.style.display = '';
+    tabProjecao.classList.add('hidden');
+  }
+
+  abrirTelaLogin();
 }
 
 async function executarLoginSistema(e) {

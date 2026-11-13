@@ -1530,7 +1530,7 @@
     body.modo-assembleia-celular #tela-login,
     body.modo-assembleia-celular #btn-toggle-sidebar,
     body.modo-assembleia-celular #btn-header-multiuser,
-    body.modo-assembleia-celular #btn-header-sair,
+    body.modo-assembleia-celular #btn-header-trocar-senha,
     body.modo-assembleia-celular #projecao-botoes-topo,
     body.modo-assembleia-celular #slide-subtitulo-interativo,
     body.modo-assembleia-celular #slide-qrcode-badge,
@@ -2507,7 +2507,7 @@
          🛡️ Blindagem Cloud • Auto-Backup Ativo
       </div>
       <div class="text-[10px] text-slate-500 font-medium mt-1 tracking-wider" id="versao-sistema-tag">
-        KAIRÓS • Versão 2.35 • Build 20261112
+        KAIRÓS • Versão 2.36 • Build 20261113
       </div>
 
 
@@ -11702,46 +11702,14 @@
 
 
 
-          <div class="flex items-center gap-2 text-xs text-slate-500 font-medium">
-
-
-
-
-
-
-
+          <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500 font-medium">
             <span class="hidden sm:inline">Alterne os slides durante a assembleia:</span>
-
-
-
-
-
-
-
             <button type="button" onclick="alternarSlideProjecao(SLIDE_PROJECAO_ATIVO === 'ministerios' ? 'geral' : 'ministerios')" class="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer">
-
-
-
-
-
-
-
               🔄 Alternar Slide
-
-
-
-
-
-
-
             </button>
-
-
-
-
-
-
-
+            <button type="button" onclick="encerrarProjecaoAssembleia()" class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Fechar e encerrar a projeção">
+              🚪 Sair da Projeção
+            </button>
           </div>
 
 
@@ -25238,29 +25206,36 @@
 
   <datalist id="lista-membros-datalist"></datalist>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+  <!-- TELA DE ENCERRAMENTO DE PROJEÇÃO (EXIGE NOVA LEITURA DO QR CODE) -->
+  <div id="tela-projecao-encerrada" class="hidden fixed inset-0 z-[100] bg-slate-950 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-7 shadow-2xl border border-slate-200 text-center space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-slate-900 text-emerald-400 font-black text-xs flex items-center justify-center">K</div>
+          <span class="text-sm font-black tracking-[0.2em] text-slate-900">KAIRÓS</span>
+        </div>
+        <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+          🔒 Sessão Fechada
+        </span>
+      </div>
+      <img src="/logo.png" alt="Logo PIB" class="w-16 h-16 mx-auto rounded-full object-contain shadow-md border-2 border-[#57a695] p-0.5 bg-white" />
+      <div>
+        <h2 class="text-lg font-extrabold text-slate-900">Projeção Encerrada</h2>
+        <p class="text-xs text-slate-500 mt-0.5 font-semibold">PIB Parque São Paulo • Assembleia Geral</p>
+      </div>
+      <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-600 leading-relaxed">
+        A visualização da projeção foi <strong>fechada completamente</strong>. Por segurança, para acessar novamente os slides da Assembleia em seu celular, faça uma <strong>nova leitura do QR Code oficial</strong> projetado no telão.
+      </div>
+      <div class="pt-2 border-t border-slate-100">
+        <button type="button" onclick="irParaLoginOperadorAposProjecao()" class="text-[11px] text-slate-400 hover:text-indigo-600 font-semibold underline cursor-pointer">
+          Acesso restrito para operadores cadastrados (Login com Senha)
+        </button>
+      </div>
+    </div>
+  </div>
 
   <script src="/qrcode.min.js"></script>
-
-
-
-
-
-
-
-  <script src="/app.js?v=20261112_v235_blindagem_autobackup_cloud"></script>
+  <script src="/app.js?v=20261113_v236_projecao_celular_fix"></script>
 
 
 
