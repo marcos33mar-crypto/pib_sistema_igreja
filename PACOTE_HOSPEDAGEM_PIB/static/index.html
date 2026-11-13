@@ -2516,7 +2516,7 @@
          🛡️ Blindagem Cloud • Auto-Backup Ativo
       </div>
       <div class="text-[10px] text-slate-500 font-medium mt-1 tracking-wider" id="versao-sistema-tag">
-        KAIRÓS • Versão 2.39 • Build 20261113
+        KAIRÓS • Versão 2.40 • Build 20261113
       </div>
 
 
@@ -5452,6 +5452,33 @@
 
 
 
+          <!-- Trava de Segurança para Edição da Planilha Mensal -->
+          <div id="banner-trava-planilha-mensal" class="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 shadow-sm flex flex-wrap items-center justify-between gap-3 transition-all">
+            <div class="flex items-center gap-3">
+              <div id="icone-trava-planilha" class="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center text-lg font-black shadow-xs shrink-0">
+                🔒
+              </div>
+              <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span id="badge-status-trava-planilha" class="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-900">
+                    🔒 Proteção Ativa • Somente Leitura
+                  </span>
+                  <h4 id="titulo-trava-planilha" class="text-xs sm:text-sm font-black text-slate-900">
+                    Trava de Segurança da Planilha Mensal Ativada
+                  </h4>
+                </div>
+                <p id="subtitulo-trava-planilha" class="text-[11px] text-slate-600 mt-0.5">
+                  A edição de valores nas células (JAN a DEZ), preenchimento anual (12M), lançamento manual e inclusão de contas requer digitação de senha de pessoas autorizadas.
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" id="btn-acao-trava-planilha" onclick="alternarTravaSegurancaPlanilha()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold px-4 py-2.5 rounded-xl shadow transition flex items-center gap-2 cursor-pointer">
+                <span>🔑</span> Desbloquear Edição com Senha
+              </button>
+            </div>
+          </div>
+
           <!-- Painel Dinâmico de Lançamento Rápido na Planilha -->
 
 
@@ -6008,15 +6035,12 @@
                       </button>
                     </div>
                   </div>
+                  <button type="button" id="btn-mini-trava-planilha" onclick="alternarTravaSegurancaPlanilha()" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-[11px] font-extrabold border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 transition cursor-pointer shadow-2xs" title="Desbloquear ou bloquear a edição da Planilha Mensal com senha">
+                    <span>🔒</span> <span id="lbl-mini-trava-planilha">Edição Bloqueada (Desbloquear)</span>
+                  </button>
                 </div>
 
-
-
-
-
-
-
-                <p class="text-xs text-slate-500">💡 <strong>Interativo:</strong> Clique sobre qualquer célula (JAN a DEZ) para editar, ou clique em <strong>"📅 12M"</strong> para ver e preencher o ano todo da conta!</p>
+                <p id="dica-interativa-planilha" class="text-xs text-slate-500">🔒 <strong>Modo Protegido:</strong> Clique sobre qualquer célula (JAN a DEZ) ou em <strong>"🔑 Desbloquear Edição com Senha"</strong> para liberar alterações por pessoas autorizadas.</p>
 
 
 
@@ -25695,7 +25719,7 @@
   </div>
 
   <script src="/qrcode.min.js"></script>
-  <script src="/app.js?v=20261113_v239_lancamentos_diarios_fix"></script>
+  <script src="/app.js?v=20261113_v240_trava_planilha_mensal"></script>
 
 
 

@@ -4773,7 +4773,316 @@ let FILTRO_FLUXO_MATRIZ = 'TODOS';
 let MES_DESTAQUE_MATRIZ = 0;
 let GRUPOS_MATRIZ_RECOLHIDOS = new Set();
 
+// =========================================================================
+// TRAVA DE SEGURANÇA COM SENHA PARA EDIÇÃO DA PLANILHA MENSAL
+// =========================================================================
+let PLANILHA_MENSAL_DESBLOQUEADA = false;
+let OPERADOR_AUTORIZADO_PLANILHA = null;
+let CALLBACK_APOS_DESBLOQUEIO_PLANILHA = null;
+
+function isOperadorAutorizadoPlanilha(u) {
+  if (!u) return false;
+  const perfil = String(u.perfil || '').toUpperCase();
+  if (perfil === 'ADMIN' || perfil === 'FINANCEIRO' || perfil === 'TESOURARIA') return true;
+  const setores = String(u.setores_permitidos || '')
+    .split(',')
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean);
+  return setores.includes('*') || setores.includes('tesouraria') || setores.includes('editar_planilha');
+}
+
+function atualizarInterfaceTravaPlanilha() {
+  const banner = document.getElementById('banner-trava-planilha-mensal');
+  const icone = document.getElementById('icone-trava-planilha');
+  const badge = document.getElementById('badge-status-trava-planilha');
+  const titulo = document.getElementById('titulo-trava-planilha');
+  const subtitulo = document.getElementById('subtitulo-trava-planilha');
+  const btnAcao = document.getElementById('btn-acao-trava-planilha');
+  const btnMini = document.getElementById('btn-mini-trava-planilha');
+  const lblMini = document.getElementById('lbl-mini-trava-planilha');
+  const dica = document.getElementById('dica-interativa-planilha');
+
+  if (PLANILHA_MENSAL_DESBLOQUEADA && OPERADOR_AUTORIZADO_PLANILHA) {
+    const nomeAut = OPERADOR_AUTORIZADO_PLANILHA.nome || 'Operador Autorizado';
+    const cargoAut = OPERADOR_AUTORIZADO_PLANILHA.cargo || OPERADOR_AUTORIZADO_PLANILHA.perfil || 'Tesouraria';
+    if (banner) {
+      banner.className = 'bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-4 shadow-sm flex flex-wrap items-center justify-between gap-3 transition-all';
+    }
+    if (icone) {
+      icone.className = 'w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-lg font-black shadow-xs shrink-0';
+      icone.textContent = '🔓';
+    }
+    if (badge) {
+      badge.className = 'text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-200 text-emerald-900';
+      badge.textContent = '🔓 Edição Liberada • Sessão Autorizada';
+    }
+    if (titulo) {
+      titulo.textContent = `Edição Autorizada por: ${nomeAut} (${cargoAut})`;
+    }
+    if (subtitulo) {
+      subtitulo.textContent = 'As células mensais (JAN a DEZ), o preenchimento anual (12M), o lançamento manual e a criação de contas estão liberados para edição.';
+    }
+    if (btnAcao) {
+      btnAcao.className = 'bg-slate-800 hover:bg-slate-900 text-white text-xs font-extrabold px-4 py-2.5 rounded-xl shadow transition flex items-center gap-2 cursor-pointer';
+      btnAcao.innerHTML = '<span>🔒</span> Bloquear Edição Agora';
+    }
+    if (btnMini) {
+      btnMini.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-[11px] font-extrabold border border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 transition cursor-pointer shadow-2xs';
+      btnMini.innerHTML = `<span>🔓</span> <span id="lbl-mini-trava-planilha">Liberada (${escapeHtml(nomeAut.split(' ')[0])}) • Bloquear</span>`;
+    }
+    if (dica) {
+      dica.innerHTML = '💡 <strong>Edição Liberada:</strong> Clique sobre qualquer célula (JAN a DEZ) para editar ou em <strong>"📅 12M"</strong> para preencher o ano todo da conta!';
+    }
+  } else {
+    if (banner) {
+      banner.className = 'bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 shadow-sm flex flex-wrap items-center justify-between gap-3 transition-all';
+    }
+    if (icone) {
+      icone.className = 'w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center text-lg font-black shadow-xs shrink-0';
+      icone.textContent = '🔒';
+    }
+    if (badge) {
+      badge.className = 'text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-900';
+      badge.textContent = '🔒 Proteção Ativa • Somente Leitura';
+    }
+    if (titulo) {
+      titulo.textContent = 'Trava de Segurança da Planilha Mensal Ativada';
+    }
+    if (subtitulo) {
+      subtitulo.textContent = 'A edição de valores nas células (JAN a DEZ), preenchimento anual (12M), lançamento manual e inclusão de contas requer digitação de senha de pessoas autorizadas.';
+    }
+    if (btnAcao) {
+      btnAcao.className = 'bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold px-4 py-2.5 rounded-xl shadow transition flex items-center gap-2 cursor-pointer';
+      btnAcao.innerHTML = '<span>🔑</span> Desbloquear Edição com Senha';
+    }
+    if (btnMini) {
+      btnMini.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-[11px] font-extrabold border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 transition cursor-pointer shadow-2xs';
+      btnMini.innerHTML = '<span>🔒</span> <span id="lbl-mini-trava-planilha">Edição Bloqueada (Desbloquear)</span>';
+    }
+    if (dica) {
+      dica.innerHTML = '🔒 <strong>Modo Protegido:</strong> Clique sobre qualquer célula (JAN a DEZ) ou em <strong>"🔑 Desbloquear Edição com Senha"</strong> para liberar alterações por pessoas autorizadas.';
+    }
+  }
+}
+
+function alternarTravaSegurancaPlanilha() {
+  if (PLANILHA_MENSAL_DESBLOQUEADA) {
+    bloquearEdicaoPlanilhaMensal();
+  } else {
+    abrirModalDesbloqueioPlanilha();
+  }
+}
+
+function bloquearEdicaoPlanilhaMensal() {
+  PLANILHA_MENSAL_DESBLOQUEADA = false;
+  OPERADOR_AUTORIZADO_PLANILHA = null;
+  CALLBACK_APOS_DESBLOQUEIO_PLANILHA = null;
+  atualizarInterfaceTravaPlanilha();
+  renderMatrizTesouraria();
+  if (typeof showLiveToast === 'function') {
+    showLiveToast('🔒 Planilha Mensal bloqueada! Modo somente leitura ativado com segurança.');
+  }
+}
+
+function abrirModalDesbloqueioPlanilha(callbackApos = null, descricaoAcao = '') {
+  CALLBACK_APOS_DESBLOQUEIO_PLANILHA = typeof callbackApos === 'function' ? callbackApos : null;
+
+  const usuariosAutorizados = (STATE.usuarios || []).filter(u => isOperadorAutorizadoPlanilha(u));
+  const idPadrao = (CURRENT_OPERATOR && isOperadorAutorizadoPlanilha(CURRENT_OPERATOR))
+    ? CURRENT_OPERATOR.id
+    : (usuariosAutorizados[0]?.id || '');
+
+  const opcoesUsuarios = usuariosAutorizados.length > 0
+    ? `<option value="AUTO">🔑 Reconhecer Automaticamente pela Senha Digitada</option>` +
+      usuariosAutorizados.map(u => `
+        <option value="${u.id}" ${Number(u.id) === Number(idPadrao) ? 'selected' : ''}>
+          👤 ${escapeHtml(u.nome)} (${escapeHtml(u.cargo || u.perfil)})
+        </option>
+      `).join('')
+    : `<option value="AUTO">🔑 Operador Autorizado (Admin / Tesouraria)</option>`;
+
+  const html = `
+    <form onsubmit="confirmarSenhaDesbloqueioPlanilha(event)" class="space-y-4 text-xs">
+      <div class="flex items-center gap-3 pb-3 border-b border-slate-200">
+        <div class="w-11 h-11 rounded-2xl bg-amber-500 text-white flex items-center justify-center text-xl shadow-xs shrink-0">
+          🔐
+        </div>
+        <div>
+          <span class="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900">
+            Trava de Segurança • Planilha Mensal
+          </span>
+          <h3 class="text-base font-black text-slate-900 mt-0.5">Autorização para Edição da Planilha</h3>
+          <p class="text-[11px] text-slate-500">Somente pessoas autorizadas (Administração / Tesouraria) podem alterar valores da planilha.</p>
+        </div>
+      </div>
+
+      ${descricaoAcao ? `
+        <div class="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-indigo-950 flex items-center gap-2.5">
+          <span class="text-base">🎯</span>
+          <div>
+            <span class="text-[10px] font-bold uppercase text-indigo-700 block">Ação Solicitada:</span>
+            <strong class="text-xs font-extrabold">${escapeHtml(descricaoAcao)}</strong>
+          </div>
+        </div>
+      ` : ''}
+
+      <div>
+        <label class="font-bold text-slate-700 block mb-1">Pessoa Autorizada / Responsável *</label>
+        <select id="auth-planilha-usuario" class="w-full border border-slate-300 rounded-xl px-3 py-2.5 bg-slate-50 font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 focus:outline-none">
+          ${opcoesUsuarios}
+        </select>
+      </div>
+
+      <div>
+        <label class="font-bold text-slate-700 block mb-1">Senha Pessoal de Autorização *</label>
+        <div class="relative">
+          <input
+            type="password"
+            id="auth-planilha-senha"
+            required
+            autocomplete="current-password"
+            placeholder="Digite sua senha de acesso..."
+            class="w-full border-2 border-slate-300 rounded-xl px-3.5 py-2.5 pr-10 text-sm font-extrabold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
+          />
+          <button
+            type="button"
+            onclick="const inp=document.getElementById('auth-planilha-senha'); if(inp) inp.type = inp.type === 'password' ? 'text' : 'password';"
+            class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-700 text-sm cursor-pointer"
+            title="Mostrar ou ocultar senha"
+          >
+            👁️
+          </button>
+        </div>
+        <p id="auth-planilha-erro" class="hidden text-rose-600 font-bold text-[11px] mt-1.5"></p>
+      </div>
+
+      <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-600 leading-relaxed">
+        🛡️ <strong>Registro de Auditoria:</strong> Todas as edições realizadas após o desbloqueio ficam vinculadas ao responsável autorizado no Painel de Auditoria da Igreja.
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+        <button type="button" onclick="closeModal()" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition cursor-pointer">
+          Cancelar
+        </button>
+        <button type="submit" id="btn-confirmar-auth-planilha" class="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold shadow transition flex items-center gap-2 cursor-pointer">
+          <span>🔓</span> Validar Senha e Liberar Edição
+        </button>
+      </div>
+    </form>
+  `;
+
+  abrirModalCustom(html, false);
+  setTimeout(() => {
+    const inp = document.getElementById('auth-planilha-senha');
+    if (inp) inp.focus();
+  }, 80);
+}
+
+async function confirmarSenhaDesbloqueioPlanilha(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  const selUser = document.getElementById('auth-planilha-usuario');
+  const inpSenha = document.getElementById('auth-planilha-senha');
+  const elErro = document.getElementById('auth-planilha-erro');
+  const btn = document.getElementById('btn-confirmar-auth-planilha');
+
+  const userVal = selUser ? selUser.value : 'AUTO';
+  const senha = (inpSenha?.value || '').trim();
+
+  if (!senha) {
+    if (elErro) {
+      elErro.textContent = '⚠️ Por favor, digite a senha de autorização.';
+      elErro.classList.remove('hidden');
+    }
+    inpSenha?.focus();
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳</span> Verificando Senha...';
+  }
+  if (elErro) elErro.classList.add('hidden');
+
+  try {
+    const { status, data } = await apiPost('/api/matriz/autorizar-edicao', {
+      usuario_id: userVal === 'AUTO' ? null : Number(userVal),
+      senha
+    });
+
+    if (status === 200 && data && data.ok) {
+      PLANILHA_MENSAL_DESBLOQUEADA = true;
+      OPERADOR_AUTORIZADO_PLANILHA = data.autorizado_por || {
+        id: CURRENT_OPERATOR?.id || 1,
+        nome: CURRENT_OPERATOR?.nome || 'Administrador',
+        cargo: CURRENT_OPERATOR?.cargo || 'Tesouraria',
+        perfil: CURRENT_OPERATOR?.perfil || 'ADMIN'
+      };
+
+      const acaoPendente = CALLBACK_APOS_DESBLOQUEIO_PLANILHA;
+      CALLBACK_APOS_DESBLOQUEIO_PLANILHA = null;
+
+      closeModal();
+      atualizarInterfaceTravaPlanilha();
+      renderMatrizTesouraria();
+
+      if (typeof showLiveToast === 'function') {
+        showLiveToast(`🔓 Planilha Mensal desbloqueada para edição por ${OPERADOR_AUTORIZADO_PLANILHA.nome}!`);
+      }
+
+      if (typeof acaoPendente === 'function') {
+        setTimeout(() => {
+          acaoPendente();
+        }, 120);
+      }
+    } else {
+      if (elErro) {
+        elErro.textContent = '❌ ' + (data?.erro || 'Senha incorreta ou usuário sem permissão para editar a Planilha Mensal.');
+        elErro.classList.remove('hidden');
+      }
+      if (inpSenha) {
+        inpSenha.focus();
+        inpSenha.select();
+      }
+    }
+  } catch (err) {
+    if (elErro) {
+      elErro.textContent = '❌ Erro de comunicação ao validar senha.';
+      elErro.classList.remove('hidden');
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span>🔓</span> Validar Senha e Liberar Edição';
+    }
+  }
+}
+
+async function excluirRubricaMatriz(rowId, rubricaNome) {
+  if (!PLANILHA_MENSAL_DESBLOQUEADA) {
+    return abrirModalDesbloqueioPlanilha(
+      () => excluirRubricaMatriz(rowId, rubricaNome),
+      `Excluir a conta "${rubricaNome}" da Planilha Mensal`
+    );
+  }
+  if (!confirm(`Tem certeza que deseja excluir a conta/rubrica "${rubricaNome}" do exercício ${ANO_MATRIZ_ATIVO}?`)) {
+    return;
+  }
+  try {
+    const res = await fetch(`/api/matriz?id=${rowId}`, { method: 'DELETE' });
+    if (res.ok) {
+      await fetchBootstrap();
+      renderMatrizTesouraria();
+      showLiveToast(`🗑️ Conta "${rubricaNome}" removida da Planilha Mensal.`);
+    } else {
+      alert('Não foi possível excluir esta rubrica.');
+    }
+  } catch (err) {
+    alert('Erro ao tentar excluir rubrica.');
+  }
+}
+
 function renderMatrizTesouraria() {
+  atualizarInterfaceTravaPlanilha();
   const { rows, entMes, saiMes, totalEntradas, totalSaidas, saldoTotal } = calcularResumoAnoMatriz(ANO_MATRIZ_ATIVO);
 
   // Popula seletor de grupos do ano ativo
@@ -4897,6 +5206,7 @@ function renderMatrizTesouraria() {
         <td class="py-2 px-3 text-right font-mono bg-slate-300/60">${formatBRL(subTotal)}</td>
         <td class="py-2 px-2 text-right font-mono">${subPerc}</td>
         <td class="py-2 px-2 text-right font-mono">${formatNum(subMedia)}</td>
+        <td class="py-2 px-2 text-center font-mono text-[10px] text-slate-400 no-print">—</td>
       </tr>
     `;
 
@@ -4904,6 +5214,8 @@ function renderMatrizTesouraria() {
     if (!isRecolhido) {
       itens.forEach(item => {
         const percItem = totalEntradas > 0 ? ((item.total_anual / totalEntradas) * 100).toFixed(1) + '%' : '0%';
+        const rubEsc = item.rubrica.replace(/'/g, "\\'");
+        const iconeLock = PLANILHA_MENSAL_DESBLOQUEADA ? '📅 12M' : '🔒 12M';
         html += `
           <tr class="hover:bg-indigo-50/40 transition bg-white">
             <td class="py-2 px-3 sticky left-0 bg-white z-10 font-medium text-slate-800 border-r border-slate-100 flex items-center justify-between gap-2">
@@ -4911,17 +5223,17 @@ function renderMatrizTesouraria() {
               <button
                 type="button"
                 onclick="abrirModalConta12Meses(${item.id})"
-                class="text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-1.5 py-0.5 rounded border border-indigo-200 transition cursor-pointer shrink-0 ml-1.5 shadow-2xs"
-                title="Ver e preencher os 12 meses de ${item.rubrica}"
+                class="text-[10px] font-bold ${PLANILHA_MENSAL_DESBLOQUEADA ? 'text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border-indigo-200' : 'text-amber-800 bg-amber-50 hover:bg-amber-100 border-amber-200'} px-1.5 py-0.5 rounded border transition cursor-pointer shrink-0 ml-1.5 shadow-2xs"
+                title="${PLANILHA_MENSAL_DESBLOQUEADA ? 'Ver e preencher os 12 meses de ' + item.rubrica : '🔒 Requer senha autorizada para editar os 12 meses de ' + item.rubrica}"
               >
-                📅 12M
+                ${iconeLock}
               </button>
             </td>
             ${item.meses.map((val, idx) => {
               const isDestaque = (idx + 1 === MES_DESTAQUE_MATRIZ);
               return `
-                <td onclick="editarCelulaMatriz(${item.id}, ${idx + 1}, '${item.rubrica.replace(/'/g, "\\'")}', ${val})"
-                    title="Clique para editar ${item.rubrica} em ${NOMES_MESES[idx]}/${ANO_MATRIZ_ATIVO}"
+                <td onclick="editarCelulaMatriz(${item.id}, ${idx + 1}, '${rubEsc}', ${val})"
+                    title="${PLANILHA_MENSAL_DESBLOQUEADA ? 'Clique para editar ' : '🔒 Clique e digite a senha autorizada para editar '}${item.rubrica} em ${NOMES_MESES[idx]}/${ANO_MATRIZ_ATIVO}"
                     class="cell-editable py-2 px-2 text-right font-mono ${isDestaque ? 'bg-amber-100/70 border-x-2 border-indigo-300 font-extrabold' : ''} ${val > 0 ? (isEntradaGroup ? 'text-emerald-700 font-semibold' : 'text-slate-800') : 'text-slate-300'}">
                   ${formatNum(val)}
                 </td>
@@ -4932,6 +5244,18 @@ function renderMatrizTesouraria() {
             </td>
             <td class="py-2 px-2 text-right font-mono text-slate-500">${percItem}</td>
             <td class="py-2 px-2 text-right font-mono text-slate-500">${formatNum(item.media_mensal)}</td>
+            <td class="py-2 px-2 text-center no-print">
+              <div class="inline-flex items-center justify-center gap-1">
+                <button
+                  type="button"
+                  onclick="abrirModalConta12Meses(${item.id})"
+                  class="text-[10px] font-bold px-2 py-0.5 rounded ${PLANILHA_MENSAL_DESBLOQUEADA ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200' : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200'} transition cursor-pointer"
+                  title="${PLANILHA_MENSAL_DESBLOQUEADA ? 'Editar conta nos 12 meses' : '🔒 Desbloquear com senha para editar'}"
+                >
+                  ${PLANILHA_MENSAL_DESBLOQUEADA ? '✏️ Editar' : '🔒'}
+                </button>
+              </div>
+            </td>
           </tr>
         `;
       });
@@ -4950,6 +5274,7 @@ function renderMatrizTesouraria() {
       <td class="py-2.5 px-3 text-right font-mono text-emerald-300">${formatBRL(totalEntradas)}</td>
       <td class="py-2.5 px-2 text-right">100%</td>
       <td class="py-2.5 px-2 text-right font-mono">${formatNum(totalEntradas / 12)}</td>
+      <td class="py-2.5 px-2 text-center no-print">—</td>
     </tr>
     <tr class="bg-rose-950 text-rose-100 font-extrabold">
       <td class="py-2.5 px-3 sticky left-0 bg-rose-950 z-10">TOTAL DE DESPESAS (${ANO_MATRIZ_ATIVO})</td>
@@ -4957,6 +5282,7 @@ function renderMatrizTesouraria() {
       <td class="py-2.5 px-3 text-right font-mono text-rose-300">${formatBRL(totalSaidas)}</td>
       <td class="py-2.5 px-2 text-right">${percTotalGeral}</td>
       <td class="py-2.5 px-2 text-right font-mono">${formatNum(totalSaidas / 12)}</td>
+      <td class="py-2.5 px-2 text-center no-print">—</td>
     </tr>
     <tr class="bg-slate-800 text-slate-200 font-bold text-[10px]">
       <td class="py-2 px-3 sticky left-0 bg-slate-800 z-10">% DESPESAS VS. ENTRADAS</td>
@@ -4964,6 +5290,7 @@ function renderMatrizTesouraria() {
       <td class="py-2 px-3 text-right font-mono">${percTotalGeral}</td>
       <td class="py-2 px-2 text-right">—</td>
       <td class="py-2 px-2 text-right">—</td>
+      <td class="py-2 px-2 text-center no-print">—</td>
     </tr>
     <tr class="bg-slate-900 text-white font-extrabold text-xs">
       <td class="py-3 px-3 sticky left-0 bg-slate-900 z-10">SALDO LÍQUIDO MENSAL</td>
@@ -4971,6 +5298,7 @@ function renderMatrizTesouraria() {
       <td class="py-3 px-3 text-right font-mono ${saldoTotal >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${formatBRL(saldoTotal)}</td>
       <td class="py-3 px-2 text-right">—</td>
       <td class="py-3 px-2 text-right font-mono">${formatNum(saldoTotal / 12)}</td>
+      <td class="py-3 px-2 text-center no-print">—</td>
     </tr>
   `;
 
@@ -5111,8 +5439,15 @@ async function executarLancamentoRapidoMatriz(event) {
   const rubNome = item ? item.rubrica : 'Conta';
   const anoItem = item ? item.ano : (window.ANO_MATRIZ_ATIVO || 2026);
 
+  if (!PLANILHA_MENSAL_DESBLOQUEADA) {
+    return abrirModalDesbloqueioPlanilha(
+      () => executarLancamentoRapidoMatriz(null),
+      `Lançamento Manual: ${rubNome} (${mesNome}/${anoItem}) = ${formatBRL(valor)}`
+    );
+  }
+
   try {
-    const operadorNome = CURRENT_OPERATOR?.nome || 'Tesoureiro';
+    const operadorNome = OPERADOR_AUTORIZADO_PLANILHA?.nome || CURRENT_OPERATOR?.nome || 'Tesoureiro';
     const res = await apiPost('/api/matriz/celula', {
       id: rowId,
       mes: mes,
@@ -5513,6 +5848,8 @@ function changeOperator() {
   const found = STATE.usuarios.find(u => u.id === userId);
   if (found) {
     CURRENT_OPERATOR = found;
+    PLANILHA_MENSAL_DESBLOQUEADA = false;
+    OPERADOR_AUTORIZADO_PLANILHA = null;
     renderAll();
     showLiveToast(`Perfil alternado para: ${found.nome} (${found.perfil})`);
   }
@@ -5591,9 +5928,18 @@ function calcularResumoAnoMatriz(ano) {
 
 function editarCelulaMatriz(rowId, mesIndex, rubricaNome, valorAtual) {
   const mesNome = NOMES_MESES[mesIndex - 1];
+  if (!PLANILHA_MENSAL_DESBLOQUEADA) {
+    return abrirModalDesbloqueioPlanilha(
+      () => editarCelulaMatriz(rowId, mesIndex, rubricaNome, valorAtual),
+      `Editar "${rubricaNome}" em ${mesNome}/${ANO_MATRIZ_ATIVO}`
+    );
+  }
   const html = `
     <form onsubmit="confirmarEdicaoCelulaMatriz(event, ${rowId}, ${mesIndex})" class="space-y-3 text-xs">
-      <span class="text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full">Edição em Tempo Real — Exercício ${ANO_MATRIZ_ATIVO}</span>
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full">Edição em Tempo Real — Exercício ${ANO_MATRIZ_ATIVO}</span>
+        <span class="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">🔓 Autorizado: ${escapeHtml(OPERADOR_AUTORIZADO_PLANILHA?.nome || 'Tesouraria')}</span>
+      </div>
       <h3 class="text-base font-bold text-slate-900">${rubricaNome}</h3>
       <p class="text-slate-500">Informe o valor consolidado para o mês de <strong>${mesNome}/${ANO_MATRIZ_ATIVO}</strong>. Todos os subtotais, médias e saldos serão recalculados automaticamente.</p>
       <div>
@@ -5616,13 +5962,28 @@ function editarCelulaMatriz(rowId, mesIndex, rubricaNome, valorAtual) {
 
 async function confirmarEdicaoCelulaMatriz(e, rowId, mesIndex) {
   e.preventDefault();
+  if (!PLANILHA_MENSAL_DESBLOQUEADA) {
+    closeModal();
+    return abrirModalDesbloqueioPlanilha();
+  }
   const valor = document.getElementById('input-celula-matriz-val').value;
-  await apiPost('/api/matriz/celula', { id: rowId, mes: mesIndex, valor });
+  await apiPost('/api/matriz/celula', {
+    id: rowId,
+    mes: mesIndex,
+    valor,
+    operador: OPERADOR_AUTORIZADO_PLANILHA?.nome || CURRENT_OPERATOR?.nome || 'Tesouraria'
+  });
   closeModal();
   fetchBootstrap();
 }
 
 function abrirModalNovaRubrica() {
+  if (!PLANILHA_MENSAL_DESBLOQUEADA) {
+    return abrirModalDesbloqueioPlanilha(
+      () => abrirModalNovaRubrica(),
+      'Adicionar Nova Linha / Conta na Planilha Mensal'
+    );
+  }
   const html = `
     <form onsubmit="salvarNovaRubricaModal(event)" class="space-y-3 text-xs">
       <h3 class="text-base font-bold text-slate-900">+ Adicionar Nova Linha / Conta na Planilha da Tesouraria</h3>
@@ -20184,6 +20545,13 @@ function abrirModalConta12Meses(rowId) {
   if (!item) {
     alert('Conta não encontrada na matriz financeira.');
     return;
+  }
+
+  if (!PLANILHA_MENSAL_DESBLOQUEADA) {
+    return abrirModalDesbloqueioPlanilha(
+      () => abrirModalConta12Meses(rowId),
+      `Editar os 12 meses da conta "${item.rubrica}" (${item.ano})`
+    );
   }
 
   const isEntrada = item.tipo_fluxo === 'ENTRADA';

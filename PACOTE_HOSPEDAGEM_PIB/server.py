@@ -3977,6 +3977,111 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                     return self.send_json({"ok": True, "ano": ano})
 
+                # B3. AUTORIZAR DESBLOQUEIO DE EDIÇÃO DA PLANILHA MENSAL COM SENHA DE PESSOAS AUTORIZADAS
+                elif path == "/api/matriz/autorizar-edicao":
+                    usuario_id = body.get("usuario_id")
+                    senha_digitada = str(body.get("senha", "")).strip()
+
+                    if not senha_digitada:
+                        conn.close()
+                        return self.send_json({"ok": False, "erro": "Por favor, digite a senha de autorização."}, 400)
+
+                    rows_usuarios = cur.execute(
+                        "SELECT id, nome, cargo, perfil, setores_permitidos, senha, senha_alterada FROM usuarios WHERE ativo=1 ORDER BY id"
+                    ).fetchall()
+
+                    def is_usuario_autorizado_planilha(u):
+                        perfil_u = str(u["perfil"] or "").upper()
+                        if perfil_u in ("ADMIN", "FINANCEIRO", "TESOURARIA"):
+                            return True
+                        setores_u = [s.strip().lower() for s in str(u["setores_permitidos"] or "").split(",") if s.strip()]
+                        return ("*" in setores_u) or ("tesouraria" in setores_u) or ("editar_planilha" in setores_u)
+
+                    def conferir_senha_usuario(u, s_dig):
+                        senha_db = str(u["senha"] or "").strip()
+                        senha_alt = int(u["senha_alterada"] or 0)
+                        aceitas = set()
+                        if senha_db:
+                            aceitas.add(senha_db)
+                            sem_pref = senha_db.lstrip("*@#$!%&")
+                            if sem_pref:
+                                aceitas.add(sem_pref)
+                                aceitas.add(f"*{sem_pref}")
+                        if senha_alt == 0 or not senha_db:
+                            aceitas.add("123456")
+                        return (
+                            s_dig in aceitas
+                            or (senha_db and s_dig.lower() == senha_db.lower())
+                            or (senha_db and s_dig.lower() == senha_db.lstrip("*@#$!%&").lower())
+                        )
+
+                    candidatos = [u for u in rows_usuarios if is_usuario_autorizado_planilha(u)]
+                    if usuario_id and str(usuario_id).isdigit() and int(usuario_id) > 0:
+                        uid_int = int(usuario_id)
+                        user_sel = next((u for u in rows_usuarios if int(u["id"]) == uid_int), None)
+                        if not user_sel:
+                            conn.close()
+                            return self.send_json({"ok": False, "erro": "Operador selecionado não encontrado."}, 404)
+                        if not is_usuario_autorizado_planilha(user_sel):
+                            log_auditoria(
+                                conn,
+                                user_sel["nome"],
+                                "Segurança",
+                                "Bloqueio na Planilha Mensal",
+                                f"Operador '{user_sel['nome']}' não possui permissão para editar a Planilha Mensal.",
+                            )
+                            conn.commit()
+                            conn.close()
+                            return self.send_json({
+                                "ok": False,
+                                "erro": f"O usuário '{user_sel['nome']}' não possui permissão de autorização para editar a Planilha Mensal."
+                            }, 403)
+                        if not conferir_senha_usuario(user_sel, senha_digitada):
+                            log_auditoria(
+                                conn,
+                                user_sel["nome"],
+                                "Segurança",
+                                "Senha Inválida (Planilha Mensal)",
+                                f"Tentativa de desbloqueio da Planilha Mensal com senha incorreta para '{user_sel['nome']}'.",
+                            )
+                            conn.commit()
+                            conn.close()
+                            return self.send_json({"ok": False, "erro": "Senha de autorização incorreta! Verifique e tente novamente."}, 401)
+                        autorizado = user_sel
+                    else:
+                        autorizado = next((u for u in candidatos if conferir_senha_usuario(u, senha_digitada)), None)
+                        if not autorizado:
+                            log_auditoria(
+                                conn,
+                                operador,
+                                "Segurança",
+                                "Senha Inválida (Planilha Mensal)",
+                                "Tentativa de desbloqueio da Planilha Mensal com senha não reconhecida.",
+                            )
+                            conn.commit()
+                            conn.close()
+                            return self.send_json({"ok": False, "erro": "Senha inválida ou pertencente a usuário sem permissão para editar a Planilha Mensal."}, 401)
+
+                    log_auditoria(
+                        conn,
+                        autorizado["nome"],
+                        "Segurança",
+                        "Planilha Mensal Desbloqueada",
+                        f"Edição da Planilha Mensal liberada mediante senha por {autorizado['nome']} ({autorizado['cargo'] or autorizado['perfil']}).",
+                    )
+                    conn.commit()
+                    conn.close()
+
+                    return self.send_json({
+                        "ok": True,
+                        "autorizado_por": {
+                            "id": autorizado["id"],
+                            "nome": autorizado["nome"],
+                            "cargo": autorizado["cargo"] or autorizado["perfil"],
+                            "perfil": autorizado["perfil"],
+                        }
+                    })
+
 
 
                 # 1. CADASTRAR MEMBRO
