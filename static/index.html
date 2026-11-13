@@ -2516,7 +2516,7 @@
          🛡️ Blindagem Cloud • Auto-Backup Ativo
       </div>
       <div class="text-[10px] text-slate-500 font-medium mt-1 tracking-wider" id="versao-sistema-tag">
-        KAIRÓS • Versão 2.38 • Build 20261113
+        KAIRÓS • Versão 2.39 • Build 20261113
       </div>
 
 
@@ -8957,37 +8957,16 @@
 
 
                 <!-- SUBMIT BUTTON -->
+                <div id="fin-edit-banner" class="hidden p-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold flex items-center justify-between">
+                  <span id="fin-edit-banner-texto">✏️ Editando lançamento selecionado</span>
+                  <button type="button" onclick="cancelarEdicaoFinanceiro()" class="px-2.5 py-1 rounded-lg bg-amber-200 hover:bg-amber-300 text-amber-950 font-extrabold text-[11px] cursor-pointer">
+                    Cancelar
+                  </button>
+                </div>
 
-
-
-
-
-
-
-                <button type="submit" class="w-full bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-extrabold py-3 rounded-xl shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer text-xs">
-
-
-
-
-
-
-
+                <button type="submit" id="btn-submit-financeiro" class="w-full bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-extrabold py-3 rounded-xl shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer text-xs">
                   <span>💾</span>
-
-
-
-
-
-
-
-                  <span>Salvar Lançamento e Habilitar Recibo</span>
-
-
-
-
-
-
-
+                  <span id="lbl-submit-financeiro">Salvar Lançamento e Habilitar Recibo</span>
                 </button>
 
 
@@ -9172,55 +9151,34 @@
 
 
 
-                  <!-- FILTRO DE TIPO -->
-
-
-
-
-
-
-
-                  <select id="filtro-fin-tipo" onchange="renderTesouraria()" class="border border-slate-300 rounded-xl px-2.5 py-1.5 bg-white font-semibold text-slate-700 text-xs focus:ring-2 focus:ring-emerald-500">
-
-
-
-
-
-
-
-                    <option value="">Todos (Entradas e Saídas)</option>
-
-
-
-
-
-
-
-                    <option value="ENTRADA">🟢 Apenas Entradas</option>
-
-
-
-
-
-
-
-                    <option value="SAIDA">🔴 Apenas Saídas</option>
-
-
-
-
-
-
-
-                    <option value="PARCELADO">💳 Apenas Parcelados</option>
-
-
-
-
-
-
-
+                  <!-- FILTRO DE MÊS -->
+                  <select id="filtro-fin-mes" onchange="renderTesouraria()" class="border border-slate-300 rounded-xl px-2.5 py-1.5 bg-white font-semibold text-slate-700 text-xs focus:ring-2 focus:ring-emerald-500">
+                    <option value="">📅 Todos os Meses</option>
+                    <option value="1">Janeiro</option>
+                    <option value="2">Fevereiro</option>
+                    <option value="3">Março</option>
+                    <option value="4">Abril</option>
+                    <option value="5">Maio</option>
+                    <option value="6">Junho</option>
+                    <option value="7">Julho</option>
+                    <option value="8">Agosto</option>
+                    <option value="9">Setembro</option>
+                    <option value="10">Outubro</option>
+                    <option value="11">Novembro</option>
+                    <option value="12">Dezembro</option>
                   </select>
+
+                  <!-- FILTRO DE TIPO -->
+                  <select id="filtro-fin-tipo" onchange="renderTesouraria()" class="border border-slate-300 rounded-xl px-2.5 py-1.5 bg-white font-semibold text-slate-700 text-xs focus:ring-2 focus:ring-emerald-500">
+                    <option value="">Todos (Entradas e Saídas)</option>
+                    <option value="ENTRADA">🟢 Apenas Entradas</option>
+                    <option value="SAIDA">🔴 Apenas Saídas</option>
+                    <option value="PARCELADO">💳 Apenas Parcelados</option>
+                  </select>
+
+                  <button type="button" onclick="imprimirLivroCaixaDiario()" class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer" title="Imprimir Livro-Caixa Diário">
+                    <span>🖨️</span> Imprimir
+                  </button>
 
 
 
@@ -25737,7 +25695,7 @@
   </div>
 
   <script src="/qrcode.min.js"></script>
-  <script src="/app.js?v=20261113_v238_contas_pagar"></script>
+  <script src="/app.js?v=20261113_v239_lancamentos_diarios_fix"></script>
 
 
 

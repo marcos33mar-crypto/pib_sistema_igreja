@@ -5162,24 +5162,25 @@ const CATEGORIAS_FINANCEIRO = {
     { value: 'Oferta Campanhas JMM/JMN/JME', label: '🟢 Oferta Campanhas JMM/JMN/JME' },
     { value: 'Oferta de Culto / Alçados', label: '🟢 Oferta de Culto / Alçados' },
     { value: 'Cantina e Bazar', label: '🟢 Cantina e Bazar' },
-    { value: 'Retiro / Piquenique / Eventos', label: '🟢 Retiro / Piquenique / Eventos' },
+    { value: 'Outro / Retiro / Piquenique / Camiseta Aniv.', label: '🟢 Retiro / Piquenique / Eventos' },
     { value: 'Reembolso / Devolução', label: '🟢 Reembolso / Devolução / Estorno' },
     { value: 'Doações e Outras Entradas', label: '🟢 Doações e Outras Entradas' }
   ],
   SAIDA: [
-    { value: 'Despesas Operacionais', label: '🔴 Despesas Operacionais (Água, Luz, Tel, Net)' },
-    { value: 'Manutenção e Conservação', label: '🔴 Manutenção, Reformas e Conservação' },
-    { value: 'Despesas com Ministérios', label: '🔴 Despesas com Ministérios' },
-    { value: 'Material de Limpeza e Copa', label: '🔴 Material de Limpeza e Copa' },
-    { value: 'Gráfica / Livraria / ADM', label: '🔴 Gráfica, Livraria e ADM' },
-    { value: 'Pessoal e Encargos', label: '🔴 Pessoal, Prebenda e Encargos' },
-    { value: 'Ajuda Social / Diaconia', label: '🔴 Ação Social e Diaconia' },
-    { value: 'Missões', label: '🔴 Missões (JMM / JMN / Estaduais)' },
-    { value: 'Eventos / Retiros', label: '🔴 Eventos, Retiros e Congressos' },
-    { value: 'Taxas Bancárias e Tributos', label: '🔴 Taxas Bancárias e Tributos' },
-    { value: 'Outras Saídas', label: '🔴 Outras Saídas / Despesas Diversas' }
+    { value: 'Despesas Fixas', label: '🔴 Despesas Fixas (Água, Luz, Tel, Net, Aluguel)' },
+    { value: 'Folha de Pagamento', label: '🔴 Folha de Pagamento / Prebenda / Diarista' },
+    { value: 'Impostos', label: '🔴 Impostos e Taxas (DARF, ISS, IPTU, TFE)' },
+    { value: 'Desp. banco/Cartório/Sistema', label: '🔴 Despesas Bancárias, Cartório, Jurídico e Sistemas' },
+    { value: 'Convenção/Campanhas Miss.', label: '🔴 Convenção Batista e Campanhas Missionárias' },
+    { value: 'Missionários Fixos', label: '🔴 Missionários Fixos' },
+    { value: 'Despesas com Ministérios', label: '🔴 Despesas com Ministérios (15 Ministérios)' },
+    { value: 'Manutenção/Patrimônio/Equip.', label: '🔴 Manutenção, Patrimônio, Obras e Equipamentos' },
+    { value: 'Despesas Operacionais', label: '🔴 Despesas Operacionais, Limpeza e Ceia' },
+    { value: 'Gráfica /Livraria/ADM', label: '🔴 Gráfica, Livraria, Kalunga e ADM' }
   ]
 };
+
+let FINANCEIRO_EDIT_ID = null;
 
 function selecionarTipoFinanceiro(tipo) {
   const tipoNorm = (tipo || 'ENTRADA').toUpperCase();
@@ -5210,42 +5211,216 @@ function selecionarTipoFinanceiro(tipo) {
   // Atualiza as opções do select de Categoria Contábil
   const selCat = document.getElementById('fin-categoria');
   if (selCat) {
+    const valorAnterior = selCat.value;
     const lista = CATEGORIAS_FINANCEIRO[tipoNorm] || CATEGORIAS_FINANCEIRO.ENTRADA;
     selCat.innerHTML = lista.map(item => `<option value="${item.value}">${item.label}</option>`).join('');
+    if (valorAnterior && lista.some(x => x.value === valorAnterior)) {
+      selCat.value = valorAnterior;
+    }
   }
+}
+
+function toggleFormParcelamento() {
+  const chk = document.getElementById('fin-is-parcelado');
+  const box = document.getElementById('fin-campos-parcelamento');
+  const badge = document.getElementById('fin-parcelado-badge');
+  const ativo = Boolean(chk && chk.checked);
+
+  if (box) {
+    if (ativo) box.classList.remove('hidden');
+    else box.classList.add('hidden');
+  }
+  if (badge) {
+    if (ativo) badge.classList.remove('hidden');
+    else badge.classList.add('hidden');
+  }
+  atualizarCalculoParcelas();
+  atualizarModoGeracaoParcelas();
+}
+
+function atualizarCalculoParcelas() {
+  const chk = document.getElementById('fin-is-parcelado');
+  if (!chk || !chk.checked) return;
+
+  const valorInput = parseFloat(document.getElementById('fin-valor')?.value) || 0;
+  const qtd = Math.max(1, parseInt(document.getElementById('fin-qtd-parcelas')?.value || '2', 10));
+  const modo = document.getElementById('fin-modo-valor-parcela')?.value || 'TOTAL';
+
+  let valParcela = 0;
+  let valTotal = 0;
+  if (modo === 'PARCELA') {
+    valParcela = valorInput;
+    valTotal = valorInput * qtd;
+  } else {
+    valTotal = valorInput;
+    valParcela = qtd > 0 ? (valorInput / qtd) : valorInput;
+  }
+
+  const elParc = document.getElementById('fin-calc-valor-parcela');
+  const elTot = document.getElementById('fin-calc-valor-total');
+  if (elParc) elParc.textContent = formatBRL(valParcela);
+  if (elTot) elTot.textContent = formatBRL(valTotal);
+}
+
+function atualizarModoGeracaoParcelas() {
+  const radioSel = document.querySelector('input[name="fin-modo-geracao"]:checked');
+  const boxAvulsa = document.getElementById('box-num-parcela-avulsa');
+  if (!boxAvulsa) return;
+  if (radioSel && radioSel.value === 'AVULSA') {
+    boxAvulsa.classList.remove('hidden');
+  } else {
+    boxAvulsa.classList.add('hidden');
+  }
+}
+
+function editarLancamentoFinanceiro(id) {
+  const item = (STATE.financeiro || []).find(f => Number(f.id) === Number(id));
+  if (!item) return;
+
+  FINANCEIRO_EDIT_ID = item.id;
+  selecionarTipoFinanceiro(item.tipo || 'ENTRADA');
+
+  const selCat = document.getElementById('fin-categoria');
+  if (selCat) {
+    if (!Array.from(selCat.options).some(o => o.value === item.categoria)) {
+      const opt = document.createElement('option');
+      opt.value = item.categoria;
+      opt.textContent = `${item.tipo === 'SAIDA' ? '🔴' : '🟢'} ${item.categoria}`;
+      selCat.appendChild(opt);
+    }
+    selCat.value = item.categoria;
+  }
+
+  const inpDesc = document.getElementById('fin-descricao');
+  if (inpDesc) inpDesc.value = item.descricao || '';
+
+  const inpData = document.getElementById('fin-data');
+  if (inpData) inpData.value = item.data_lancamento || new Date().toISOString().split('T')[0];
+
+  const inpVal = document.getElementById('fin-valor');
+  if (inpVal) inpVal.value = Number(item.valor || 0).toFixed(2);
+
+  const selForma = document.getElementById('fin-forma');
+  if (selForma && item.forma_pagamento) {
+    if (!Array.from(selForma.options).some(o => o.value === item.forma_pagamento)) {
+      const opt = document.createElement('option');
+      opt.value = item.forma_pagamento;
+      opt.textContent = item.forma_pagamento;
+      selForma.appendChild(opt);
+    }
+    selForma.value = item.forma_pagamento;
+  }
+
+  const inpMem = document.getElementById('fin-membro');
+  if (inpMem) inpMem.value = item.membro_nome || item.pessoa_nome || '';
+
+  const selMin = document.getElementById('fin-ministerio');
+  if (selMin) selMin.value = item.ministerio_id ? String(item.ministerio_id) : '';
+
+  const banner = document.getElementById('fin-edit-banner');
+  const bannerTxt = document.getElementById('fin-edit-banner-texto');
+  const lblBtn = document.getElementById('lbl-submit-financeiro');
+  if (banner) banner.classList.remove('hidden');
+  if (bannerTxt) bannerTxt.textContent = `✏️ Editando #${item.id}: ${item.descricao}`;
+  if (lblBtn) lblBtn.textContent = 'Salvar Alterações no Lançamento';
+
+  const boxForm = document.getElementById('box-form-financeiro');
+  if (boxForm && boxForm.scrollIntoView) {
+    boxForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function cancelarEdicaoFinanceiro() {
+  FINANCEIRO_EDIT_ID = null;
+  const banner = document.getElementById('fin-edit-banner');
+  const lblBtn = document.getElementById('lbl-submit-financeiro');
+  if (banner) banner.classList.add('hidden');
+  if (lblBtn) lblBtn.textContent = 'Salvar Lançamento e Habilitar Recibo';
+
+  const form = document.querySelector('#box-form-financeiro form');
+  if (form) form.reset();
+  const chkParc = document.getElementById('fin-is-parcelado');
+  if (chkParc) chkParc.checked = false;
+  toggleFormParcelamento();
+  selecionarTipoFinanceiro('ENTRADA');
+  const dtEl = document.getElementById('fin-data');
+  if (dtEl) dtEl.value = new Date().toISOString().split('T')[0];
 }
 
 async function salvarFinanceiro(e) {
   e.preventDefault();
-  const dtVal = document.getElementById('fin-data')?.value;
+  const dtVal = document.getElementById('fin-data')?.value || new Date().toISOString().split('T')[0];
   const tipoVal = document.getElementById('fin-tipo')?.value || 'ENTRADA';
-  const catVal = document.getElementById('fin-categoria')?.value;
-  const descVal = document.getElementById('fin-descricao')?.value;
-  const valorVal = document.getElementById('fin-valor')?.value;
-  const formaVal = document.getElementById('fin-forma')?.value || 'PIX';
-  const membroId = document.getElementById('fin-membro')?.value || null;
+  const catVal = document.getElementById('fin-categoria')?.value || 'Dízimo Gasofilácio';
+  const descVal = (document.getElementById('fin-descricao')?.value || '').trim();
+  const valorVal = parseFloat(document.getElementById('fin-valor')?.value);
+  const formaVal = document.getElementById('fin-forma')?.value || 'PIX / Itaú';
+  const textoMembro = (document.getElementById('fin-membro')?.value || '').trim();
   const ministerioId = document.getElementById('fin-ministerio')?.value || null;
 
+  if (!descVal || isNaN(valorVal) || valorVal <= 0) {
+    alert('Por favor, preencha a Descrição e um Valor válido maior que zero.');
+    return;
+  }
+
+  // Resolve membro_id e pessoa_nome a partir do campo texto/datalist
+  let membroId = null;
+  let pessoaNome = textoMembro;
+  if (textoMembro && Array.isArray(STATE.membros)) {
+    const mFound = STATE.membros.find(m => String(m.nome || '').trim().toLowerCase() === textoMembro.toLowerCase());
+    if (mFound) {
+      membroId = mFound.id;
+      pessoaNome = mFound.nome;
+    }
+  }
+
+  // Campos de parcelamento
+  const isParcelado = Boolean(document.getElementById('fin-is-parcelado')?.checked);
+  const numParcelas = isParcelado ? Math.max(2, parseInt(document.getElementById('fin-qtd-parcelas')?.value || '2', 10)) : 1;
+  const modoValor = document.getElementById('fin-modo-valor-parcela')?.value || 'TOTAL';
+  const radioGeracao = document.querySelector('input[name="fin-modo-geracao"]:checked');
+  const modoGeracao = radioGeracao ? radioGeracao.value : 'TODAS';
+  const parcelaAtual = parseInt(document.getElementById('fin-num-parcela-avulsa')?.value || '1', 10) || 1;
+
   try {
-    const res = await apiPost('/api/financeiro', {
+    const endpoint = FINANCEIRO_EDIT_ID ? '/api/financeiro/atualizar' : '/api/financeiro';
+    const payload = {
+      id: FINANCEIRO_EDIT_ID || undefined,
       tipo: tipoVal,
       categoria: catVal,
       descricao: descVal,
       valor: valorVal,
       forma_pagamento: formaVal,
-      data_lancamento: dtVal || undefined,
+      data_lancamento: dtVal,
       membro_id: membroId,
-      ministerio_id: ministerioId
-    });
+      pessoa_nome: pessoaNome,
+      ministerio_id: ministerioId,
+      parcelado: isParcelado,
+      numero_parcelas: numParcelas,
+      modo_valor: modoValor,
+      modo_geracao: modoGeracao,
+      parcela_atual: parcelaAtual,
+      operador: CURRENT_OPERATOR?.nome || 'Tesouraria'
+    };
+
+    const res = await apiPost(endpoint, payload);
 
     if (res && (res.ok || !res.erro)) {
-      showLiveToast(`✅ ${tipoVal === 'SAIDA' ? 'Saída (Despesa)' : 'Entrada (Receita)'} de ${formatBRL(parseFloat(valorVal))} registrada com sucesso!`);
-      e.target.reset();
+      const eraEdicao = Boolean(FINANCEIRO_EDIT_ID);
+      cancelarEdicaoFinanceiro();
       selecionarTipoFinanceiro(tipoVal);
-      const dtEl = document.getElementById('fin-data');
-      if (dtEl) dtEl.value = new Date().toISOString().split('T')[0];
+
       if (typeof fetchBootstrap === 'function') {
-        fetchBootstrap();
+        await fetchBootstrap();
+      }
+      renderTesouraria();
+
+      if (eraEdicao) {
+        showLiveToast(`✅ Lançamento atualizado com sucesso no Livro-Caixa e na Planilha Mensal!`);
+      } else if (isParcelado && modoGeracao === 'TODAS') {
+        showLiveToast(`✅ Lançamento parcelado em ${numParcelas}x registrado com sucesso!`);
+      } else {
+        showLiveToast(`✅ ${tipoVal === 'SAIDA' ? 'Saída (Despesa)' : 'Entrada (Receita)'} de ${formatBRL(valorVal)} registrada com sucesso!`);
       }
     } else {
       alert(res?.erro || 'Erro ao registrar lançamento.');
@@ -7211,9 +7386,15 @@ async function alternarConfirmacaoEscala(id) {
 
 function renderTesouraria() {
   const reqCont = document.getElementById('lista-requisicoes');
-  const podeAprovar = CURRENT_OPERATOR && ['ADMIN', 'TESOURARIA'].includes(CURRENT_OPERATOR.perfil);
+  const podeAprovar = !CURRENT_OPERATOR || ['ADMIN', 'TESOURARIA', 'PASTOR'].includes(CURRENT_OPERATOR.perfil);
 
-  if (reqCont) {
+  // Garante data padrão hoje no campo #fin-data se estiver em branco
+  const inpDataFin = document.getElementById('fin-data');
+  if (inpDataFin && !inpDataFin.value) {
+    inpDataFin.value = new Date().toISOString().split('T')[0];
+  }
+
+  if (reqCont && Array.isArray(STATE.requisicoes)) {
     reqCont.innerHTML = STATE.requisicoes.map(r => {
       const pendente = r.status === 'Pendente';
       const badgeColor = r.status === 'Aprovado e Pago'
@@ -7237,10 +7418,10 @@ function renderTesouraria() {
             <span class="text-base font-extrabold text-slate-900">${formatBRL(r.valor_estimado)}</span>
             ${pendente && podeAprovar ? `
               <div class="flex gap-1.5">
-                <button onclick="avaliarRequisicao(${r.id}, 'Aprovado e Pago')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-1.5 rounded-lg shadow transition">
+                <button onclick="avaliarRequisicao(${r.id}, 'Aprovado e Pago')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-1.5 rounded-lg shadow transition cursor-pointer">
                   ✓ Aprovar e Lançar Saída
                 </button>
-                <button onclick="avaliarRequisicao(${r.id}, 'Recusado')" class="bg-rose-100 hover:bg-rose-200 text-rose-700 font-semibold px-2.5 py-1.5 rounded-lg transition">
+                <button onclick="avaliarRequisicao(${r.id}, 'Recusado')" class="bg-rose-100 hover:bg-rose-200 text-rose-700 font-semibold px-2.5 py-1.5 rounded-lg transition cursor-pointer">
                   Recusar
                 </button>
               </div>
@@ -7253,51 +7434,244 @@ function renderTesouraria() {
     }).join('');
   }
 
-  const entradas = STATE.financeiro.filter(f => f.tipo === 'ENTRADA' && f.status === 'Pago').reduce((a, b) => a + Number(b.valor), 0);
-  const saidas = STATE.financeiro.filter(f => f.tipo === 'SAIDA' && f.status === 'Pago').reduce((a, b) => a + Number(b.valor), 0);
-
-  document.getElementById('resumo-entradas').textContent = `Entradas Diárias: ${formatBRL(entradas)}`;
-  document.getElementById('resumo-saidas').textContent = `Saídas Diárias: ${formatBRL(saidas)}`;
-
+  const todosFin = Array.isArray(STATE.financeiro) ? STATE.financeiro : [];
+  const filtroMes = document.getElementById('filtro-fin-mes')?.value || '';
   const filtroTipo = document.getElementById('filtro-fin-tipo')?.value || '';
+  const termoBusca = (document.getElementById('busca-fin-diarios')?.value || '').trim().toLowerCase();
+
+  // Filtra por mês primeiro (para refletir os KPIs do período filtrado)
+  const listaPeriodo = todosFin.filter(f => {
+    if (filtroMes) {
+      const m = parseInt(String(f.data_lancamento || '').substring(5, 7), 10);
+      if (m !== parseInt(filtroMes, 10)) return false;
+    }
+    return true;
+  });
+
+  const entradas = listaPeriodo.filter(f => f.tipo === 'ENTRADA' && f.status === 'Pago').reduce((a, b) => a + Number(b.valor || 0), 0);
+  const saidas = listaPeriodo.filter(f => f.tipo === 'SAIDA' && f.status === 'Pago').reduce((a, b) => a + Number(b.valor || 0), 0);
+  const saldoOperacional = entradas - saidas;
+  const qtdParcelados = listaPeriodo.filter(f => Number(f.parcelado) === 1 || Number(f.numero_parcelas || 1) > 1).length;
+
+  // Atualiza elementos legados e os 4 Cards de KPI de Lançamentos Diários
+  const elResEnt = document.getElementById('resumo-entradas');
+  const elResSai = document.getElementById('resumo-saidas');
+  if (elResEnt) elResEnt.textContent = `Entradas Diárias: ${formatBRL(entradas)}`;
+  if (elResSai) elResSai.textContent = `Saídas Diárias: ${formatBRL(saidas)}`;
+
+  const elKpiEnt = document.getElementById('kpi-diarios-entradas');
+  const elKpiSai = document.getElementById('kpi-diarios-saidas');
+  const elKpiSaldo = document.getElementById('kpi-diarios-saldo');
+  const elKpiTot = document.getElementById('kpi-diarios-total');
+  const elKpiParc = document.getElementById('kpi-diarios-parcelados-sub');
+
+  if (elKpiEnt) elKpiEnt.textContent = formatBRL(entradas);
+  if (elKpiSai) elKpiSai.textContent = formatBRL(saidas);
+  if (elKpiSaldo) {
+    elKpiSaldo.textContent = formatBRL(saldoOperacional);
+    elKpiSaldo.className = `text-2xl font-black mt-1 ${saldoOperacional >= 0 ? 'text-indigo-700' : 'text-rose-700'}`;
+  }
+  if (elKpiTot) elKpiTot.textContent = `${listaPeriodo.length} registro(s)`;
+  if (elKpiParc) elKpiParc.textContent = `${qtdParcelados} parcelado(s)`;
+
+  // Aplica filtros de Tipo (ENTRADA, SAIDA, PARCELADO) e Busca em Tempo Real
+  let listaVisivel = listaPeriodo.filter(f => {
+    if (filtroTipo === 'ENTRADA' && f.tipo !== 'ENTRADA') return false;
+    if (filtroTipo === 'SAIDA' && f.tipo !== 'SAIDA') return false;
+    if (filtroTipo === 'PARCELADO' && !(Number(f.parcelado) === 1 || Number(f.numero_parcelas || 1) > 1)) return false;
+
+    if (termoBusca) {
+      const alvo = `${f.categoria || ''} ${f.descricao || ''} ${f.membro_nome || ''} ${f.pessoa_nome || ''} ${f.ministerio_nome || ''} ${f.forma_pagamento || ''} ${f.lancado_por || ''}`.toLowerCase();
+      if (!alvo.includes(termoBusca)) return false;
+    }
+    return true;
+  });
+
+  const badgeTot = document.getElementById('badge-total-diarios');
+  if (badgeTot) badgeTot.textContent = String(listaVisivel.length);
+
   const tbody = document.getElementById('tabela-financeiro');
   if (tbody) {
-    let listaVisivel = STATE.financeiro;
-    if (filtroTipo) {
-      listaVisivel = listaVisivel.filter(f => f.tipo === filtroTipo);
+    if (listaVisivel.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="py-8 text-center text-slate-400">
+            Nenhum lançamento diário encontrado para os filtros informados.
+          </td>
+        </tr>
+      `;
+      return;
     }
 
     tbody.innerHTML = listaVisivel.map(f => {
       const isEntrada = f.tipo === 'ENTRADA';
+      const isParc = Number(f.parcelado) === 1 || Number(f.numero_parcelas || 1) > 1;
+      const nomePessoa = f.membro_nome || f.pessoa_nome || '';
+      const badgeParc = isParc
+        ? `<span class="ml-1 inline-block px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-extrabold text-[9px] border border-amber-200">💳 ${escapeHtml(f.parcela_identificador || `${f.parcela_atual || 1}/${f.numero_parcelas || 2}`)}</span>`
+        : '';
+
       return `
         <tr class="hover:bg-slate-50 transition">
-          <td class="py-2.5 px-2 text-slate-600 whitespace-nowrap">${formatDateBR(f.data_lancamento)}</td>
-          <td class="py-2.5 px-2">
-            <span class="font-bold text-slate-800">${f.categoria}</span> — ${f.descricao}
-            <div class="text-[10px] text-slate-400">Meio: ${f.forma_pagamento} • Lançado por: ${f.lancado_por || 'Tesouraria'}</div>
+          <td class="py-2.5 px-3 font-mono text-slate-600 whitespace-nowrap">${formatDateBR(f.data_lancamento)}</td>
+          <td class="py-2.5 px-3">
+            <div class="flex items-center flex-wrap gap-1">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${isEntrada ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                ${isEntrada ? '🟢 Entrada' : '🔴 Saída'}
+              </span>
+              ${badgeParc}
+            </div>
+            <div class="font-bold text-slate-800 mt-0.5">${escapeHtml(f.categoria || '')}</div>
           </td>
-          <td class="py-2.5 px-2">
-            ${f.membro_nome ? `<span onclick="abrirFicha360(${f.membro_id})" class="cursor-pointer px-2 py-0.5 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold">👤 ${f.membro_nome}</span>` : ''}
-            ${f.ministerio_nome ? `<span class="px-2 py-0.5 rounded-full text-white text-[10px] font-semibold" style="background:${f.ministerio_cor}">🏛️ ${f.ministerio_nome}</span>` : ''}
-            ${!f.membro_nome && !f.ministerio_nome ? '<span class="text-slate-400">Geral da Igreja</span>' : ''}
+          <td class="py-2.5 px-3">
+            <div class="font-bold text-slate-900">${escapeHtml(f.descricao || '')}</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">
+              Meio: <strong>${escapeHtml(f.forma_pagamento || 'PIX')}</strong> • Por: ${escapeHtml(f.lancado_por || 'Tesouraria')}
+            </div>
           </td>
-          <td class="py-2.5 px-2 text-right font-extrabold ${isEntrada ? 'text-emerald-600' : 'text-rose-600'} whitespace-nowrap">
+          <td class="py-2.5 px-3">
+            <div class="flex flex-wrap items-center gap-1">
+              ${nomePessoa ? (f.membro_id ? `<span onclick="abrirFicha360(${f.membro_id})" class="cursor-pointer px-2 py-0.5 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold">👤 ${escapeHtml(nomePessoa)}</span>` : `<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-semibold">👤 ${escapeHtml(nomePessoa)}</span>`) : ''}
+              ${f.ministerio_nome ? `<span class="px-2 py-0.5 rounded-full text-white text-[10px] font-semibold" style="background:${f.ministerio_cor || '#475569'}">🏛️ ${escapeHtml(f.ministerio_nome)}</span>` : ''}
+              ${!nomePessoa && !f.ministerio_nome ? '<span class="text-slate-400">Geral da Igreja</span>' : ''}
+            </div>
+          </td>
+          <td class="py-2.5 px-3 text-right font-mono font-extrabold ${isEntrada ? 'text-emerald-600' : 'text-rose-600'} whitespace-nowrap">
             ${isEntrada ? '+' : '-'} ${formatBRL(f.valor)}
           </td>
-          <td class="py-2.5 px-2 text-right whitespace-nowrap space-x-1">
-            ${isEntrada ? `
-              <button onclick="emitirRecibo(${f.id})" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-2.5 py-1 rounded-lg">
+          <td class="py-2.5 px-3 text-center whitespace-nowrap">
+            <div class="inline-flex items-center gap-1">
+              <button type="button" onclick="emitirRecibo(${f.id})" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2.5 py-1 rounded-lg text-[11px] transition cursor-pointer" title="Emitir Recibo / Comprovante">
                 🧾 Recibo
               </button>
-            ` : ''}
-            ${podeAprovar ? `
-              <button onclick="removerItem('/api/financeiro', ${f.id})" class="text-rose-500 hover:bg-rose-50 px-2 py-1 rounded-lg font-bold">✕</button>
-            ` : ''}
+              ${podeAprovar ? `
+                <button type="button" onclick="editarLancamentoFinanceiro(${f.id})" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-2 py-1 rounded-lg text-[11px] transition cursor-pointer" title="Editar Lançamento">
+                  ✏️
+                </button>
+                <button type="button" onclick="removerItem('/api/financeiro', ${f.id})" class="text-rose-500 hover:bg-rose-50 px-2 py-1 rounded-lg font-bold transition cursor-pointer" title="Excluir Lançamento">
+                  ✕
+                </button>
+              ` : ''}
+            </div>
           </td>
         </tr>
       `;
     }).join('');
   }
+}
+
+function imprimirLivroCaixaDiario() {
+  const ent = document.getElementById('kpi-diarios-entradas')?.textContent || 'R$ 0,00';
+  const sai = document.getElementById('kpi-diarios-saidas')?.textContent || 'R$ 0,00';
+  const sld = document.getElementById('kpi-diarios-saldo')?.textContent || 'R$ 0,00';
+  const tot = document.getElementById('kpi-diarios-total')?.textContent || '0 registro(s)';
+  const todosFin = Array.isArray(STATE.financeiro) ? STATE.financeiro : [];
+  const filtroMes = document.getElementById('filtro-fin-mes')?.value || '';
+  const filtroTipo = document.getElementById('filtro-fin-tipo')?.value || '';
+  const termoBusca = (document.getElementById('busca-fin-diarios')?.value || '').trim().toLowerCase();
+
+  const lista = todosFin.filter(f => {
+    if (filtroMes) {
+      const m = parseInt(String(f.data_lancamento || '').substring(5, 7), 10);
+      if (m !== parseInt(filtroMes, 10)) return false;
+    }
+    if (filtroTipo === 'ENTRADA' && f.tipo !== 'ENTRADA') return false;
+    if (filtroTipo === 'SAIDA' && f.tipo !== 'SAIDA') return false;
+    if (filtroTipo === 'PARCELADO' && !(Number(f.parcelado) === 1 || Number(f.numero_parcelas || 1) > 1)) return false;
+    if (termoBusca) {
+      const alvo = `${f.categoria || ''} ${f.descricao || ''} ${f.membro_nome || ''} ${f.pessoa_nome || ''} ${f.ministerio_nome || ''}`.toLowerCase();
+      if (!alvo.includes(termoBusca)) return false;
+    }
+    return true;
+  });
+
+  const linhasHTML = lista.map(f => {
+    const isEnt = f.tipo === 'ENTRADA';
+    const pessoa = f.membro_nome || f.pessoa_nome || f.ministerio_nome || 'Geral da Igreja';
+    return `
+      <tr>
+        <td>${formatDateBR(f.data_lancamento)}</td>
+        <td><strong>${isEnt ? 'ENTRADA' : 'SAÍDA'}</strong> — ${escapeHtml(f.categoria || '')}</td>
+        <td>${escapeHtml(f.descricao || '')} <span style="color:#64748b;">(${escapeHtml(f.forma_pagamento || 'PIX')})</span></td>
+        <td>${escapeHtml(pessoa)}</td>
+        <td style="text-align:right; font-weight:700; color:${isEnt ? '#047857' : '#be123c'};">${isEnt ? '+' : '-'} ${formatBRL(f.valor)}</td>
+      </tr>
+    `;
+  }).join('');
+
+  const win = window.open('', '_blank', 'width=1100,height=800');
+  if (!win) {
+    window.print();
+    return;
+  }
+
+  win.document.write(`
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="UTF-8" />
+      <title>KAIRÓS • Relatório do Livro-Caixa Diário</title>
+      <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; color: #0f172a; margin: 24px; font-size: 11px; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px; }
+        .brand-pill { display: inline-block; background: #0f172a; color: #34d399; font-weight: 900; font-size: 10px; letter-spacing: 2px; padding: 3px 8px; border-radius: 4px; margin-bottom: 4px; }
+        .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+        .kpi { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 10px; background: #f8fafc; }
+        .kpi span { display: block; font-size: 9px; text-transform: uppercase; color: #64748b; font-weight: 700; }
+        .kpi strong { display: block; font-size: 13px; margin-top: 3px; color: #0f172a; }
+        table { width: 100%; border-collapse: collapse; font-size: 10px; }
+        th, td { border: 1px solid #cbd5e1; padding: 6px 8px; }
+        th { background: #0f172a; color: #ffffff; text-transform: uppercase; font-size: 9px; text-align: left; }
+        .signatures { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-top: 48px; text-align: center; }
+        .sig-line { border-top: 1px solid #334155; padding-top: 6px; font-weight: 700; font-size: 10px; color: #1e293b; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div>
+          <span class="brand-pill">KAIRÓS • GESTÃO ECLESIÁSTICA</span>
+          <h1 style="margin:2px 0; font-size:18px;">Primeira Igreja Batista no Parque São Paulo</h1>
+          <p style="margin:0; color:#475569;">Livro-Caixa Diário Oficial — Entradas e Saídas Detalhadas</p>
+        </div>
+        <div style="text-align:right; font-size:10px; color:#475569;">
+          <div><strong>Emitido em:</strong> ${new Date().toLocaleDateString('pt-BR')}</div>
+        </div>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi"><span>Entradas Diárias</span><strong style="color:#047857;">${ent}</strong></div>
+        <div class="kpi"><span>Saídas Diárias</span><strong style="color:#be123c;">${sai}</strong></div>
+        <div class="kpi"><span>Saldo Operacional</span><strong>${sld}</strong></div>
+        <div class="kpi"><span>Total de Registros</span><strong>${tot}</strong></div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Tipo / Categoria</th>
+            <th>Descrição & Meio</th>
+            <th>Membro / Favorecido / Setor</th>
+            <th style="text-align:right;">Valor</th>
+          </tr>
+        </thead>
+        <tbody>${linhasHTML || '<tr><td colspan="5" style="text-align:center;">Nenhum lançamento encontrado.</td></tr>'}</tbody>
+      </table>
+
+      <div class="signatures">
+        <div class="sig-line">Pastor Presidente</div>
+        <div class="sig-line">Administração Geral</div>
+        <div class="sig-line">Tesouraria & Finanças</div>
+        <div class="sig-line">Conselho Fiscal</div>
+      </div>
+
+      <script>
+        window.onload = function() { setTimeout(function() { window.print(); }, 300); };
+      <\/script>
+    </body>
+    </html>
+  `);
+  win.document.close();
 }
 
 function renderCelulas() {
@@ -11187,229 +11561,47 @@ function emitirCredencial(membroId) {
 
 
 function emitirRecibo(finId) {
-
-
-
-
-
-
-
-  const f = STATE.financeiro.find(x => x.id === finId);
-
-
-
-
-
-
-
+  const f = (STATE.financeiro || []).find(x => Number(x.id) === Number(finId));
   if (!f) return;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+  const isEntrada = f.tipo === 'ENTRADA';
+  const nomePessoa = f.membro_nome || f.pessoa_nome || (isEntrada ? 'Contribuinte / Oferta Geral' : 'Fornecedor / Favorecido Geral');
+  const tituloRecibo = isEntrada ? 'RECIBO DE CONTRIBUIÇÃO / ENTRADA' : 'COMPROVANTE DE PAGAMENTO / SAÍDA';
+  const corValor = isEntrada
+    ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+    : 'text-rose-700 bg-rose-50 border-rose-200';
+  const textoCorpo = isEntrada
+    ? `Recebemos de <strong>${nomePessoa}</strong> a importância de <strong>${formatBRL(f.valor)}</strong> referente a <strong>${f.categoria} (${f.descricao || '-'})</strong>.`
+    : `Certificamos o pagamento a <strong>${nomePessoa}</strong> da importância de <strong>${formatBRL(f.valor)}</strong> referente a <strong>${f.categoria} (${f.descricao || '-'})</strong>.`;
 
   const html = `
-
-
-
-
-
-
-
-    <div class="border-2 border-slate-800 rounded-2xl p-5 space-y-3 text-xs">
-
-
-
-
-
-
-
+    <div class="border-2 border-slate-800 rounded-2xl p-5 space-y-3 text-xs bg-white">
       <div class="flex items-center justify-between border-b border-slate-200 pb-3">
-
-
-
-
-
-
-
         <div class="flex items-center gap-3">
-
-
-
-
-
-
-
           <img src="/logo.png" alt="Logo PIB" class="w-12 h-12 rounded-full object-contain shrink-0 border border-slate-200 p-0.5 bg-white shadow-xs" />
-
-
-
-
-
-
-
           <div>
-
-
-
-
-
-
-
-            <h3 class="text-base font-extrabold text-slate-900">RECIBO FINANCEIRO #${String(f.id).padStart(5, '0')}</h3>
-
-
-
-
-
-
-
-            <p class="text-slate-600 font-bold text-xs" style="color: #3d7e71;">PIB Parque São Paulo — Primeira Igreja Batista</p>
-
-
-
-
-
-
-
+            <p class="text-[9px] font-extrabold uppercase tracking-widest text-teal-700">KAIRÓS — Sistema de Gestão Integrada</p>
+            <h3 class="text-sm font-extrabold text-slate-900">${tituloRecibo} #${String(f.id).padStart(5, '0')}</h3>
+            <p class="text-slate-600 font-bold text-xs" style="color: #3d7e71;">Primeira Igreja Batista no Parque São Paulo</p>
           </div>
-
-
-
-
-
-
-
         </div>
-
-
-
-
-
-
-
-        <span class="text-lg font-extrabold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-xl border border-emerald-200">${formatBRL(f.valor)}</span>
-
-
-
-
-
-
-
+        <span class="text-lg font-extrabold px-3 py-1 rounded-xl border ${corValor}">${formatBRL(f.valor)}</span>
       </div>
-
-
-
-
-
-
-
-      <p>Recebemos de <strong>${f.membro_nome || 'Contribuinte / Oferta Geral'}</strong> a importância de <strong>${formatBRL(f.valor)}</strong> referente a <strong>${f.categoria} (${f.descricao})</strong>.</p>
-
-
-
-
-
-
-
-      <div class="grid grid-cols-2 gap-2 text-slate-600 pt-2">
-
-
-
-
-
-
-
+      <p class="leading-relaxed text-slate-700 pt-1">${textoCorpo}</p>
+      <div class="grid grid-cols-2 gap-2 text-slate-600 pt-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
         <p>Data do Lançamento: <strong>${formatDateBR(f.data_lancamento)}</strong></p>
-
-
-
-
-
-
-
-        <p>Meio de Pagamento: <strong>${f.forma_pagamento}</strong></p>
-
-
-
-
-
-
-
+        <p>Meio de Pagamento: <strong>${f.forma_pagamento || '-'}</strong></p>
+        ${f.departamento ? `<p class="col-span-2">Setor / Ministério: <strong>${f.departamento}</strong></p>` : ''}
       </div>
-
-
-
-
-
-
-
-      <div class="pt-6 text-center border-t border-slate-200 mt-4">
-
-
-
-
-
-
-
-        <p class="font-bold text-slate-800">${f.lancado_por || 'Tesouraria — PIB Parque São Paulo'}</p>
-
-
-
-
-
-
-
-        <p class="text-[10px] text-slate-400">Assinatura / Autenticação Digital do Sistema</p>
-
-
-
-
-
-
-
+      <div class="pt-8 text-center border-t border-slate-200 mt-4">
+        <div class="w-56 mx-auto border-t border-slate-400 pt-1.5">
+          <p class="font-bold text-slate-800">Tesouraria & Finanças</p>
+          <p class="text-[10px] text-slate-500">Primeira Igreja Batista no Parque São Paulo</p>
+        </div>
       </div>
-
-
-
-
-
-
-
     </div>
-
-
-
-
-
-
-
   `;
-
-
-
-
-
-
-
   abrirModalCustom(html, true);
-
-
-
-
-
-
-
 }
 
 
