@@ -5736,6 +5736,7 @@ function abrirVisualizadorRelatorioPDF(opts) {
       <!-- Barra de Ações Rápidas (Oculta na Impressão) -->
       <div class="no-print flex items-center justify-between pb-3 border-b border-slate-200 gap-2">
         <div class="flex items-center gap-2">
+          <span class="px-2 py-0.5 rounded bg-slate-900 text-emerald-400 text-[10px] font-black tracking-[0.16em]">KAIRÓS</span>
           <span class="text-xs font-bold text-slate-600">Visualização de Documento Oficial</span>
           <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">PIB Parque São Paulo</span>
         </div>

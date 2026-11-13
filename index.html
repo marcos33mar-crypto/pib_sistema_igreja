@@ -1658,85 +1658,30 @@
 
 
 
-      <div class="p-4 sm:p-5 border-b flex items-center justify-between" style="background: linear-gradient(180deg, rgba(87, 166, 149, 0.22) 0%, rgba(15, 23, 42, 0.98) 100%), #0f172a; border-bottom: 2px solid rgba(87, 166, 149, 0.35);">
-
-
-
-
-
-
-
-        <div class="flex items-center gap-3 min-w-0">
-
-
-
-
-
-
-
-          <img src="/logo.png" alt="Logo PIB Parque São Paulo" class="w-12 h-12 rounded-full object-contain shrink-0 bg-white p-0.5 border-2 border-[#57a695] shadow-lg shadow-[#57a695]/30" />
-
-
-
-
-
-
-
-          <div class="min-w-0">
-            <div class="flex items-center gap-1.5 mb-0.5">
-              <span class="text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-[#57a695]/20 text-[#6ee7b7] border border-[#57a695]/40">KAIRÓS</span>
-              <span class="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Gestão</span>
-            </div>
-            <h1 class="font-black text-sm tracking-tight text-white leading-tight truncate">PIB <span style="color: #57a695;">Parque São Paulo</span></h1>
-            <p class="text-[10px] text-slate-300 font-medium truncate">Primeira Igreja Batista</p>
+      <!-- Marca Oficial do Sistema KAIRÓS (Em Destaque e Separada do Nome da Igreja) -->
+      <div class="px-4 py-3 bg-slate-950 border-b border-slate-800/90 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-600 text-slate-950 font-black text-sm flex items-center justify-center shadow-md shadow-emerald-500/20">
+            K
           </div>
-
-
-
-
-
-
-
+          <div class="leading-none">
+            <span class="text-sm font-black tracking-[0.2em] text-white block">KAIRÓS</span>
+            <span class="text-[9px] text-emerald-400 font-bold uppercase tracking-widest block mt-0.5">Gestão Eclesiástica</span>
+          </div>
         </div>
-
-
-
-
-
-
-
         <!-- Botão Fechar Menu no Celular -->
-
-
-
-
-
-
-
-        <button type="button" onclick="toggleSidebarMobile(false)" class="md:hidden p-2 rounded-xl text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 transition cursor-pointer shrink-0 ml-2" title="Fechar Menu">
-
-
-
-
-
-
-
+        <button type="button" onclick="toggleSidebarMobile(false)" class="md:hidden p-1.5 rounded-xl text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 transition cursor-pointer shrink-0 ml-2" title="Fechar Menu">
           ✕
-
-
-
-
-
-
-
         </button>
+      </div>
 
-
-
-
-
-
-
+      <!-- Identidade da Igreja (Separada em seu Próprio Bloco) -->
+      <div class="px-4 py-3.5 border-b flex items-center gap-3" style="background: linear-gradient(180deg, rgba(87, 166, 149, 0.22) 0%, rgba(15, 23, 42, 0.98) 100%), #0f172a; border-bottom: 2px solid rgba(87, 166, 149, 0.35);">
+        <img src="/logo.png" alt="Logo PIB Parque São Paulo" class="w-11 h-11 rounded-full object-contain shrink-0 bg-white p-0.5 border-2 border-[#57a695] shadow-lg shadow-[#57a695]/30" />
+        <div class="min-w-0">
+          <h1 class="font-black text-sm tracking-tight text-white leading-tight truncate">PIB <span style="color: #57a695;">Parque São Paulo</span></h1>
+          <p class="text-[10px] text-slate-300 font-medium truncate mt-0.5">Primeira Igreja Batista</p>
+        </div>
       </div>
 
 
@@ -2576,7 +2521,7 @@
 
       </div>
       <div class="text-[10px] text-slate-500 font-medium mt-1 tracking-wider" id="versao-sistema-tag">
-        KAIRÓS • Versão 2.32 • Build 20261112
+        KAIRÓS • Versão 2.33 • Build 20261112
       </div>
 
 
@@ -2656,15 +2601,12 @@
           ☰
         </button>
 
-        <!-- Identidade Visual Oficial: Logo + Nome da Igreja em Todas as Telas -->
+        <!-- Identidade Visual Oficial: Logo + Nome da Igreja (Separado do Nome do Sistema) -->
         <div class="flex items-center gap-2 shrink-0 pr-2.5 sm:pr-3 border-r border-slate-200">
           <img src="/logo.png" alt="Logo PIB Parque São Paulo" class="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-contain shrink-0 bg-white p-0.5 border border-[#57a695]/40 shadow-xs" />
           <div class="hidden md:block leading-tight">
-            <div class="flex items-center gap-1.5">
-              <span class="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-slate-900 text-emerald-400">KAIRÓS</span>
-              <span class="text-xs font-black text-slate-900 tracking-tight">PIB Parque São Paulo</span>
-            </div>
-            <span class="text-[9px] font-bold block uppercase tracking-wider mt-0.5" style="color: #428476;">Gestão Eclesiástica Integrada</span>
+            <span class="text-xs font-black text-slate-900 tracking-tight block">PIB Parque São Paulo</span>
+            <span class="text-[9px] font-bold block uppercase tracking-wider" style="color: #428476;">Primeira Igreja Batista</span>
           </div>
         </div>
 
@@ -2675,6 +2617,12 @@
       </div>
 
       <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <!-- Marca do Sistema KAIRÓS em Destaque e Separada na Barra dos Módulos -->
+        <div class="hidden sm:flex items-center gap-1.5 bg-slate-900 border border-slate-800 px-2.5 py-1.5 rounded-xl shadow-xs shrink-0" title="KAIRÓS — Sistema Integrado de Gestão Eclesiástica">
+          <span class="w-4 h-4 rounded-md bg-gradient-to-br from-emerald-400 to-teal-600 text-slate-950 font-black text-[10px] flex items-center justify-center">K</span>
+          <span class="text-xs font-black tracking-[0.18em] text-emerald-400">KAIRÓS</span>
+        </div>
+
         <button id="btn-header-multiuser" onclick="openMultiUserModal()" class="hidden md:flex bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold px-3 py-1.5 rounded-xl shadow transition items-center gap-1.5 cursor-pointer">
           🔗 Compartilhar
         </button>
@@ -3657,23 +3605,14 @@
 
 
 
-                  <h3 class="font-extrabold text-slate-800 text-base flex items-center gap-2">
-
-
-
-
-
-
-
-                    <span>⚡</span> KAIRÓS — Painel Executivo • PIB Parque São Paulo
-
-
-
-
-
-
-
-                  </h3>
+                  <div class="flex flex-wrap items-center gap-2.5">
+                    <h3 class="font-extrabold text-slate-800 text-base flex items-center gap-2">
+                      <span>⚡</span> Painel Executivo — PIB Parque São Paulo
+                    </h3>
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-900 text-emerald-400 text-[10px] font-black tracking-[0.18em] border border-slate-800 shadow-2xs">
+                      KAIRÓS
+                    </span>
+                  </div>
 
 
 
@@ -13421,15 +13360,13 @@
 
 
 
-                  <h3 class="text-base font-black text-white">Emissão de Relatórios Oficiais da Igreja em PDF</h3>
-
-
-
-
-
-
-
-                  <span class="text-[11px] font-bold" style="color: #57a695;">Primeira Igreja Batista no Parque São Paulo</span>
+                  <div class="flex flex-wrap items-center gap-2.5">
+                    <h3 class="text-base font-black text-white">Emissão de Relatórios Oficiais da Igreja em PDF</h3>
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-950/80 text-emerald-400 text-[10px] font-black tracking-[0.18em] border border-emerald-500/30">
+                      KAIRÓS
+                    </span>
+                  </div>
+                  <span class="text-[11px] font-bold block mt-0.5" style="color: #57a695;">Primeira Igreja Batista no Parque São Paulo</span>
 
 
 
@@ -24798,16 +24735,27 @@
 
 
 
-      <div class="text-center mb-5">
-        <img src="/logo.png" alt="Logo PIB" class="w-16 h-16 mx-auto rounded-full object-contain mb-2.5 shadow-md border-2 border-[#57a695] p-0.5 bg-white" />
-        <div class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-slate-900 text-emerald-400 text-[11px] font-black tracking-widest uppercase mb-1.5 shadow-sm border border-emerald-500/30">
-          <span>✨</span> KAIRÓS • Gestão Eclesiástica
+      <!-- Marca Oficial do Sistema KAIRÓS (Em Destaque e Separada da Identidade da Igreja) -->
+      <div class="flex items-center justify-between pb-3.5 mb-4 border-b border-slate-200/80">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-slate-900 text-emerald-400 font-black text-sm flex items-center justify-center shadow-sm border border-emerald-500/30">
+            K
+          </div>
+          <div class="leading-none text-left">
+            <span class="text-base font-black tracking-[0.2em] text-slate-900 block">KAIRÓS</span>
+            <span class="text-[9px] font-bold text-emerald-600 uppercase tracking-widest block mt-0.5">Gestão Eclesiástica</span>
+          </div>
         </div>
+        <span class="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+          🔒 Acesso Restrito
+        </span>
+      </div>
+
+      <!-- Identidade da Igreja (Separada e Sem Poluição Visual) -->
+      <div class="text-center mb-5">
+        <img src="/logo.png" alt="Logo PIB" class="w-16 h-16 mx-auto rounded-full object-contain mb-2 shadow-md border-2 border-[#57a695] p-0.5 bg-white" />
         <h2 class="text-xl font-extrabold text-slate-900">PIB <span style="color: #57a695;">Parque São Paulo</span></h2>
         <p class="text-xs text-slate-500 mt-0.5 font-medium">Primeira Igreja Batista no Parque São Paulo</p>
-        <span class="inline-block mt-2 text-[10px] uppercase font-bold tracking-wider px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
-          🔒 Acesso Restrito • Identificação por Senha
-        </span>
       </div>
 
 
@@ -25326,7 +25274,7 @@
 
 
 
-  <script src="/app.js?v=20261112_v232_kairos_branding"></script>
+  <script src="/app.js?v=20261112_v233_kairos_destaque_limpo"></script>
 
 
 
