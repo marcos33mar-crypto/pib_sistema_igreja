@@ -3125,7 +3125,7 @@ async function executarLoginSistema(e) {
   } finally {
     if (btnEntrar) {
       btnEntrar.disabled = false;
-      btnEntrar.innerHTML = '<span>🔓</span> Entrar no Sistema';
+      btnEntrar.innerHTML = '<span>🔓</span> Entrar no Kairós';
     }
   }
 }
