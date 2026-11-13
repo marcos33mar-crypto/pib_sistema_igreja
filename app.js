@@ -3361,7 +3361,7 @@ function switchTab(tabName) {
   } else {
     if (subMenuTes) subMenuTes.classList.remove('hidden');
     if (setaTes) setaTes.style.transform = 'rotate(0deg)';
-    ['planilha', 'orcamento', 'diarios', 'fluxocaixa'].forEach(st => {
+    ['planilha', 'orcamento', 'diarios', 'fluxocaixa', 'contaspagar'].forEach(st => {
       const subnav = document.getElementById('subnav-tes-' + st);
       if (subnav) {
         if (st === (TESOURARIA_SUBTAB || 'planilha')) {
@@ -3449,7 +3449,7 @@ function switchTesourariaSubtab(subtab) {
   }
   TESOURARIA_SUBTAB = subtab;
 
-  ['planilha', 'orcamento', 'diarios', 'fluxocaixa'].forEach(st => {
+  ['planilha', 'orcamento', 'diarios', 'fluxocaixa', 'contaspagar'].forEach(st => {
     const sec = document.getElementById('tes-subtab-' + st);
     const subnav = document.getElementById('subnav-tes-' + st);
     const btn = document.getElementById('subtab-btn-' + st);
@@ -3487,6 +3487,10 @@ function switchTesourariaSubtab(subtab) {
   } else if (subtab === 'fluxocaixa') {
     if (typeof renderFluxoDeCaixa === 'function') {
       renderFluxoDeCaixa();
+    }
+  } else if (subtab === 'contaspagar') {
+    if (typeof renderContasAPagar === 'function') {
+      renderContasAPagar();
     }
   }
 }
@@ -4215,6 +4219,9 @@ function selecionarAnoDashboard(ano) {
   renderSlideMinisterios();
   if (typeof renderFluxoDeCaixa === 'function') {
     renderFluxoDeCaixa();
+  }
+  if (typeof renderContasAPagar === 'function') {
+    renderContasAPagar();
   }
   showLiveToast(`📅 Exercício alternado para ${numAno}!`);
 }
@@ -5370,6 +5377,9 @@ function renderAll() {
   renderTesouraria();
   if (typeof renderFluxoDeCaixa === 'function') {
     renderFluxoDeCaixa();
+  }
+  if (typeof renderContasAPagar === 'function') {
+    renderContasAPagar();
   }
   renderMembros();
   renderVisitantes();
@@ -20485,32 +20495,44 @@ function renderFluxoDeCaixa() {
     }).join('');
   }
 
-  // Compromissos & Pedidos de Verba Pendentes
+  // Compromissos & Pedidos de Verba Pendentes + Contas a Pagar em Aberto
   const pendentesCont = document.getElementById('fc-lista-compromissos-pendentes');
   const badgePendentes = document.getElementById('fc-badge-pendentes');
   const reqsPendentes = (STATE.requisicoes || []).filter(r => r.status === 'Pendente');
-  const totalPendentes = reqsPendentes.reduce((a, r) => a + Number(r.valor_estimado || 0), 0);
+  const contasAbertas = (STATE.contas_pagar || []).filter(cp => cp.status !== 'Pago');
+  const totalPendentes = reqsPendentes.reduce((a, r) => a + Number(r.valor_estimado || 0), 0) +
+                         contasAbertas.reduce((a, cp) => a + Number(cp.valor || 0), 0);
 
   if (badgePendentes) {
     badgePendentes.textContent = formatBRL(totalPendentes);
   }
   if (pendentesCont) {
-    if (reqsPendentes.length === 0) {
+    if (reqsPendentes.length === 0 && contasAbertas.length === 0) {
       pendentesCont.innerHTML = `
         <div class="p-4 text-center text-slate-400 bg-slate-50 rounded-xl border border-slate-100">
-          ✅ Nenhum pedido de verba pendente de desembolso no momento.
+          ✅ Nenhuma conta a pagar ou pedido pendente de desembolso no momento.
         </div>
       `;
     } else {
-      pendentesCont.innerHTML = reqsPendentes.map(r => `
+      const htmlCP = contasAbertas.map(cp => `
+        <div onclick="navegarTesourariaSubtab('contaspagar')" class="p-2.5 rounded-xl bg-rose-50/60 border border-rose-200/80 flex items-center justify-between gap-2 cursor-pointer hover:bg-rose-50 transition">
+          <div class="min-w-0">
+            <p class="font-bold text-slate-800 truncate">🧾 ${escapeHtml(cp.descricao)}</p>
+            <p class="text-[10px] text-slate-500 truncate">${escapeHtml(cp.fornecedor)} • Venc: ${formatDateBR(cp.data_vencimento)}</p>
+          </div>
+          <span class="font-mono font-extrabold text-rose-700 shrink-0">${formatBRL(cp.valor)}</span>
+        </div>
+      `).join('');
+      const htmlReq = reqsPendentes.map(r => `
         <div class="p-2.5 rounded-xl bg-amber-50/50 border border-amber-200/80 flex items-center justify-between gap-2">
           <div class="min-w-0">
-            <p class="font-bold text-slate-800 truncate">${escapeHtml(r.titulo)}</p>
+            <p class="font-bold text-slate-800 truncate">📤 ${escapeHtml(r.titulo)}</p>
             <p class="text-[10px] text-slate-500 truncate">${escapeHtml(r.ministerio_nome || 'Geral')} • Sol.: ${escapeHtml(r.solicitante || '')}</p>
           </div>
           <span class="font-mono font-extrabold text-amber-800 shrink-0">${formatBRL(r.valor_estimado)}</span>
         </div>
       `).join('');
+      pendentesCont.innerHTML = htmlCP + htmlReq;
     }
   }
 
@@ -20652,6 +20674,443 @@ function imprimirDemonstrativoFluxoCaixa() {
       <table>
         <thead>${tabelaThead}</thead>
         <tbody>${tabelaTbody}</tbody>
+      </table>
+
+      <div class="signatures">
+        <div class="sig-line">Pastor Presidente</div>
+        <div class="sig-line">Administração Geral</div>
+        <div class="sig-line">Tesouraria & Finanças</div>
+        <div class="sig-line">Conselho Fiscal</div>
+      </div>
+
+      <script>
+        window.onload = function() { setTimeout(function() { window.print(); }, 300); };
+      <\/script>
+    </body>
+    </html>
+  `);
+  win.document.close();
+}
+
+// ============================================================================
+// MÓDULO 5 DO FINANCEIRO: CONTAS A PAGAR (VENCIMENTOS, BAIXAS E PARCELAMENTOS)
+// ============================================================================
+
+function classificarSituacaoContaPagar(cp, hojeISO) {
+  if (cp.status === 'Pago') {
+    return { codigo: 'PAGO', label: '✅ Pago', classe: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
+  }
+  const venc = String(cp.data_vencimento || '');
+  if (venc && venc < hojeISO) {
+    return { codigo: 'VENCIDA', label: '🚨 Vencida', classe: 'bg-rose-100 text-rose-800 border-rose-300 animate-pulse' };
+  }
+  if (venc === hojeISO) {
+    return { codigo: 'HOJE', label: '⚠️ Vence Hoje', classe: 'bg-amber-100 text-amber-900 border-amber-300' };
+  }
+  // Próximos 7 dias
+  try {
+    const dHoje = new Date(hojeISO + 'T00:00:00');
+    const dVenc = new Date(venc + 'T00:00:00');
+    const diffDias = Math.round((dVenc - dHoje) / (1000 * 60 * 60 * 24));
+    if (diffDias >= 0 && diffDias <= 7) {
+      return { codigo: 'PROXIMOS7', label: `📅 Em ${diffDias} dia(s)`, classe: 'bg-indigo-100 text-indigo-800 border-indigo-200' };
+    }
+  } catch (e) {}
+  return { codigo: 'A_VENCER', label: '⏳ A Vencer', classe: 'bg-slate-100 text-slate-700 border-slate-200' };
+}
+
+function filtrarStatusContasPagar(statusCod) {
+  const sel = document.getElementById('cp-filtro-status');
+  if (sel) {
+    sel.value = statusCod || 'TODAS';
+  }
+  renderContasAPagar();
+}
+
+function renderContasAPagar() {
+  const sec = document.getElementById('tes-subtab-contaspagar');
+  const listaCompleta = Array.isArray(STATE.contas_pagar) ? STATE.contas_pagar : [];
+  const hojeISO = new Date().toISOString().split('T')[0];
+
+  // Atualiza badge no menu lateral (quantidade de contas em aberto)
+  const qtdAbertasGlobal = listaCompleta.filter(c => c.status !== 'Pago').length;
+  const badgeSubnav = document.getElementById('badge-subnav-contas-pagar');
+  if (badgeSubnav) {
+    if (qtdAbertasGlobal > 0) {
+      badgeSubnav.textContent = String(qtdAbertasGlobal);
+      badgeSubnav.classList.remove('hidden');
+    } else {
+      badgeSubnav.classList.add('hidden');
+    }
+  }
+
+  if (!sec) return;
+
+  // Garante data de vencimento padrão no formulário se estiver vazia
+  const inpVenc = document.getElementById('cp-vencimento');
+  if (inpVenc && !inpVenc.value) {
+    inpVenc.value = hojeISO;
+  }
+
+  // Popula select de ministérios no formulário de Contas a Pagar
+  const selMin = document.getElementById('cp-ministerio');
+  if (selMin && selMin.options.length === 0 && Array.isArray(STATE.ministerios)) {
+    selMin.innerHTML = '<option value="">Geral da Igreja (Sem Ministério Específico)</option>' +
+      STATE.ministerios.map(m => `<option value="${m.id}">🏛️ ${escapeHtml(m.nome)}</option>`).join('');
+  }
+
+  const filtroMes = document.getElementById('cp-filtro-mes')?.value || 'TODOS';
+  const filtroStatus = document.getElementById('cp-filtro-status')?.value || 'TODAS';
+  const termoBusca = (document.getElementById('cp-busca-input')?.value || '').trim().toLowerCase();
+
+  // Filtra pelo mês se selecionado
+  const listaMes = listaCompleta.filter(cp => {
+    if (filtroMes !== 'TODOS') {
+      const m = parseInt(String(cp.data_vencimento || '').substring(5, 7), 10);
+      if (m !== parseInt(filtroMes, 10)) return false;
+    }
+    return true;
+  });
+
+  // Calcula os 5 KPIs sobre o recorte do mês
+  let valAberto = 0, qtdAberto = 0;
+  let valVencidas = 0, qtdVencidas = 0;
+  let valProximos = 0, qtdProximos = 0;
+  let valPagas = 0, qtdPagas = 0;
+  let valTotalGeral = 0;
+
+  listaMes.forEach(cp => {
+    const v = Number(cp.valor || 0);
+    valTotalGeral += v;
+    const sit = classificarSituacaoContaPagar(cp, hojeISO);
+    if (cp.status === 'Pago') {
+      valPagas += Number(cp.valor_pago || cp.valor || 0);
+      qtdPagas++;
+    } else {
+      valAberto += v;
+      qtdAberto++;
+      if (sit.codigo === 'VENCIDA') {
+        valVencidas += v;
+        qtdVencidas++;
+      } else if (sit.codigo === 'HOJE' || sit.codigo === 'PROXIMOS7') {
+        valProximos += v;
+        qtdProximos++;
+      }
+    }
+  });
+
+  const setTxt = (id, txt) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = txt;
+  };
+
+  setTxt('cp-kpi-aberto', formatBRL(valAberto));
+  setTxt('cp-kpi-aberto-qtd', `${qtdAberto} conta(s) pendente(s)`);
+
+  setTxt('cp-kpi-vencidas', formatBRL(valVencidas));
+  setTxt('cp-kpi-vencidas-qtd', `${qtdVencidas} conta(s) em atraso`);
+
+  setTxt('cp-kpi-proximos', formatBRL(valProximos));
+  setTxt('cp-kpi-proximos-qtd', `${qtdProximos} vencendo em até 7 dias`);
+
+  setTxt('cp-kpi-pagas', formatBRL(valPagas));
+  setTxt('cp-kpi-pagas-qtd', `${qtdPagas} conta(s) quitada(s)`);
+
+  setTxt('cp-kpi-total-geral', formatBRL(valTotalGeral));
+  setTxt('cp-kpi-total-geral-qtd', `${listaMes.length} registro(s) no período`);
+
+  const badgeTopo = document.getElementById('cp-badge-alerta-topo');
+  if (badgeTopo) {
+    if (qtdVencidas > 0) {
+      badgeTopo.textContent = `🚨 ${qtdVencidas} Conta(s) Vencida(s)`;
+      badgeTopo.className = 'px-2.5 py-0.5 rounded-full bg-rose-500/30 text-rose-200 text-[10px] font-extrabold border border-rose-400/50 animate-pulse';
+    } else if (qtdAberto > 0) {
+      badgeTopo.textContent = `⏳ ${qtdAberto} Conta(s) a Vencer`;
+      badgeTopo.className = 'px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-extrabold border border-amber-400/30';
+    } else {
+      badgeTopo.textContent = '✅ Obrigações em Dia';
+      badgeTopo.className = 'px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold border border-emerald-400/30';
+    }
+  }
+
+  // Filtra a tabela por status e busca
+  const listaFiltrada = listaMes.filter(cp => {
+    const sit = classificarSituacaoContaPagar(cp, hojeISO);
+    if (filtroStatus === 'ABERTO' && cp.status === 'Pago') return false;
+    if (filtroStatus === 'VENCIDA' && sit.codigo !== 'VENCIDA') return false;
+    if (filtroStatus === 'PROXIMOS7' && sit.codigo !== 'HOJE' && sit.codigo !== 'PROXIMOS7') return false;
+    if (filtroStatus === 'PAGO' && cp.status !== 'Pago') return false;
+
+    if (termoBusca) {
+      const alvo = `${cp.fornecedor || ''} ${cp.descricao || ''} ${cp.categoria || ''} ${cp.documento || ''} ${cp.ministerio_nome || ''} ${cp.observacoes || ''}`.toLowerCase();
+      if (!alvo.includes(termoBusca)) return false;
+    }
+    return true;
+  });
+
+  const tbody = document.getElementById('cp-tabela-tbody');
+  if (!tbody) return;
+
+  if (listaFiltrada.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" class="py-10 text-center text-slate-400">
+          Nenhuma conta a pagar encontrada para os filtros selecionados. Utilize o formulário ao lado para cadastrar novas obrigações.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = listaFiltrada.map(cp => {
+    const sit = classificarSituacaoContaPagar(cp, hojeISO);
+    const isPago = cp.status === 'Pago';
+    return `
+      <tr class="hover:bg-slate-50 transition ${sit.codigo === 'VENCIDA' ? 'bg-rose-50/30' : ''}">
+        <td class="py-3 px-3 font-mono whitespace-nowrap">
+          <div class="font-bold text-slate-800">${formatDateBR(cp.data_vencimento)}</div>
+          ${isPago && cp.data_pagamento ? `<div class="text-[10px] text-emerald-600 font-semibold">Pago em ${formatDateBR(cp.data_pagamento)}</div>` : ''}
+        </td>
+        <td class="py-3 px-3">
+          <div class="font-extrabold text-slate-900">${escapeHtml(cp.fornecedor)}</div>
+          <div class="text-slate-600 font-medium">${escapeHtml(cp.descricao)}</div>
+          <div class="text-[10px] text-slate-400 mt-0.5">
+            Meio: <strong>${escapeHtml(cp.forma_pagamento || 'Boleto')}</strong>
+            ${cp.documento ? ` • Doc: <strong>${escapeHtml(cp.documento)}</strong>` : ''}
+            ${cp.observacoes ? ` • Obs: ${escapeHtml(cp.observacoes)}` : ''}
+          </div>
+        </td>
+        <td class="py-3 px-3">
+          <span class="inline-block px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-bold text-[10px]">${escapeHtml(cp.categoria)}</span>
+          ${cp.ministerio_nome ? `<div class="mt-1"><span class="px-2 py-0.5 rounded-full text-white text-[10px] font-bold" style="background:${cp.ministerio_cor || '#475569'}">🏛️ ${escapeHtml(cp.ministerio_nome)}</span></div>` : ''}
+        </td>
+        <td class="py-3 px-3 text-center whitespace-nowrap">
+          <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold border ${sit.classe}">
+            ${sit.label}
+          </span>
+        </td>
+        <td class="py-3 px-3 text-right font-mono font-black text-sm ${isPago ? 'text-emerald-700' : 'text-rose-700'} whitespace-nowrap">
+          ${formatBRL(cp.valor)}
+        </td>
+        <td class="py-3 px-3 text-center whitespace-nowrap">
+          <div class="inline-flex items-center gap-1.5">
+            ${!isPago ? `
+              <button type="button" onclick="baixarContaAPagar(${cp.id})" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] shadow-xs transition cursor-pointer" title="Dar baixa como Pago e lançar automaticamente no Livro-Caixa">
+                ✓ Pagar / Baixar
+              </button>
+            ` : `
+              <button type="button" onclick="estornarContaAPagar(${cp.id})" class="px-2.5 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold text-[11px] transition cursor-pointer" title="Reabrir conta e estornar baixa">
+                ↩ Reabrir
+              </button>
+            `}
+            <button type="button" onclick="excluirContaAPagar(${cp.id})" class="px-2 py-1 rounded-lg text-rose-500 hover:bg-rose-50 font-bold text-xs transition cursor-pointer" title="Excluir conta">
+              ✕
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function salvarNovaContaAPagar(e) {
+  if (e && e.preventDefault) e.preventDefault();
+
+  const fornecedor = document.getElementById('cp-fornecedor')?.value.trim();
+  const descricao = document.getElementById('cp-descricao')?.value.trim();
+  const categoria = document.getElementById('cp-categoria')?.value || 'Despesas Operacionais';
+  const documento = document.getElementById('cp-documento')?.value.trim() || '';
+  const data_vencimento = document.getElementById('cp-vencimento')?.value;
+  const valor = parseFloat(document.getElementById('cp-valor')?.value);
+  const forma_pagamento = document.getElementById('cp-forma')?.value || 'Boleto';
+  const status = document.getElementById('cp-status')?.value || 'Em Aberto';
+  const numero_parcelas = parseInt(document.getElementById('cp-parcelas')?.value || '1', 10);
+  const modo_valor = document.getElementById('cp-modo-valor')?.value || 'PARCELA';
+  const ministerio_id = document.getElementById('cp-ministerio')?.value || null;
+  const observacoes = document.getElementById('cp-observacoes')?.value.trim() || '';
+
+  if (!fornecedor || !descricao || !data_vencimento || isNaN(valor) || valor <= 0) {
+    alert('Por favor, preencha o Fornecedor, Descrição, Data de Vencimento e um Valor válido.');
+    return;
+  }
+
+  try {
+    const res = await apiPost('/api/contas-pagar', {
+      fornecedor,
+      descricao,
+      categoria,
+      documento,
+      data_vencimento,
+      valor,
+      forma_pagamento,
+      status,
+      numero_parcelas,
+      modo_valor,
+      ministerio_id,
+      observacoes,
+      operador: CURRENT_OPERATOR?.nome || 'Tesouraria'
+    });
+
+    if (res && (res.ok || !res.erro)) {
+      e.target.reset();
+      const inpVenc = document.getElementById('cp-vencimento');
+      if (inpVenc) inpVenc.value = new Date().toISOString().split('T')[0];
+      await fetchBootstrap();
+      renderContasAPagar();
+      if (typeof showLiveToast === 'function') {
+        showLiveToast(numero_parcelas > 1
+          ? `✅ Conta a pagar cadastrada em ${numero_parcelas} parcelas mensais!`
+          : `✅ Conta a pagar '${descricao}' registrada com sucesso!`);
+      }
+    } else {
+      alert(res?.erro || 'Erro ao cadastrar conta a pagar.');
+    }
+  } catch (err) {
+    console.error('Erro ao salvar conta a pagar:', err);
+    alert('Falha de comunicação ao salvar conta a pagar.');
+  }
+}
+
+async function baixarContaAPagar(id) {
+  const cp = (STATE.contas_pagar || []).find(x => Number(x.id) === Number(id));
+  if (!cp) return;
+
+  const confirmar = confirm(`Confirmar o pagamento e baixa da conta:\n\n• Fornecedor: ${cp.fornecedor}\n• Descrição: ${cp.descricao}\n• Valor: ${formatBRL(cp.valor)}\n\nO lançamento de saída será registrado automaticamente no Livro-Caixa e na Planilha Mensal.`);
+  if (!confirmar) return;
+
+  try {
+    const res = await apiPost('/api/contas-pagar/baixar', {
+      id: cp.id,
+      valor_pago: cp.valor,
+      forma_pagamento: cp.forma_pagamento || 'PIX',
+      data_pagamento: new Date().toISOString().split('T')[0],
+      operador: CURRENT_OPERATOR?.nome || 'Tesouraria'
+    });
+    if (res && (res.ok || !res.erro)) {
+      await fetchBootstrap();
+      renderContasAPagar();
+      if (typeof showLiveToast === 'function') {
+        showLiveToast(`✅ Conta '${cp.descricao}' quitada e lançada no Livro-Caixa!`);
+      }
+    } else {
+      alert(res?.erro || 'Erro ao dar baixa na conta.');
+    }
+  } catch (err) {
+    console.error('Erro ao baixar conta:', err);
+  }
+}
+
+async function estornarContaAPagar(id) {
+  const cp = (STATE.contas_pagar || []).find(x => Number(x.id) === Number(id));
+  if (!cp) return;
+  if (!confirm(`Deseja reabrir a conta '${cp.descricao}' (${formatBRL(cp.valor)}) e estornar a baixa do Livro-Caixa?`)) return;
+
+  try {
+    const res = await apiPost('/api/contas-pagar/estornar', {
+      id: cp.id,
+      operador: CURRENT_OPERATOR?.nome || 'Tesouraria'
+    });
+    if (res && (res.ok || !res.erro)) {
+      await fetchBootstrap();
+      renderContasAPagar();
+      if (typeof showLiveToast === 'function') {
+        showLiveToast(`↩ Conta '${cp.descricao}' reaberta com sucesso!`);
+      }
+    }
+  } catch (err) {
+    console.error('Erro ao estornar conta:', err);
+  }
+}
+
+async function excluirContaAPagar(id) {
+  const cp = (STATE.contas_pagar || []).find(x => Number(x.id) === Number(id));
+  if (!cp) return;
+  if (!confirm(`Deseja excluir permanentemente a conta '${cp.descricao}' (${cp.fornecedor})?`)) return;
+
+  await removerItem('/api/contas-pagar', id);
+  renderContasAPagar();
+}
+
+function imprimirRelatorioContasAPagar() {
+  const sAberto = document.getElementById('cp-kpi-aberto')?.textContent || 'R$ 0,00';
+  const sVenc = document.getElementById('cp-kpi-vencidas')?.textContent || 'R$ 0,00';
+  const sPagas = document.getElementById('cp-kpi-pagas')?.textContent || 'R$ 0,00';
+  const sTotal = document.getElementById('cp-kpi-total-geral')?.textContent || 'R$ 0,00';
+  const lista = Array.isArray(STATE.contas_pagar) ? STATE.contas_pagar : [];
+  const hojeISO = new Date().toISOString().split('T')[0];
+
+  const linhasHTML = lista.map(cp => {
+    const sit = classificarSituacaoContaPagar(cp, hojeISO);
+    return `
+      <tr>
+        <td>${formatDateBR(cp.data_vencimento)}</td>
+        <td><strong>${escapeHtml(cp.fornecedor)}</strong><br/><span style="color:#475569;">${escapeHtml(cp.descricao)}</span></td>
+        <td>${escapeHtml(cp.categoria)} ${cp.ministerio_nome ? `(${escapeHtml(cp.ministerio_nome)})` : ''}</td>
+        <td>${escapeHtml(cp.forma_pagamento || 'Boleto')}</td>
+        <td style="text-align:center;">${sit.label}</td>
+        <td style="text-align:right; font-weight:700;">${formatBRL(cp.valor)}</td>
+      </tr>
+    `;
+  }).join('');
+
+  const win = window.open('', '_blank', 'width=1100,height=800');
+  if (!win) {
+    window.print();
+    return;
+  }
+
+  win.document.write(`
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="UTF-8" />
+      <title>KAIRÓS • Relatório de Contas a Pagar</title>
+      <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; color: #0f172a; margin: 24px; font-size: 11px; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px; }
+        .brand-pill { display: inline-block; background: #0f172a; color: #34d399; font-weight: 900; font-size: 10px; letter-spacing: 2px; padding: 3px 8px; border-radius: 4px; margin-bottom: 4px; }
+        .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+        .kpi { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 10px; background: #f8fafc; }
+        .kpi span { display: block; font-size: 9px; text-transform: uppercase; color: #64748b; font-weight: 700; }
+        .kpi strong { display: block; font-size: 13px; margin-top: 3px; color: #0f172a; }
+        table { width: 100%; border-collapse: collapse; font-size: 10px; }
+        th, td { border: 1px solid #cbd5e1; padding: 6px 8px; }
+        th { background: #0f172a; color: #ffffff; text-transform: uppercase; font-size: 9px; text-align: left; }
+        .signatures { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-top: 48px; text-align: center; }
+        .sig-line { border-top: 1px solid #334155; padding-top: 6px; font-weight: 700; font-size: 10px; color: #1e293b; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div>
+          <span class="brand-pill">KAIRÓS • GESTÃO ECLESIÁSTICA</span>
+          <h1 style="margin:2px 0; font-size:18px;">Primeira Igreja Batista no Parque São Paulo</h1>
+          <p style="margin:0; color:#475569;">Relatório Oficial de Contas a Pagar, Vencimentos & Obrigações</p>
+        </div>
+        <div style="text-align:right; font-size:10px; color:#475569;">
+          <div><strong>Emitido em:</strong> ${new Date().toLocaleDateString('pt-BR')}</div>
+        </div>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi"><span>Total em Aberto</span><strong style="color:#b45309;">${sAberto}</strong></div>
+        <div class="kpi"><span>Vencidas / Em Atraso</span><strong style="color:#be123c;">${sVenc}</strong></div>
+        <div class="kpi"><span>Total Quitado / Pago</span><strong style="color:#047857;">${sPagas}</strong></div>
+        <div class="kpi"><span>Total Geral Programado</span><strong>${sTotal}</strong></div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Vencimento</th>
+            <th>Fornecedor & Descrição</th>
+            <th>Categoria / Setor</th>
+            <th>Meio</th>
+            <th style="text-align:center;">Situação</th>
+            <th style="text-align:right;">Valor</th>
+          </tr>
+        </thead>
+        <tbody>${linhasHTML || '<tr><td colspan="6" style="text-align:center;">Nenhum registro cadastrado.</td></tr>'}</tbody>
       </table>
 
       <div class="signatures">

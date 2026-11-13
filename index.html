@@ -2040,6 +2040,11 @@
             <span>📈 4. Fluxo de Caixa</span>
           </button>
 
+          <button onclick="navegarTesourariaSubtab('contaspagar')" id="subnav-tes-contaspagar" class="nav-subitem w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition text-left cursor-pointer">
+            <span>🧾 5. Contas a Pagar</span>
+            <span id="badge-subnav-contas-pagar" class="hidden text-[10px] font-extrabold bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded-full">0</span>
+          </button>
+
 
 
 
@@ -2511,7 +2516,7 @@
          🛡️ Blindagem Cloud • Auto-Backup Ativo
       </div>
       <div class="text-[10px] text-slate-500 font-medium mt-1 tracking-wider" id="versao-sistema-tag">
-        KAIRÓS • Versão 2.37 • Build 20261113
+        KAIRÓS • Versão 2.38 • Build 20261113
       </div>
 
 
@@ -5233,6 +5238,9 @@
           </button>
           <button type="button" onclick="navegarTesourariaSubtab('fluxocaixa')" id="subtab-btn-fluxocaixa" class="subtab-btn px-4 py-2 rounded-xl text-xs font-bold border border-slate-200 text-slate-700 hover:bg-slate-100 transition flex items-center gap-2 cursor-pointer">
             <span>📈</span> 4. Fluxo de Caixa
+          </button>
+          <button type="button" onclick="navegarTesourariaSubtab('contaspagar')" id="subtab-btn-contaspagar" class="subtab-btn px-4 py-2 rounded-xl text-xs font-bold border border-slate-200 text-slate-700 hover:bg-slate-100 transition flex items-center gap-2 cursor-pointer">
+            <span>🧾</span> 5. Contas a Pagar
           </button>
         </div>
 
@@ -9698,6 +9706,273 @@
                 </table>
               </div>
             </div>
+          </div>
+
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- SUB-ABA 5: CONTAS A PAGAR (VENCIMENTOS, BAIXAS E PARCELAS) -->
+        <!-- ========================================================= -->
+        <div id="tes-subtab-contaspagar" class="hidden space-y-6">
+
+          <!-- CABEÇALHO EXECUTIVO DE CONTAS A PAGAR -->
+          <div class="bg-gradient-to-r from-slate-900 via-rose-950 to-slate-900 rounded-2xl p-5 text-white shadow-lg border border-rose-500/30 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div class="space-y-1">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded-md bg-rose-500/20 border border-rose-400/40 text-rose-300 text-[10px] font-black tracking-[0.18em] uppercase">KAIRÓS • CONTAS A PAGAR</span>
+                <span class="text-slate-500 text-xs">•</span>
+                <span class="text-[11px] font-semibold text-slate-300">PIB Parque São Paulo</span>
+                <span id="cp-badge-alerta-topo" class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold border border-emerald-400/30">✅ Obrigações em Dia</span>
+              </div>
+              <h3 class="text-lg sm:text-xl font-black tracking-tight text-white flex items-center gap-2">
+                <span>🧾</span> Gestão de Contas a Pagar, Vencimentos & Obrigações
+              </h3>
+              <p class="text-xs text-slate-300 max-w-3xl">
+                Controle de boletos, fornecedores, folha pastoral/operacional, impostos e parcelamentos. Ao dar baixa em uma conta, o sistema lança automaticamente a saída no Livro-Caixa e na Planilha Mensal.
+              </p>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2.5">
+              <!-- Filtro de Mês / Exercício -->
+              <select id="cp-filtro-mes" onchange="renderContasAPagar()" class="bg-slate-900/90 border border-slate-700 text-white text-xs font-bold rounded-xl px-3 py-2 focus:ring-2 focus:ring-rose-400 cursor-pointer">
+                <option value="TODOS">📅 Todos os Meses do Exercício</option>
+                <option value="1">Janeiro</option>
+                <option value="2">Fevereiro</option>
+                <option value="3">Março</option>
+                <option value="4">Abril</option>
+                <option value="5">Maio</option>
+                <option value="6">Junho</option>
+                <option value="7">Julho</option>
+                <option value="8">Agosto</option>
+                <option value="9">Setembro</option>
+                <option value="10">Outubro</option>
+                <option value="11">Novembro</option>
+                <option value="12">Dezembro</option>
+              </select>
+
+              <!-- Botão Imprimir Relatório de Contas a Pagar -->
+              <button type="button" onclick="imprimirRelatorioContasAPagar()" class="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-extrabold shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                <span>🖨️</span> Imprimir Relatório
+              </button>
+            </div>
+          </div>
+
+          <!-- 5 CARDS DE KPI DE CONTAS A PAGAR -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+            <!-- 1. Total em Aberto (A Pagar) -->
+            <div onclick="filtrarStatusContasPagar('ABERTO')" class="bg-white p-4 rounded-2xl border border-amber-200/90 shadow-xs cursor-pointer hover:border-amber-400 transition flex flex-col justify-between">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-extrabold uppercase tracking-wider text-amber-800">1. Total em Aberto</span>
+                <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-sm font-bold">⏳</span>
+              </div>
+              <p id="cp-kpi-aberto" class="text-lg sm:text-xl font-black text-amber-700 mt-1.5 font-mono">R$ 0,00</p>
+              <p id="cp-kpi-aberto-qtd" class="text-[10px] text-slate-500 font-semibold mt-0.5">0 conta(s) pendente(s)</p>
+            </div>
+
+            <!-- 2. Vencidas / Em Atraso -->
+            <div onclick="filtrarStatusContasPagar('VENCIDA')" class="bg-gradient-to-br from-rose-50/80 to-white p-4 rounded-2xl border border-rose-200/90 shadow-xs cursor-pointer hover:border-rose-400 transition flex flex-col justify-between">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-extrabold uppercase tracking-wider text-rose-800">2. Vencidas / Atraso</span>
+                <span class="w-7 h-7 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center text-sm font-bold">🚨</span>
+              </div>
+              <p id="cp-kpi-vencidas" class="text-lg sm:text-xl font-black text-rose-700 mt-1.5 font-mono">R$ 0,00</p>
+              <p id="cp-kpi-vencidas-qtd" class="text-[10px] text-rose-600 font-semibold mt-0.5">0 conta(s) em atraso</p>
+            </div>
+
+            <!-- 3. Vencendo nos Próximos 7 Dias -->
+            <div onclick="filtrarStatusContasPagar('PROXIMOS7')" class="bg-white p-4 rounded-2xl border border-indigo-200/90 shadow-xs cursor-pointer hover:border-indigo-400 transition flex flex-col justify-between">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-extrabold uppercase tracking-wider text-indigo-800">3. Vencendo (7 Dias)</span>
+                <span class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center text-sm font-bold">📅</span>
+              </div>
+              <p id="cp-kpi-proximos" class="text-lg sm:text-xl font-black text-indigo-700 mt-1.5 font-mono">R$ 0,00</p>
+              <p id="cp-kpi-proximos-qtd" class="text-[10px] text-slate-500 font-semibold mt-0.5">0 conta(s) na semana</p>
+            </div>
+
+            <!-- 4. Contas Pagas / Quitadas -->
+            <div onclick="filtrarStatusContasPagar('PAGO')" class="bg-gradient-to-br from-emerald-50/80 to-white p-4 rounded-2xl border border-emerald-200/90 shadow-xs cursor-pointer hover:border-emerald-400 transition flex flex-col justify-between">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800">4. Total Quitado</span>
+                <span class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-sm font-bold">✅</span>
+              </div>
+              <p id="cp-kpi-pagas" class="text-lg sm:text-xl font-black text-emerald-700 mt-1.5 font-mono">R$ 0,00</p>
+              <p id="cp-kpi-pagas-qtd" class="text-[10px] text-emerald-600 font-semibold mt-0.5">0 conta(s) paga(s)</p>
+            </div>
+
+            <!-- 5. Total Geral Programado -->
+            <div onclick="filtrarStatusContasPagar('TODAS')" class="bg-slate-900 p-4 rounded-2xl border border-slate-700 shadow-sm text-white cursor-pointer hover:border-slate-500 transition flex flex-col justify-between">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-300">5. Total Geral</span>
+                <span class="w-7 h-7 rounded-lg bg-white/10 text-white flex items-center justify-center text-sm font-bold">📊</span>
+              </div>
+              <p id="cp-kpi-total-geral" class="text-lg sm:text-xl font-black text-white mt-1.5 font-mono">R$ 0,00</p>
+              <p id="cp-kpi-total-geral-qtd" class="text-[10px] text-slate-300 font-medium mt-0.5">0 registro(s) no período</p>
+            </div>
+          </div>
+
+          <!-- GRID PRINCIPAL: FORMULÁRIO DE NOVA CONTA A PAGAR (ESQUERDA) & PAINEL DE CONTAS (DIREITA) -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- FORMULÁRIO DE CADASTRO DE CONTA A PAGAR (4 COLUNAS) -->
+            <div class="lg:col-span-4 bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4 h-fit">
+              <div class="border-b border-slate-100 pb-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-[10px] font-extrabold uppercase tracking-wider bg-rose-100 text-rose-800 px-2.5 py-0.5 rounded-full">Nova Obrigação</span>
+                  <span class="text-[11px] text-slate-400 font-medium">Integrado ao Livro-Caixa</span>
+                </div>
+                <h4 class="font-extrabold text-slate-900 text-base mt-1">Cadastrar Conta a Pagar</h4>
+                <p class="text-xs text-slate-500">Registre contas únicas, boletos ou despesas parceladas/recorrentes.</p>
+              </div>
+
+              <form onsubmit="salvarNovaContaAPagar(event)" class="space-y-3 text-xs">
+                <div>
+                  <label class="font-bold text-slate-700 block mb-1">Fornecedor / Credor / Favorecido *</label>
+                  <input type="text" id="cp-fornecedor" required placeholder="Ex: Enel, Sabesp, Kalunga, Pr. Ivan..." class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white text-slate-800 focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                </div>
+
+                <div>
+                  <label class="font-bold text-slate-700 block mb-1">Descrição da Conta / Obrigação *</label>
+                  <input type="text" id="cp-descricao" required placeholder="Ex: Conta de Energia Elétrica, Material EBD..." class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white text-slate-800 focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label class="font-bold text-slate-700 block mb-1">Categoria / Conta *</label>
+                    <select id="cp-categoria" class="w-full border border-slate-300 rounded-xl px-2.5 py-2 bg-white font-semibold text-slate-800 focus:ring-2 focus:ring-rose-500">
+                      <option value="Despesas Fixas">🏠 Despesas Fixas (Água, Luz, Net, Aluguel)</option>
+                      <option value="Folha de Pagamento">👤 Folha de Pagamento / Prebenda</option>
+                      <option value="Impostos">🏛️ Impostos e Taxas (IPTU, DARF, ISS)</option>
+                      <option value="Desp. banco/Cartório/Sistema">🏦 Banco, Cartório, Jurídico e Sistemas</option>
+                      <option value="Convenção/Campanhas Miss.">🌍 Convenção Batista e Campanhas</option>
+                      <option value="Missionários Fixos">⛪ Missionários Fixos</option>
+                      <option value="Despesas com Ministérios">🎯 Despesas com Ministérios</option>
+                      <option value="Manutenção/Patrimônio/Equip.">🛠️ Manutenção, Obras e Patrimônio</option>
+                      <option value="Despesas Operacionais">🧹 Despesas Operacionais e Limpeza</option>
+                      <option value="Gráfica /Livraria/ADM">📚 Gráfica, Livraria e ADM</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="font-bold text-slate-700 block mb-1">Nº Documento / Boleto</label>
+                    <input type="text" id="cp-documento" placeholder="NF, Boleto, Recibo..." class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white text-slate-800 focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label class="font-bold text-slate-700 block mb-1">Data de Vencimento *</label>
+                    <input type="date" id="cp-vencimento" required class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white font-bold text-slate-800 focus:ring-2 focus:ring-rose-500" />
+                  </div>
+                  <div>
+                    <label class="font-bold text-slate-700 block mb-1">Valor (R$) *</label>
+                    <input type="number" step="0.01" min="0.01" id="cp-valor" required placeholder="0,00" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white font-black text-rose-700 text-sm focus:ring-2 focus:ring-rose-500" />
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label class="font-bold text-slate-700 block mb-1">Meio de Pagamento</label>
+                    <select id="cp-forma" class="w-full border border-slate-300 rounded-xl px-2.5 py-2 bg-white font-semibold text-slate-800">
+                      <option value="Boleto">📄 Boleto Bancário</option>
+                      <option value="PIX">⚡ PIX</option>
+                      <option value="Transferência">🏦 Transferência / Débito</option>
+                      <option value="Cartão">💳 Cartão</option>
+                      <option value="Dinheiro">💵 Dinheiro / Caixa</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="font-bold text-slate-700 block mb-1">Status Inicial</label>
+                    <select id="cp-status" class="w-full border border-slate-300 rounded-xl px-2.5 py-2 bg-white font-bold text-slate-800">
+                      <option value="Em Aberto">⏳ Em Aberto (A Pagar)</option>
+                      <option value="Pago">✅ Já Pago (Baixar Agora)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- RECORRÊNCIA / PARCELAMENTO -->
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <label class="font-bold text-slate-700 block mb-1 text-[11px]">Qtd. Parcelas / Meses</label>
+                      <select id="cp-parcelas" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 bg-white font-bold text-slate-800 text-xs">
+                        <option value="1">1x (Conta Única)</option>
+                        <option value="2">2x Mensais</option>
+                        <option value="3">3x Mensais</option>
+                        <option value="4">4x Mensais</option>
+                        <option value="5">5x Mensais</option>
+                        <option value="6">6x Semestrais</option>
+                        <option value="10">10x Mensais</option>
+                        <option value="12">12x Anuais (Fixa)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="font-bold text-slate-700 block mb-1 text-[11px]">Valor Informado é:</label>
+                      <select id="cp-modo-valor" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 bg-white font-semibold text-slate-800 text-xs">
+                        <option value="PARCELA">Valor de Cada Parcela</option>
+                        <option value="TOTAL">Valor Total a Dividir</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="font-bold text-slate-700 block mb-1">Centro de Custo / Ministério (Opcional)</label>
+                  <select id="cp-ministerio" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white text-slate-800"></select>
+                </div>
+
+                <div>
+                  <label class="font-bold text-slate-700 block mb-1">Observações</label>
+                  <input type="text" id="cp-observacoes" placeholder="Código de barras, chave PIX, detalhes..." class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white text-slate-800" />
+                </div>
+
+                <button type="submit" class="w-full bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-extrabold py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer text-xs">
+                  <span>💾</span> Cadastrar Conta a Pagar
+                </button>
+              </form>
+            </div>
+
+            <!-- LISTAGEM E CONTROLE DE BAIXAS DE CONTAS A PAGAR (8 COLUNAS) -->
+            <div class="lg:col-span-8 bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <div>
+                  <h4 class="font-extrabold text-slate-900 text-base">Relação de Contas a Pagar & Obrigações</h4>
+                  <p class="text-xs text-slate-500">Clique em <strong>"✓ Pagar / Dar Baixa"</strong> para quitar a obrigação e registrar a saída no Livro-Caixa automaticamente</p>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                  <input
+                    type="text"
+                    id="cp-busca-input"
+                    oninput="renderContasAPagar()"
+                    placeholder="🔍 Buscar fornecedor, descrição..."
+                    class="border border-slate-300 rounded-xl px-3 py-1.5 text-xs bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500"
+                  />
+                  <select id="cp-filtro-status" onchange="renderContasAPagar()" class="border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-700 bg-white">
+                    <option value="TODAS">📋 Todos os Status</option>
+                    <option value="ABERTO">⏳ Em Aberto (A Vencer + Vencidas)</option>
+                    <option value="VENCIDA">🚨 Apenas Vencidas (Em Atraso)</option>
+                    <option value="PROXIMOS7">📅 Vencendo em até 7 Dias</option>
+                    <option value="PAGO">✅ Pagas / Quitadas</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                <table class="w-full text-left border-collapse text-xs">
+                  <thead class="bg-slate-900 text-white uppercase text-[10px] font-bold tracking-wider">
+                    <tr>
+                      <th class="py-3 px-3">Vencimento</th>
+                      <th class="py-3 px-3">Fornecedor & Descrição</th>
+                      <th class="py-3 px-3">Categoria / Setor</th>
+                      <th class="py-3 px-3 text-center">Situação</th>
+                      <th class="py-3 px-3 text-right">Valor</th>
+                      <th class="py-3 px-3 text-center">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cp-tabela-tbody" class="divide-y divide-slate-100 bg-white"></tbody>
+                </table>
+              </div>
+            </div>
+
           </div>
 
         </div>
@@ -25462,7 +25737,7 @@
   </div>
 
   <script src="/qrcode.min.js"></script>
-  <script src="/app.js?v=20261113_v237_fluxo_caixa"></script>
+  <script src="/app.js?v=20261113_v238_contas_pagar"></script>
 
 
 

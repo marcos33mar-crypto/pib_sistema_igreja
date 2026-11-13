@@ -1077,6 +1077,32 @@ def init_db():
 
             );
 
+            CREATE TABLE IF NOT EXISTS contas_pagar (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fornecedor TEXT NOT NULL,
+                descricao TEXT NOT NULL,
+                categoria TEXT NOT NULL,
+                documento TEXT DEFAULT '',
+                data_emissao TEXT NOT NULL,
+                data_vencimento TEXT NOT NULL,
+                valor REAL NOT NULL,
+                forma_pagamento TEXT DEFAULT 'Boleto',
+                status TEXT DEFAULT 'Em Aberto',
+                data_pagamento TEXT DEFAULT '',
+                valor_pago REAL DEFAULT 0,
+                pago_por TEXT DEFAULT '',
+                ministerio_id INTEGER,
+                rubrica_matriz_id INTEGER,
+                parcelado INTEGER DEFAULT 0,
+                numero_parcelas INTEGER DEFAULT 1,
+                parcela_atual INTEGER DEFAULT 1,
+                grupo_parcela_id TEXT DEFAULT '',
+                financeiro_id INTEGER,
+                observacoes TEXT DEFAULT '',
+                criado_por TEXT DEFAULT 'Tesouraria',
+                criado_em TEXT DEFAULT ''
+            );
+
             """
 
         )
@@ -2680,6 +2706,18 @@ def build_bootstrap_data(req_handler=None):
 
         ]
 
+        contas_pagar = [
+            dict(r)
+            for r in cur.execute(
+                """
+                SELECT cp.*, min.nome as ministerio_nome, min.cor as ministerio_cor
+                FROM contas_pagar cp
+                LEFT JOIN ministerios min ON cp.ministerio_id = min.id
+                ORDER BY CASE WHEN cp.status = 'Em Aberto' THEN 0 ELSE 1 END, cp.data_vencimento ASC, cp.id DESC
+                """
+            ).fetchall()
+        ]
+
 
 
         # Calcula o realizado 2026 de cada ministério somando o que está na matriz 2026 ("7. Despesas com Ministérios")
@@ -2817,6 +2855,8 @@ def build_bootstrap_data(req_handler=None):
             "auditoria": auditoria,
 
             "atas": atas,
+
+            "contas_pagar": contas_pagar,
 
             "clientes_conectados": clientes_ativos,
 
@@ -6972,7 +7012,187 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                     return self.send_json({"ok": True, "mensagem": f"Senha de {nome_u} resetada para o padrão inicial 123456. O usuário deverá criar uma nova senha no próximo acesso."})
 
+                # CONTAS A PAGAR (CADASTRO, PARCELAMENTO/RECORRÊNCIA, BAIXA E ESTORNO INTEGRADOS)
+                elif path == "/api/contas-pagar":
+                    fornecedor = (body.get("fornecedor") or "").strip() or "Fornecedor Geral"
+                    descricao = (body.get("descricao") or "").strip() or "Conta a Pagar"
+                    categoria = (body.get("categoria") or "Despesas Operacionais").strip()
+                    documento = (body.get("documento") or "").strip()
+                    data_emissao = body.get("data_emissao") or datetime.now().strftime("%Y-%m-%d")
+                    data_venc = body.get("data_vencimento") or datetime.now().strftime("%Y-%m-%d")
+                    valor_in = parse_moeda(body.get("valor", 0))
+                    forma = (body.get("forma_pagamento") or "Boleto").strip()
+                    status_ini = (body.get("status") or "Em Aberto").strip()
+                    observacoes = (body.get("observacoes") or "").strip()
+                    ministerio_id = body.get("ministerio_id") or None
+                    if ministerio_id:
+                        try:
+                            ministerio_id = int(ministerio_id)
+                        except (ValueError, TypeError):
+                            ministerio_id = None
 
+                    num_parcelas = int(body.get("numero_parcelas") or 1)
+                    if num_parcelas < 1:
+                        num_parcelas = 1
+                    if num_parcelas > 60:
+                        num_parcelas = 60
+                    modo_valor = (body.get("modo_valor") or "PARCELA").upper()  # PARCELA ou TOTAL
+                    is_parcelado = 1 if num_parcelas > 1 else 0
+
+                    agora_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    hoje_str = datetime.now().strftime("%Y-%m-%d")
+
+                    if is_parcelado:
+                        if modo_valor == "TOTAL":
+                            val_parcela = round(valor_in / num_parcelas, 2)
+                            val_total = valor_in
+                        else:
+                            val_parcela = valor_in
+                            val_total = round(valor_in * num_parcelas, 2)
+
+                        grupo_id = f"CP-{datetime.now().strftime('%Y%m%d%H%M%S')}-{random.randint(100, 999)}"
+                        try:
+                            dt_base = datetime.strptime(data_venc, "%Y-%m-%d")
+                        except Exception:
+                            dt_base = datetime.now()
+
+                        for i in range(1, num_parcelas + 1):
+                            dt_venc_i = add_months(dt_base, i - 1).strftime("%Y-%m-%d")
+                            if i == 1 and modo_valor == "TOTAL":
+                                val_i = round(val_total - (val_parcela * (num_parcelas - 1)), 2)
+                            else:
+                                val_i = val_parcela
+                            desc_i = f"{descricao} ({i:02d}/{num_parcelas:02d})"
+                            st_i = status_ini if i == 1 else "Em Aberto"
+                            dt_pag_i = hoje_str if st_i == "Pago" else ""
+                            val_pago_i = val_i if st_i == "Pago" else 0.0
+                            pago_por_i = operador if st_i == "Pago" else ""
+                            fin_id_i = None
+
+                            if st_i == "Pago":
+                                cur.execute(
+                                    """INSERT INTO financeiro
+                                    (data_lancamento, tipo, categoria, descricao, valor, forma_pagamento, status, pessoa_nome, ministerio_id, lancado_por)
+                                    VALUES (?, 'SAIDA', ?, ?, ?, ?, 'Pago', ?, ?, ?)""",
+                                    (dt_pag_i, categoria, f"[CP] {desc_i} - {fornecedor}", val_i, forma, fornecedor, ministerio_id, operador),
+                                )
+                                fin_id_i = cur.lastrowid
+                                sincronizar_lancamento_na_matriz(cur, dt_pag_i, "SAIDA", categoria, desc_i, val_i, ministerio_id)
+
+                            cur.execute(
+                                """INSERT INTO contas_pagar
+                                (fornecedor, descricao, categoria, documento, data_emissao, data_vencimento, valor, forma_pagamento,
+                                 status, data_pagamento, valor_pago, pago_por, ministerio_id, parcelado, numero_parcelas, parcela_atual,
+                                 grupo_parcela_id, financeiro_id, observacoes, criado_por, criado_em)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                (fornecedor, desc_i, categoria, documento, data_emissao, dt_venc_i, val_i, forma,
+                                 st_i, dt_pag_i, val_pago_i, pago_por_i, ministerio_id, 1, num_parcelas, i,
+                                 grupo_id, fin_id_i, observacoes, operador, agora_str),
+                            )
+
+                        log_auditoria(conn, operador, "Tesouraria", "Contas a Pagar (Parcelada)", f"Cadastrou '{descricao}' ({fornecedor}) em {num_parcelas}x (Total R$ {val_total:,.2f})")
+                        conn.commit()
+                        conn.close()
+                        broadcast_event("sync", {"setor": "Tesouraria", "operador": operador, "mensagem": f"{operador} cadastrou conta a pagar parcelada em {num_parcelas}x ({fornecedor})."})
+                        return self.send_json({"ok": True, "parcelas": num_parcelas})
+                    else:
+                        dt_pag = (body.get("data_pagamento") or hoje_str) if status_ini == "Pago" else ""
+                        val_pago = valor_in if status_ini == "Pago" else 0.0
+                        pago_por = operador if status_ini == "Pago" else ""
+                        fin_id = None
+
+                        if status_ini == "Pago":
+                            cur.execute(
+                                """INSERT INTO financeiro
+                                (data_lancamento, tipo, categoria, descricao, valor, forma_pagamento, status, pessoa_nome, ministerio_id, lancado_por)
+                                VALUES (?, 'SAIDA', ?, ?, ?, ?, 'Pago', ?, ?, ?)""",
+                                (dt_pag, categoria, f"[CP] {descricao} - {fornecedor}", valor_in, forma, fornecedor, ministerio_id, operador),
+                            )
+                            fin_id = cur.lastrowid
+                            sincronizar_lancamento_na_matriz(cur, dt_pag, "SAIDA", categoria, descricao, valor_in, ministerio_id)
+
+                        cur.execute(
+                            """INSERT INTO contas_pagar
+                            (fornecedor, descricao, categoria, documento, data_emissao, data_vencimento, valor, forma_pagamento,
+                             status, data_pagamento, valor_pago, pago_por, ministerio_id, parcelado, numero_parcelas, parcela_atual,
+                             grupo_parcela_id, financeiro_id, observacoes, criado_por, criado_em)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, 1, '', ?, ?, ?, ?)""",
+                            (fornecedor, descricao, categoria, documento, data_emissao, data_venc, valor_in, forma,
+                             status_ini, dt_pag, val_pago, pago_por, ministerio_id, fin_id, observacoes, operador, agora_str),
+                        )
+                        log_auditoria(conn, operador, "Tesouraria", "Contas a Pagar", f"Cadastrou conta '{descricao}' ({fornecedor}) - Venc: {data_venc} - R$ {valor_in:,.2f}")
+                        conn.commit()
+                        conn.close()
+                        broadcast_event("sync", {"setor": "Tesouraria", "operador": operador, "mensagem": f"{operador} cadastrou conta a pagar: {descricao} (R$ {valor_in:,.2f})."})
+                        return self.send_json({"ok": True})
+
+                elif path == "/api/contas-pagar/baixar":
+                    cp_id = int(body.get("id", 0))
+                    row_cp = cur.execute("SELECT * FROM contas_pagar WHERE id=?", (cp_id,)).fetchone()
+                    if not row_cp:
+                        conn.close()
+                        return self.send_json({"erro": "Conta a pagar não encontrada."}, 404)
+                    if row_cp["status"] == "Pago":
+                        conn.close()
+                        return self.send_json({"ok": True, "mensagem": "Esta conta já consta como paga."})
+
+                    dt_pag = body.get("data_pagamento") or datetime.now().strftime("%Y-%m-%d")
+                    val_pago = parse_moeda(body.get("valor_pago", row_cp["valor"]))
+                    if val_pago <= 0:
+                        val_pago = float(row_cp["valor"] or 0)
+                    forma_pag = (body.get("forma_pagamento") or row_cp["forma_pagamento"] or "PIX").strip()
+
+                    # Registra automaticamente no Livro-Caixa Diário e sincroniza na Planilha Mensal
+                    cur.execute(
+                        """INSERT INTO financeiro
+                        (data_lancamento, tipo, categoria, descricao, valor, forma_pagamento, status, pessoa_nome, ministerio_id, lancado_por)
+                        VALUES (?, 'SAIDA', ?, ?, ?, ?, 'Pago', ?, ?, ?)""",
+                        (dt_pag, row_cp["categoria"], f"[CP #{cp_id}] {row_cp['descricao']} - {row_cp['fornecedor']}", val_pago, forma_pag, row_cp["fornecedor"], row_cp["ministerio_id"], operador),
+                    )
+                    fin_id = cur.lastrowid
+                    sincronizar_lancamento_na_matriz(cur, dt_pag, "SAIDA", row_cp["categoria"], row_cp["descricao"], val_pago, row_cp["ministerio_id"])
+
+                    cur.execute(
+                        """UPDATE contas_pagar
+                        SET status='Pago', data_pagamento=?, valor_pago=?, forma_pagamento=?, pago_por=?, financeiro_id=?
+                        WHERE id=?""",
+                        (dt_pag, val_pago, forma_pag, operador, fin_id, cp_id),
+                    )
+                    log_auditoria(conn, operador, "Tesouraria", "Baixa de Conta a Pagar", f"Quitou conta #{cp_id}: {row_cp['descricao']} ({row_cp['fornecedor']}) - R$ {val_pago:,.2f}")
+                    conn.commit()
+                    conn.close()
+                    broadcast_event("sync", {"setor": "Tesouraria", "operador": operador, "mensagem": f"{operador} deu baixa na conta '{row_cp['descricao']}' (R$ {val_pago:,.2f})."})
+                    return self.send_json({"ok": True})
+
+                elif path == "/api/contas-pagar/estornar":
+                    cp_id = int(body.get("id", 0))
+                    row_cp = cur.execute("SELECT * FROM contas_pagar WHERE id=?", (cp_id,)).fetchone()
+                    if not row_cp:
+                        conn.close()
+                        return self.send_json({"erro": "Conta não encontrada."}, 404)
+                    if row_cp["status"] == "Pago":
+                        fin_id = row_cp["financeiro_id"]
+                        if fin_id:
+                            fin_row = cur.execute("SELECT * FROM financeiro WHERE id=?", (fin_id,)).fetchone()
+                            if fin_row:
+                                sincronizar_lancamento_na_matriz(
+                                    cur, fin_row["data_lancamento"], "SAIDA", fin_row["categoria"], fin_row["descricao"], -float(fin_row["valor"] or 0), fin_row["ministerio_id"]
+                                )
+                                cur.execute("DELETE FROM financeiro WHERE id=?", (fin_id,))
+                        else:
+                            sincronizar_lancamento_na_matriz(
+                                cur, row_cp["data_pagamento"] or row_cp["data_vencimento"], "SAIDA", row_cp["categoria"], row_cp["descricao"], -float(row_cp["valor_pago"] or row_cp["valor"] or 0), row_cp["ministerio_id"]
+                            )
+
+                    cur.execute(
+                        "UPDATE contas_pagar SET status='Em Aberto', data_pagamento='', valor_pago=0, pago_por='', financeiro_id=NULL WHERE id=?",
+                        (cp_id,),
+                    )
+                    log_auditoria(conn, operador, "Tesouraria", "Reabertura de Conta a Pagar", f"Reabriu conta #{cp_id}: {row_cp['descricao']}")
+                    conn.commit()
+                    conn.close()
+                    broadcast_event("sync", {"setor": "Tesouraria", "operador": operador, "mensagem": f"{operador} reabriu a conta '{row_cp['descricao']}'."})
+                    return self.send_json({"ok": True})
 
                 conn.close()
 
@@ -7036,6 +7256,8 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                 "/api/visitantes": ("visitantes", "Recepção", "Exclusão de Visitante"),
 
+                "/api/contas-pagar": ("contas_pagar", "Tesouraria", "Exclusão de Conta a Pagar"),
+
             }
 
 
@@ -7043,6 +7265,18 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
             if path in tabelas and item_id > 0:
 
                 tabela, setor, acao = tabelas[path]
+
+                if tabela == "contas_pagar":
+                    cp_row = cur.execute("SELECT * FROM contas_pagar WHERE id=?", (item_id,)).fetchone()
+                    if cp_row and cp_row["status"] == "Pago":
+                        fin_id = cp_row["financeiro_id"]
+                        if fin_id:
+                            fin_row = cur.execute("SELECT * FROM financeiro WHERE id=?", (fin_id,)).fetchone()
+                            if fin_row:
+                                sincronizar_lancamento_na_matriz(
+                                    cur, fin_row["data_lancamento"], "SAIDA", fin_row["categoria"], fin_row["descricao"], -float(fin_row["valor"] or 0), fin_row["ministerio_id"]
+                                )
+                                cur.execute("DELETE FROM financeiro WHERE id=?", (fin_id,))
 
                 if tabela == "financeiro":
 
