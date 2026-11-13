@@ -3361,7 +3361,7 @@ function switchTab(tabName) {
   } else {
     if (subMenuTes) subMenuTes.classList.remove('hidden');
     if (setaTes) setaTes.style.transform = 'rotate(0deg)';
-    ['planilha', 'orcamento', 'diarios'].forEach(st => {
+    ['planilha', 'orcamento', 'diarios', 'fluxocaixa'].forEach(st => {
       const subnav = document.getElementById('subnav-tes-' + st);
       if (subnav) {
         if (st === (TESOURARIA_SUBTAB || 'planilha')) {
@@ -3449,7 +3449,7 @@ function switchTesourariaSubtab(subtab) {
   }
   TESOURARIA_SUBTAB = subtab;
 
-  ['planilha', 'orcamento', 'diarios'].forEach(st => {
+  ['planilha', 'orcamento', 'diarios', 'fluxocaixa'].forEach(st => {
     const sec = document.getElementById('tes-subtab-' + st);
     const subnav = document.getElementById('subnav-tes-' + st);
     const btn = document.getElementById('subtab-btn-' + st);
@@ -3460,8 +3460,13 @@ function switchTesourariaSubtab(subtab) {
     }
 
     if (btn) {
-      if (st === subtab) btn.classList.add('active');
-      else btn.classList.remove('active');
+      if (st === subtab) {
+        btn.classList.add('active');
+        btn.classList.remove('text-slate-700', 'hover:bg-slate-100');
+      } else {
+        btn.classList.remove('active');
+        btn.classList.add('text-slate-700', 'hover:bg-slate-100');
+      }
     }
 
     if (subnav) {
@@ -3479,6 +3484,10 @@ function switchTesourariaSubtab(subtab) {
     renderOrcamento15Ministerios();
   } else if (subtab === 'diarios') {
     renderTesouraria();
+  } else if (subtab === 'fluxocaixa') {
+    if (typeof renderFluxoDeCaixa === 'function') {
+      renderFluxoDeCaixa();
+    }
   }
 }
 
@@ -4204,6 +4213,9 @@ function selecionarAnoDashboard(ano) {
   renderMatrizTesouraria();
   renderSlideTesouraria();
   renderSlideMinisterios();
+  if (typeof renderFluxoDeCaixa === 'function') {
+    renderFluxoDeCaixa();
+  }
   showLiveToast(`📅 Exercício alternado para ${numAno}!`);
 }
 
@@ -5356,6 +5368,9 @@ function renderAll() {
   renderMatrizTesouraria();
   renderOrcamento15Ministerios();
   renderTesouraria();
+  if (typeof renderFluxoDeCaixa === 'function') {
+    renderFluxoDeCaixa();
+  }
   renderMembros();
   renderVisitantes();
   renderEscalas();
@@ -20078,4 +20093,579 @@ async function salvarModalConta12Meses(e, rowId) {
   if (typeof showLiveToast === 'function') {
     showLiveToast(`✅ 12 meses de ${item.rubrica} atualizados com sucesso!`);
   }
+}
+
+// ============================================================================
+// MÓDULO 4 DO FINANCEIRO: FLUXO DE CAIXA (DFC CONSOLIDADO & PROGRESSIVO)
+// ============================================================================
+
+let DFC_GRUPOS_EXPANDIDOS = true;
+
+function alterarAnoMatriz(val) {
+  const num = parseInt(val, 10);
+  if (!isNaN(num) && num >= 1990 && num <= 2100) {
+    selecionarAnoDashboard(num);
+  }
+}
+
+function stepAnoMatriz(delta) {
+  navegarAnoExercicio(Number(delta) || 0);
+}
+
+function obterSaldoInicialFluxoCaixa(ano) {
+  const anoRef = Number(ano) || Number(ANO_MATRIZ_ATIVO) || 2026;
+  try {
+    const salvo = localStorage.getItem('kairos_saldo_inicial_fc_' + anoRef);
+    if (salvo !== null && salvo !== '') {
+      const v = parseFloat(salvo);
+      if (!isNaN(v)) return v;
+    }
+  } catch (e) {}
+  return 0;
+}
+
+function salvarSaldoInicialFluxoCaixa(valor) {
+  const anoRef = Number(ANO_MATRIZ_ATIVO) || 2026;
+  const v = parseFloat(valor) || 0;
+  try {
+    localStorage.setItem('kairos_saldo_inicial_fc_' + anoRef, String(v));
+  } catch (e) {}
+  renderFluxoDeCaixa();
+  if (typeof showLiveToast === 'function') {
+    showLiveToast(`💰 Saldo inicial de caixa de ${anoRef} atualizado para ${formatBRL(v)}`);
+  }
+}
+
+function alternarDetalheGruposDFC() {
+  DFC_GRUPOS_EXPANDIDOS = !DFC_GRUPOS_EXPANDIDOS;
+  renderFluxoDeCaixa();
+}
+
+function obterMesesDoPeriodoDFC(periodo) {
+  const p = String(periodo || 'ANO').toUpperCase();
+  if (p === 'ANO') return [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+  if (p === 'S1') return [0, 1, 2, 3, 4, 5];
+  if (p === 'S2') return [6, 7, 8, 9, 10, 11];
+  if (p === 'T1') return [0, 1, 2];
+  if (p === 'T2') return [3, 4, 5];
+  if (p === 'T3') return [6, 7, 8];
+  if (p === 'T4') return [9, 10, 11];
+  const m = parseInt(p, 10);
+  if (!isNaN(m) && m >= 1 && m <= 12) return [m - 1];
+  return [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+}
+
+function renderFluxoDeCaixa() {
+  const sec = document.getElementById('tes-subtab-fluxocaixa');
+  if (!sec) return;
+
+  const anoAtivo = Number(ANO_MATRIZ_ATIVO) || 2026;
+  const inputAno = document.getElementById('fc-ano-input');
+  if (inputAno && Number(inputAno.value) !== anoAtivo) {
+    inputAno.value = String(anoAtivo);
+  }
+
+  const saldoInicialAno = obterSaldoInicialFluxoCaixa(anoAtivo);
+  const inputSaldoIni = document.getElementById('fc-saldo-inicial-input');
+  if (inputSaldoIni && document.activeElement !== inputSaldoIni) {
+    inputSaldoIni.value = saldoInicialAno.toFixed(2);
+  }
+
+  const selPeriodo = document.getElementById('fc-filtro-periodo');
+  const periodoSel = selPeriodo ? selPeriodo.value : 'ANO';
+  const mesesIndices = obterMesesDoPeriodoDFC(periodoSel);
+  const qtdMesesPeriodo = mesesIndices.length || 1;
+
+  // Dados da Matriz Financeira para o ano ativo
+  const { rows, entMes, saiMes } = calcularResumoAnoMatriz(anoAtivo);
+
+  // Calcula a evolução progressiva mês a mês (Janeiro a Dezembro)
+  const saldoAberturaMes = Array(12).fill(0);
+  const geracaoLiquidaMes = Array(12).fill(0);
+  const saldoFechamentoMes = Array(12).fill(0);
+
+  let acumuladoCorrente = saldoInicialAno;
+  for (let m = 0; m < 12; m++) {
+    saldoAberturaMes[m] = acumuladoCorrente;
+    geracaoLiquidaMes[m] = Number(entMes[m] || 0) - Number(saiMes[m] || 0);
+    saldoFechamentoMes[m] = saldoAberturaMes[m] + geracaoLiquidaMes[m];
+    acumuladoCorrente = saldoFechamentoMes[m];
+  }
+
+  // Recorte do período selecionado nos filtros
+  const primeiroMesIdx = mesesIndices[0];
+  const ultimoMesIdx = mesesIndices[mesesIndices.length - 1];
+
+  const saldoInicialPeriodo = saldoAberturaMes[primeiroMesIdx] || 0;
+  const totalEntradasPeriodo = mesesIndices.reduce((acc, idx) => acc + Number(entMes[idx] || 0), 0);
+  const totalSaidasPeriodo = mesesIndices.reduce((acc, idx) => acc + Number(saiMes[idx] || 0), 0);
+  const geracaoLiquidaPeriodo = totalEntradasPeriodo - totalSaidasPeriodo;
+  const saldoFinalPeriodo = saldoFechamentoMes[ultimoMesIdx] || (saldoInicialPeriodo + geracaoLiquidaPeriodo);
+
+  const mediaEntradas = totalEntradasPeriodo / qtdMesesPeriodo;
+  const mediaSaidas = totalSaidasPeriodo / qtdMesesPeriodo;
+  const percComprometimento = totalEntradasPeriodo > 0 ? (totalSaidasPeriodo / totalEntradasPeriodo) * 100 : 0;
+  const indiceLiquidez = totalSaidasPeriodo > 0 ? ( (saldoInicialPeriodo + totalEntradasPeriodo) / totalSaidasPeriodo ) : (totalEntradasPeriodo > 0 ? 9.99 : 1.0);
+
+  // Atualiza os 6 KPIs Executivos
+  const setElText = (id, txt) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = txt;
+  };
+
+  setElText('fc-kpi-saldo-inicial', formatBRL(saldoInicialPeriodo));
+  setElText('fc-kpi-saldo-inicial-sub', `Abertura em ${NOMES_MESES[primeiroMesIdx]}/${anoAtivo}`);
+
+  setElText('fc-kpi-entradas', formatBRL(totalEntradasPeriodo));
+  setElText('fc-kpi-entradas-sub', `Média: ${formatBRL(mediaEntradas)}/mês`);
+
+  setElText('fc-kpi-saidas', formatBRL(totalSaidasPeriodo));
+  setElText('fc-kpi-saidas-sub', `Média: ${formatBRL(mediaSaidas)}/mês`);
+
+  const elGeracao = document.getElementById('fc-kpi-geracao-liquida');
+  if (elGeracao) {
+    elGeracao.textContent = (geracaoLiquidaPeriodo >= 0 ? '+ ' : '') + formatBRL(geracaoLiquidaPeriodo);
+    elGeracao.className = `text-lg sm:text-xl font-black mt-1.5 font-mono ${geracaoLiquidaPeriodo >= 0 ? 'text-emerald-700' : 'text-rose-700'}`;
+  }
+  setElText('fc-kpi-geracao-sub', geracaoLiquidaPeriodo >= 0 ? '🟢 Superávit de Caixa no período' : '🔴 Déficit de Caixa no período');
+
+  const elSaldoFinal = document.getElementById('fc-kpi-saldo-final');
+  if (elSaldoFinal) {
+    elSaldoFinal.textContent = formatBRL(saldoFinalPeriodo);
+    elSaldoFinal.className = `text-lg sm:text-xl font-black mt-1.5 font-mono ${saldoFinalPeriodo >= 0 ? 'text-emerald-300' : 'text-rose-300'}`;
+  }
+  setElText('fc-kpi-saldo-final-sub', `Fechamento em ${NOMES_MESES[ultimoMesIdx]}/${anoAtivo}`);
+
+  setElText('fc-kpi-indice-liquidez', `${indiceLiquidez.toFixed(2).replace('.', ',')}x`);
+  setElText('fc-kpi-comprometimento', `${percComprometimento.toFixed(1).replace('.', ',')}% das entradas consumidas`);
+
+  // Badge de status de liquidez no topo
+  const badgeLiquidez = document.getElementById('fc-badge-status-liquidez');
+  if (badgeLiquidez) {
+    if (saldoFinalPeriodo > 0 && geracaoLiquidaPeriodo >= 0) {
+      badgeLiquidez.textContent = '🟢 Liquidez Saudável (Superávit)';
+      badgeLiquidez.className = 'px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold border border-emerald-400/30';
+    } else if (saldoFinalPeriodo >= 0 && geracaoLiquidaPeriodo < 0) {
+      badgeLiquidez.textContent = '🟡 Atenção: Consumo de Reserva';
+      badgeLiquidez.className = 'px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-extrabold border border-amber-400/30';
+    } else {
+      badgeLiquidez.textContent = '🔴 Alerta: Caixa Pressionado';
+      badgeLiquidez.className = 'px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-extrabold border border-rose-400/30';
+    }
+  }
+
+  // 2. Gráfico Visual Mensal de Barras (Entradas vs Saídas + Saldo Acumulado)
+  const grafCont = document.getElementById('fc-grafico-mensal-container');
+  if (grafCont) {
+    const maxVal = Math.max(1, ...entMes, ...saiMes);
+    grafCont.innerHTML = NOMES_MESES.map((nomeMes, idx) => {
+      const eVal = Number(entMes[idx] || 0);
+      const sVal = Number(saiMes[idx] || 0);
+      const liqVal = geracaoLiquidaMes[idx];
+      const acumVal = saldoFechamentoMes[idx];
+      const hEnt = Math.max(4, Math.round((eVal / maxVal) * 88));
+      const hSai = Math.max(4, Math.round((sVal / maxVal) * 88));
+      const estaNoFiltro = mesesIndices.includes(idx);
+
+      return `
+        <div class="p-2.5 rounded-xl border ${estaNoFiltro ? 'border-slate-200 bg-slate-50/70' : 'border-slate-100 bg-slate-50/30 opacity-45'} flex flex-col justify-between transition hover:border-teal-300 hover:bg-white">
+          <div class="flex items-center justify-between text-[10px] font-extrabold text-slate-600 mb-1">
+            <span>${nomeMes}</span>
+            <span class="${liqVal >= 0 ? 'text-emerald-600' : 'text-rose-600'}">${liqVal >= 0 ? '▲' : '▼'}</span>
+          </div>
+          <div class="h-24 flex items-end justify-center gap-2 border-b border-slate-200 pb-1 px-1">
+            <div class="w-4 bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-t-md transition-all" style="height:${eVal > 0 ? hEnt : 3}px" title="Entradas ${nomeMes}: ${formatBRL(eVal)}"></div>
+            <div class="w-4 bg-gradient-to-t from-rose-600 to-rose-400 rounded-t-md transition-all" style="height:${sVal > 0 ? hSai : 3}px" title="Saídas ${nomeMes}: ${formatBRL(sVal)}"></div>
+          </div>
+          <div class="mt-1.5 space-y-0.5 text-[10px] font-mono">
+            <div class="flex justify-between text-emerald-700 font-bold" title="Entradas"><span>E:</span><span>${formatNum(eVal)}</span></div>
+            <div class="flex justify-between text-rose-700 font-bold" title="Saídas"><span>S:</span><span>${formatNum(sVal)}</span></div>
+            <div class="flex justify-between pt-0.5 border-t border-slate-200/80 font-extrabold ${acumVal >= 0 ? 'text-indigo-700' : 'text-rose-700'}" title="Saldo Final Acumulado">
+              <span>Cx:</span><span>${formatNum(acumVal)}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // 3. Tabela Contábil DFC (Demonstrativo de Fluxo de Caixa Mensal e Progressivo)
+  const theadDFC = document.getElementById('fc-tabela-dfc-thead');
+  const tbodyDFC = document.getElementById('fc-tabela-dfc-tbody');
+
+  if (theadDFC && tbodyDFC) {
+    theadDFC.innerHTML = `
+      <tr>
+        <th class="py-3 px-3 sticky left-0 bg-slate-900 z-10 min-w-[230px]">Estrutura do Fluxo de Caixa (${anoAtivo})</th>
+        ${mesesIndices.map(mIdx => `<th class="py-3 px-2 text-right font-mono">${NOMES_MESES[mIdx]}</th>`).join('')}
+        <th class="py-3 px-3 text-right bg-slate-950 text-emerald-300">Total Período</th>
+        <th class="py-3 px-2 text-right bg-slate-950 text-slate-300">Média/Mês</th>
+        <th class="py-3 px-2 text-right bg-slate-950 text-slate-300">A.V. %</th>
+      </tr>
+    `;
+
+    // Agrupa entradas e saídas por grupo
+    const gruposEntrada = {};
+    const gruposSaida = {};
+    rows.forEach(r => {
+      const alvo = r.tipo_fluxo === 'ENTRADA' ? gruposEntrada : gruposSaida;
+      if (!alvo[r.grupo]) {
+        alvo[r.grupo] = Array(12).fill(0);
+      }
+      for (let m = 0; m < 12; m++) {
+        alvo[r.grupo][m] += Number(r.meses?.[m] ?? r[`m${m + 1}`] ?? 0);
+      }
+    });
+
+    let htmlDFC = '';
+
+    // LINHA 1: SALDO INICIAL DE CAIXA (ABERTURA DO MÊS)
+    htmlDFC += `
+      <tr class="bg-amber-50/90 text-slate-900 font-extrabold border-b border-amber-200">
+        <td class="py-2.5 px-3 sticky left-0 bg-amber-50 z-10 flex items-center gap-1.5">
+          <span>🏦</span> 1. SALDO INICIAL DE CAIXA (ABERTURA)
+        </td>
+        ${mesesIndices.map(mIdx => `<td class="py-2.5 px-2 text-right font-mono ${saldoAberturaMes[mIdx] >= 0 ? 'text-slate-800' : 'text-rose-700'}">${formatNum(saldoAberturaMes[mIdx])}</td>`).join('')}
+        <td class="py-2.5 px-3 text-right font-mono bg-amber-100/70 text-slate-900">${formatBRL(saldoInicialPeriodo)}</td>
+        <td class="py-2.5 px-2 text-right font-mono text-slate-500">—</td>
+        <td class="py-2.5 px-2 text-right font-mono text-slate-500">—</td>
+      </tr>
+    `;
+
+    // LINHA 2: (+) ENTRADAS OPERACIONAIS TOTAIS
+    htmlDFC += `
+      <tr class="bg-emerald-900 text-white font-extrabold">
+        <td class="py-2.5 px-3 sticky left-0 bg-emerald-900 z-10">
+          2. (+) ENTRADAS OPERACIONAIS DE CAIXA
+        </td>
+        ${mesesIndices.map(mIdx => `<td class="py-2.5 px-2 text-right font-mono text-emerald-200">${formatNum(entMes[mIdx])}</td>`).join('')}
+        <td class="py-2.5 px-3 text-right font-mono bg-emerald-950 text-emerald-300">${formatBRL(totalEntradasPeriodo)}</td>
+        <td class="py-2.5 px-2 text-right font-mono bg-emerald-950 text-emerald-200">${formatNum(mediaEntradas)}</td>
+        <td class="py-2.5 px-2 text-right font-mono bg-emerald-950 text-emerald-200">100,0%</td>
+      </tr>
+    `;
+
+    if (DFC_GRUPOS_EXPANDIDOS) {
+      Object.entries(gruposEntrada).forEach(([nomeGrupo, valoresMes]) => {
+        const totGrp = mesesIndices.reduce((a, idx) => a + valoresMes[idx], 0);
+        const medGrp = totGrp / qtdMesesPeriodo;
+        const avGrp = totalEntradasPeriodo > 0 ? ((totGrp / totalEntradasPeriodo) * 100).toFixed(1).replace('.', ',') + '%' : '0,0%';
+        htmlDFC += `
+          <tr class="hover:bg-emerald-50/40 text-slate-700">
+            <td class="py-2 px-3 pl-6 sticky left-0 bg-white z-10 font-semibold text-emerald-900">🟢 ${escapeHtml(nomeGrupo)}</td>
+            ${mesesIndices.map(mIdx => `<td class="py-2 px-2 text-right font-mono ${valoresMes[mIdx] > 0 ? 'text-emerald-700 font-semibold' : 'text-slate-300'}">${formatNum(valoresMes[mIdx])}</td>`).join('')}
+            <td class="py-2 px-3 text-right font-mono font-bold text-emerald-800 bg-emerald-50/40">${formatBRL(totGrp)}</td>
+            <td class="py-2 px-2 text-right font-mono text-slate-500">${formatNum(medGrp)}</td>
+            <td class="py-2 px-2 text-right font-mono text-slate-500">${avGrp}</td>
+          </tr>
+        `;
+      });
+    }
+
+    // LINHA 3: (-) SAÍDAS OPERACIONAIS E MINISTERIAIS TOTAIS
+    const avSaidasTotal = totalEntradasPeriodo > 0 ? ((totalSaidasPeriodo / totalEntradasPeriodo) * 100).toFixed(1).replace('.', ',') + '%' : '—';
+    htmlDFC += `
+      <tr class="bg-rose-900 text-white font-extrabold">
+        <td class="py-2.5 px-3 sticky left-0 bg-rose-900 z-10">
+          3. (-) SAÍDAS E DESEMBOLSOS OPERACIONAIS
+        </td>
+        ${mesesIndices.map(mIdx => `<td class="py-2.5 px-2 text-right font-mono text-rose-200">${formatNum(saiMes[mIdx])}</td>`).join('')}
+        <td class="py-2.5 px-3 text-right font-mono bg-rose-950 text-rose-300">${formatBRL(totalSaidasPeriodo)}</td>
+        <td class="py-2.5 px-2 text-right font-mono bg-rose-950 text-rose-200">${formatNum(mediaSaidas)}</td>
+        <td class="py-2.5 px-2 text-right font-mono bg-rose-950 text-rose-200">${avSaidasTotal}</td>
+      </tr>
+    `;
+
+    if (DFC_GRUPOS_EXPANDIDOS) {
+      Object.entries(gruposSaida).forEach(([nomeGrupo, valoresMes]) => {
+        const totGrp = mesesIndices.reduce((a, idx) => a + valoresMes[idx], 0);
+        const medGrp = totGrp / qtdMesesPeriodo;
+        const avGrp = totalEntradasPeriodo > 0 ? ((totGrp / totalEntradasPeriodo) * 100).toFixed(1).replace('.', ',') + '%' : '0,0%';
+        htmlDFC += `
+          <tr class="hover:bg-rose-50/40 text-slate-700">
+            <td class="py-2 px-3 pl-6 sticky left-0 bg-white z-10 font-semibold text-rose-900">🔴 ${escapeHtml(nomeGrupo)}</td>
+            ${mesesIndices.map(mIdx => `<td class="py-2 px-2 text-right font-mono ${valoresMes[mIdx] > 0 ? 'text-slate-800 font-semibold' : 'text-slate-300'}">${formatNum(valoresMes[mIdx])}</td>`).join('')}
+            <td class="py-2 px-3 text-right font-mono font-bold text-rose-800 bg-rose-50/40">${formatBRL(totGrp)}</td>
+            <td class="py-2 px-2 text-right font-mono text-slate-500">${formatNum(medGrp)}</td>
+            <td class="py-2 px-2 text-right font-mono text-slate-500">${avGrp}</td>
+          </tr>
+        `;
+      });
+    }
+
+    // LINHA 4: (=) GERAÇÃO LÍQUIDA DE CAIXA NO MÊS (SUPERÁVIT / DÉFICIT)
+    const mediaGeracao = geracaoLiquidaPeriodo / qtdMesesPeriodo;
+    const avGeracao = totalEntradasPeriodo > 0 ? ((geracaoLiquidaPeriodo / totalEntradasPeriodo) * 100).toFixed(1).replace('.', ',') + '%' : '—';
+    htmlDFC += `
+      <tr class="bg-slate-800 text-white font-extrabold border-t-2 border-slate-900">
+        <td class="py-2.5 px-3 sticky left-0 bg-slate-800 z-10">
+          4. (=) GERAÇÃO LÍQUIDA DE CAIXA (ENTRADAS - SAÍDAS)
+        </td>
+        ${mesesIndices.map(mIdx => {
+          const g = geracaoLiquidaMes[mIdx];
+          return `<td class="py-2.5 px-2 text-right font-mono ${g >= 0 ? 'text-emerald-300' : 'text-rose-300'}">${formatNum(g)}</td>`;
+        }).join('')}
+        <td class="py-2.5 px-3 text-right font-mono bg-slate-900 ${geracaoLiquidaPeriodo >= 0 ? 'text-emerald-300' : 'text-rose-300'}">${formatBRL(geracaoLiquidaPeriodo)}</td>
+        <td class="py-2.5 px-2 text-right font-mono bg-slate-900 text-slate-300">${formatNum(mediaGeracao)}</td>
+        <td class="py-2.5 px-2 text-right font-mono bg-slate-900 text-slate-300">${avGeracao}</td>
+      </tr>
+    `;
+
+    // LINHA 5: (=) SALDO FINAL ACUMULADO EM CAIXA (FECHAMENTO DO MÊS)
+    htmlDFC += `
+      <tr class="bg-slate-950 text-white font-black text-xs border-t border-slate-700">
+        <td class="py-3 px-3 sticky left-0 bg-slate-950 z-10 text-emerald-400">
+          💎 5. (=) SALDO FINAL ACUMULADO EM CAIXA (1 + 4)
+        </td>
+        ${mesesIndices.map(mIdx => {
+          const sf = saldoFechamentoMes[mIdx];
+          return `<td class="py-3 px-2 text-right font-mono ${sf >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${formatNum(sf)}</td>`;
+        }).join('')}
+        <td class="py-3 px-3 text-right font-mono ${saldoFinalPeriodo >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${formatBRL(saldoFinalPeriodo)}</td>
+        <td class="py-3 px-2 text-right font-mono text-slate-400">—</td>
+        <td class="py-3 px-2 text-right font-mono text-slate-400">—</td>
+      </tr>
+    `;
+
+    tbodyDFC.innerHTML = htmlDFC;
+  }
+
+  // 4. Liquidez por Canal Bancário / Meio de Pagamento e Extrato Cronológico Progressivo
+  const lancamentosAno = (STATE.financeiro || []).filter(f => {
+    if (!f.data_lancamento) return true;
+    const anoLanc = parseInt(String(f.data_lancamento).substring(0, 4), 10);
+    if (!isNaN(anoLanc) && anoLanc !== anoAtivo) return false;
+    const mesLanc = parseInt(String(f.data_lancamento).substring(5, 7), 10);
+    if (!isNaN(mesLanc) && !mesesIndices.includes(mesLanc - 1)) return false;
+    return true;
+  });
+
+  // Agrupamento por canal / forma de pagamento
+  const canaisCont = document.getElementById('fc-canais-bancarios-lista');
+  if (canaisCont) {
+    const mapaCanais = {
+      'PIX': { icone: '⚡', ent: 0, sai: 0 },
+      'Dinheiro / Gasofilácio': { icone: '💵', ent: 0, sai: 0 },
+      'Transferência / Bancos': { icone: '🏦', ent: 0, sai: 0 },
+      'Cartão': { icone: '💳', ent: 0, sai: 0 },
+      'Boleto / Outros': { icone: '📄', ent: 0, sai: 0 }
+    };
+
+    lancamentosAno.forEach(f => {
+      const meio = String(f.forma_pagamento || 'PIX');
+      const val = Number(f.valor || 0);
+      let chave = 'Boleto / Outros';
+      if (/pix/i.test(meio)) chave = 'PIX';
+      else if (/dinheiro|espécie|gasofil/i.test(meio)) chave = 'Dinheiro / Gasofilácio';
+      else if (/transf|itaú|itau|bradesco|banco|ted|doc/i.test(meio)) chave = 'Transferência / Bancos';
+      else if (/cart/i.test(meio)) chave = 'Cartão';
+
+      if (f.tipo === 'ENTRADA') mapaCanais[chave].ent += val;
+      else mapaCanais[chave].sai += val;
+    });
+
+    canaisCont.innerHTML = Object.entries(mapaCanais).map(([nomeCanal, info]) => {
+      const saldoCanal = info.ent - info.sai;
+      return `
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-2">
+          <div>
+            <div class="font-extrabold text-slate-800 flex items-center gap-1.5">
+              <span>${info.icone}</span> <span>${nomeCanal}</span>
+            </div>
+            <div class="text-[10px] text-slate-500 mt-0.5 font-mono">
+              <span class="text-emerald-700 font-semibold">+${formatBRL(info.ent)}</span> •
+              <span class="text-rose-700 font-semibold">-${formatBRL(info.sai)}</span>
+            </div>
+          </div>
+          <div class="text-right font-mono font-black ${saldoCanal >= 0 ? 'text-emerald-700' : 'text-rose-700'}">
+            ${formatBRL(saldoCanal)}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Compromissos & Pedidos de Verba Pendentes
+  const pendentesCont = document.getElementById('fc-lista-compromissos-pendentes');
+  const badgePendentes = document.getElementById('fc-badge-pendentes');
+  const reqsPendentes = (STATE.requisicoes || []).filter(r => r.status === 'Pendente');
+  const totalPendentes = reqsPendentes.reduce((a, r) => a + Number(r.valor_estimado || 0), 0);
+
+  if (badgePendentes) {
+    badgePendentes.textContent = formatBRL(totalPendentes);
+  }
+  if (pendentesCont) {
+    if (reqsPendentes.length === 0) {
+      pendentesCont.innerHTML = `
+        <div class="p-4 text-center text-slate-400 bg-slate-50 rounded-xl border border-slate-100">
+          ✅ Nenhum pedido de verba pendente de desembolso no momento.
+        </div>
+      `;
+    } else {
+      pendentesCont.innerHTML = reqsPendentes.map(r => `
+        <div class="p-2.5 rounded-xl bg-amber-50/50 border border-amber-200/80 flex items-center justify-between gap-2">
+          <div class="min-w-0">
+            <p class="font-bold text-slate-800 truncate">${escapeHtml(r.titulo)}</p>
+            <p class="text-[10px] text-slate-500 truncate">${escapeHtml(r.ministerio_nome || 'Geral')} • Sol.: ${escapeHtml(r.solicitante || '')}</p>
+          </div>
+          <span class="font-mono font-extrabold text-amber-800 shrink-0">${formatBRL(r.valor_estimado)}</span>
+        </div>
+      `).join('');
+    }
+  }
+
+  // Extrato Cronológico com Saldo Progressivo Linha a Linha
+  const tbodyExtrato = document.getElementById('fc-tabela-extrato-tbody');
+  const badgeExtrato = document.getElementById('fc-badge-total-extrato');
+  const termoBusca = (document.getElementById('fc-busca-extrato')?.value || '').trim().toLowerCase();
+  const filtroMeio = (document.getElementById('fc-filtro-meio')?.value || '').trim().toLowerCase();
+
+  if (tbodyExtrato) {
+    // Ordena cronologicamente (do mais antigo para o mais recente) para calcular o saldo progressivo real
+    const ordenados = [...lancamentosAno].sort((a, b) => {
+      const da = String(a.data_lancamento || '');
+      const db = String(b.data_lancamento || '');
+      if (da !== db) return da.localeCompare(db);
+      return Number(a.id || 0) - Number(b.id || 0);
+    });
+
+    let saldoProgressivo = saldoInicialPeriodo;
+    const comSaldo = ordenados.map(item => {
+      const v = Number(item.valor || 0);
+      if (item.tipo === 'ENTRADA') saldoProgressivo += v;
+      else saldoProgressivo -= v;
+      return { ...item, _saldoApos: saldoProgressivo };
+    });
+
+    // Filtra para exibição (exibindo do mais recente no topo ou mantendo a visão clara)
+    const filtrados = comSaldo.filter(item => {
+      if (filtroMeio && !String(item.forma_pagamento || '').toLowerCase().includes(filtroMeio)) {
+        return false;
+      }
+      if (termoBusca) {
+        const alvo = `${item.categoria || ''} ${item.descricao || ''} ${item.membro_nome || ''} ${item.ministerio_nome || ''} ${item.forma_pagamento || ''}`.toLowerCase();
+        if (!alvo.includes(termoBusca)) return false;
+      }
+      return true;
+    });
+
+    if (badgeExtrato) {
+      badgeExtrato.textContent = `${filtrados.length} lançamento(s)`;
+    }
+
+    if (filtrados.length === 0) {
+      tbodyExtrato.innerHTML = `
+        <tr>
+          <td colspan="6" class="py-8 text-center text-slate-400">
+            Nenhum lançamento diário encontrado para os filtros selecionados neste exercício.
+          </td>
+        </tr>
+      `;
+    } else {
+      tbodyExtrato.innerHTML = filtrados.map(f => {
+        const isEnt = f.tipo === 'ENTRADA';
+        return `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="py-2.5 px-3 font-mono text-slate-600 whitespace-nowrap">${formatDateBR(f.data_lancamento)}</td>
+            <td class="py-2.5 px-3">
+              <div class="font-bold text-slate-800">${escapeHtml(f.categoria || '')}</div>
+              <div class="text-[11px] text-slate-500">${escapeHtml(f.descricao || '')}</div>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-bold text-[10px]">${escapeHtml(f.forma_pagamento || 'PIX')}</span>
+              ${f.ministerio_nome ? `<span class="ml-1 px-2 py-0.5 rounded-full text-white text-[10px] font-bold" style="background:${f.ministerio_cor || '#475569'}">${escapeHtml(f.ministerio_nome)}</span>` : ''}
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono font-extrabold text-emerald-600 whitespace-nowrap">
+              ${isEnt ? '+ ' + formatBRL(f.valor) : '—'}
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono font-extrabold text-rose-600 whitespace-nowrap">
+              ${!isEnt ? '- ' + formatBRL(f.valor) : '—'}
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono font-black bg-slate-50/90 ${f._saldoApos >= 0 ? 'text-slate-900' : 'text-rose-700'} whitespace-nowrap">
+              ${formatBRL(f._saldoApos)}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+  }
+}
+
+function imprimirDemonstrativoFluxoCaixa() {
+  const anoAtivo = Number(ANO_MATRIZ_ATIVO) || 2026;
+  const tabelaThead = document.getElementById('fc-tabela-dfc-thead')?.innerHTML || '';
+  const tabelaTbody = document.getElementById('fc-tabela-dfc-tbody')?.innerHTML || '';
+  const sIni = document.getElementById('fc-kpi-saldo-inicial')?.textContent || 'R$ 0,00';
+  const sEnt = document.getElementById('fc-kpi-entradas')?.textContent || 'R$ 0,00';
+  const sSai = document.getElementById('fc-kpi-saidas')?.textContent || 'R$ 0,00';
+  const sGer = document.getElementById('fc-kpi-geracao-liquida')?.textContent || 'R$ 0,00';
+  const sFim = document.getElementById('fc-kpi-saldo-final')?.textContent || 'R$ 0,00';
+
+  const win = window.open('', '_blank', 'width=1200,height=850');
+  if (!win) {
+    window.print();
+    return;
+  }
+
+  win.document.write(`
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="UTF-8" />
+      <title>KAIRÓS • Demonstrativo de Fluxo de Caixa (DFC) - ${anoAtivo}</title>
+      <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; color: #0f172a; margin: 24px; font-size: 11px; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px; }
+        .brand-pill { display: inline-block; background: #0f172a; color: #34d399; font-weight: 900; font-size: 10px; letter-spacing: 2px; padding: 3px 8px; border-radius: 4px; margin-bottom: 4px; }
+        .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 16px; }
+        .kpi { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 10px; background: #f8fafc; }
+        .kpi span { display: block; font-size: 9px; text-transform: uppercase; color: #64748b; font-weight: 700; }
+        .kpi strong { display: block; font-size: 13px; margin-top: 3px; color: #0f172a; }
+        table { width: 100%; border-collapse: collapse; font-size: 10px; }
+        th, td { border: 1px solid #cbd5e1; padding: 5px 6px; }
+        th { background: #0f172a; color: #ffffff; text-transform: uppercase; font-size: 9px; }
+        .signatures { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-top: 48px; text-align: center; }
+        .sig-line { border-top: 1px solid #334155; padding-top: 6px; font-weight: 700; font-size: 10px; color: #1e293b; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div>
+          <span class="brand-pill">KAIRÓS • GESTÃO ECLESIÁSTICA</span>
+          <h1 style="margin:2px 0; font-size:18px;">Primeira Igreja Batista no Parque São Paulo</h1>
+          <p style="margin:0; color:#475569;">Demonstrativo Oficial de Fluxo de Caixa (DFC) — Exercício ${anoAtivo}</p>
+        </div>
+        <div style="text-align:right; font-size:10px; color:#475569;">
+          <div><strong>Emitido em:</strong> ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
+          <div><strong>Regime:</strong> Caixa Consolidado & Progressivo</div>
+        </div>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi"><span>1. Saldo Inicial</span><strong>${sIni}</strong></div>
+        <div class="kpi"><span>2. (+) Entradas</span><strong style="color:#047857;">${sEnt}</strong></div>
+        <div class="kpi"><span>3. (-) Saídas</span><strong style="color:#be123c;">${sSai}</strong></div>
+        <div class="kpi"><span>4. (=) Geração Líquida</span><strong>${sGer}</strong></div>
+        <div class="kpi"><span>5. (=) Saldo Final</span><strong style="color:#0f172a;">${sFim}</strong></div>
+      </div>
+
+      <table>
+        <thead>${tabelaThead}</thead>
+        <tbody>${tabelaTbody}</tbody>
+      </table>
+
+      <div class="signatures">
+        <div class="sig-line">Pastor Presidente</div>
+        <div class="sig-line">Administração Geral</div>
+        <div class="sig-line">Tesouraria & Finanças</div>
+        <div class="sig-line">Conselho Fiscal</div>
+      </div>
+
+      <script>
+        window.onload = function() { setTimeout(function() { window.print(); }, 300); };
+      <\/script>
+    </body>
+    </html>
+  `);
+  win.document.close();
 }
