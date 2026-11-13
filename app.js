@@ -5787,26 +5787,22 @@ function abrirVisualizadorRelatorioPDF(opts) {
       </div>
 
       <!-- Rodapé Institucional e Assinaturas Oficiais -->
-      <div class="pt-6 mt-6 border-t border-slate-300">
+      <div class="pt-8 mt-6 border-t border-slate-300">
         <div class="grid grid-cols-4 gap-4 text-center text-[10px]">
           <div>
-            <div class="border-t border-slate-800 pt-1 font-bold text-slate-900">Pastor Presidente</div>
-            <p class="text-slate-500">Pr. Ivan</p>
+            <div class="border-t border-slate-800 pt-1.5 font-bold text-slate-900">Pastor Presidente</div>
           </div>
           <div>
-            <div class="border-t border-slate-800 pt-1 font-bold text-slate-900">Administração Geral</div>
-            <p class="text-slate-500">Marcos Silva</p>
+            <div class="border-t border-slate-800 pt-1.5 font-bold text-slate-900">Administração Geral</div>
           </div>
           <div>
-            <div class="border-t border-slate-800 pt-1 font-bold text-slate-900">Tesouraria & Finanças</div>
-            <p class="text-slate-500">Isadora / Tesouraria</p>
+            <div class="border-t border-slate-800 pt-1.5 font-bold text-slate-900">Tesouraria & Finanças</div>
           </div>
           <div>
-            <div class="border-t border-slate-800 pt-1 font-bold text-slate-900">Conselho Fiscal</div>
-            <p class="text-slate-500">Comissão de Exame de Contas</p>
+            <div class="border-t border-slate-800 pt-1.5 font-bold text-slate-900">Conselho Fiscal</div>
           </div>
         </div>
-        <p class="text-center text-[9px] text-slate-400 mt-4">Documento emitido eletronicamente pelo Sistema de Gestão PIB Parque São Paulo. Registrado e auditado.</p>
+        <p class="text-center text-[9px] text-slate-400 mt-4">Documento emitido eletronicamente pelo Sistema KAIRÓS — PIB Parque São Paulo. Registrado e auditado.</p>
       </div>
     </div>
   `;
@@ -6659,16 +6655,13 @@ function imprimirRelatorioOficial() {
 
       <div class="grid grid-cols-3 gap-6 pt-8 mt-6 border-t border-slate-300 text-center text-[11px]">
         <div>
-          <div class="border-t border-slate-800 pt-1 font-bold">Administração Geral</div>
-          <p class="text-slate-400">Marcos Silva</p>
+          <div class="border-t border-slate-800 pt-1.5 font-bold text-slate-900">Administração Geral</div>
         </div>
         <div>
-          <div class="border-t border-slate-800 pt-1 font-bold">Tesouraria / Orçamento</div>
-          <p class="text-slate-400">Isadora / Tesouraria</p>
+          <div class="border-t border-slate-800 pt-1.5 font-bold text-slate-900">Tesouraria / Orçamento</div>
         </div>
         <div>
-          <div class="border-t border-slate-800 pt-1 font-bold">Pastor Presidente</div>
-          <p class="text-slate-400">Pr. Ivan</p>
+          <div class="border-t border-slate-800 pt-1.5 font-bold text-slate-900">Pastor Presidente</div>
         </div>
       </div>
     </div>
@@ -8429,17 +8422,16 @@ function imprimirTermoEmprestimo(id) {
           ` : `
             <div class="h-12 flex items-center justify-center text-[9px] text-slate-300 italic">(Aguardando assinatura digital)</div>
           `}
-          <div class="border-t border-slate-800 pt-1 font-bold">${emp.solicitante_nome}</div>
-          <span class="text-slate-400">Assinatura do Retirante (Cautelador)</span>
+          <div class="border-t border-slate-800 pt-1.5 font-bold text-slate-900">Assinatura do Retirante (Cautelador)</div>
           ${emp.assinatura_retirada_em ? `<div class="text-[8px] text-emerald-700 font-bold">Assinado Digitalmente em ${emp.assinatura_retirada_em}</div>` : ''}
         </div>
         <div>
-          <div class="border-t border-slate-800 pt-1 font-bold">${emp.responsavel_setor || 'Líder do Setor'}</div>
-          <span class="text-slate-400">1º OK - Resp. pelo Setor</span>
+          <div class="h-12"></div>
+          <div class="border-t border-slate-800 pt-1.5 font-bold text-slate-900">Responsável pelo Setor</div>
         </div>
         <div>
-          <div class="border-t border-slate-800 pt-1 font-bold">${emp.responsavel_patrimonio || 'Marcos Silva'}</div>
-          <span class="text-slate-400">2º OK - Resp. Patrimônio</span>
+          <div class="h-12"></div>
+          <div class="border-t border-slate-800 pt-1.5 font-bold text-slate-900">Coordenação de Patrimônio</div>
         </div>
       </div>
 
@@ -8725,14 +8717,12 @@ function imprimirRelatorioGeralEmprestimos() {
         </table>
       </div>
 
-      <div class="grid grid-cols-2 gap-6 pt-6 border-t border-slate-300 text-center text-[11px]">
+      <div class="grid grid-cols-2 gap-6 pt-8 border-t border-slate-300 text-center text-[11px]">
         <div>
-          <div class="border-t border-slate-800 pt-1 font-bold">Coordenação de Patrimônio</div>
-          <span class="text-slate-400">Marcos Silva</span>
+          <div class="border-t border-slate-800 pt-1.5 font-bold text-slate-900">Coordenação de Patrimônio</div>
         </div>
         <div>
-          <div class="border-t border-slate-800 pt-1 font-bold">Pastor Presidente</div>
-          <span class="text-slate-400">Pr. Ivan</span>
+          <div class="border-t border-slate-800 pt-1.5 font-bold text-slate-900">Pastor Presidente</div>
         </div>
       </div>
     </div>
@@ -19139,11 +19129,9 @@ ${textoOriginal}
 Nada mais havendo a tratar e nenhuma outra manifestação pendente, o Presidente deu por encerrada a presente assembleia com oração e a bênção apostólica. Para constar, eu, ${secretario}, lavrei a presente ata que, após lida e achada conforme, segue devidamente assinada.
 
 _______________________________________
-${presidente}
 Presidente da Mesa
 
 _______________________________________
-${secretario}
 Secretário(a)`;
 
   textarea.value = textoEstruturado;
