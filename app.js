@@ -4828,10 +4828,10 @@ function atualizarInterfaceTravaPlanilha() {
     }
     if (btnMini) {
       btnMini.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-[11px] font-extrabold border border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 transition cursor-pointer shadow-2xs';
-      btnMini.innerHTML = `<span>🔓</span> <span id="lbl-mini-trava-planilha">Liberada (${escapeHtml(nomeAut.split(' ')[0])}) • Bloquear</span>`;
+      btnMini.innerHTML = `<span>🔓</span> <span id="lbl-mini-trava-planilha">Edição Liberada (${escapeHtml(nomeAut.split(' ')[0])}) • Bloquear</span>`;
     }
     if (dica) {
-      dica.innerHTML = '💡 <strong>Edição Liberada:</strong> Clique sobre qualquer célula (JAN a DEZ) para editar ou em <strong>"📅 12M"</strong> para preencher o ano todo da conta!';
+      dica.innerHTML = `🔓 <strong>Edição Autorizada (${escapeHtml(nomeAut)} - ${escapeHtml(cargoAut)}):</strong> Clique sobre qualquer célula (JAN a DEZ) ou em <strong>"📅 12M"</strong> para editar, e clique em <strong>"Bloquear"</strong> ao concluir.`;
     }
   } else {
     if (banner) {
@@ -4857,10 +4857,10 @@ function atualizarInterfaceTravaPlanilha() {
     }
     if (btnMini) {
       btnMini.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-[11px] font-extrabold border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 transition cursor-pointer shadow-2xs';
-      btnMini.innerHTML = '<span>🔒</span> <span id="lbl-mini-trava-planilha">Edição Bloqueada (Desbloquear)</span>';
+      btnMini.innerHTML = '<span>🔑</span> <span id="lbl-mini-trava-planilha">Edição Bloqueada • Desbloquear com Senha</span>';
     }
     if (dica) {
-      dica.innerHTML = '🔒 <strong>Modo Protegido:</strong> Clique sobre qualquer célula (JAN a DEZ) ou em <strong>"🔑 Desbloquear Edição com Senha"</strong> para liberar alterações por pessoas autorizadas.';
+      dica.innerHTML = '🔒 <strong>Modo Protegido:</strong> Clique sobre qualquer célula (JAN a DEZ) ou em <strong>"🔑 Desbloquear com Senha"</strong> para liberar alterações por pessoas autorizadas.';
     }
   }
 }
