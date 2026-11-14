@@ -20814,13 +20814,13 @@ function renderFluxoDeCaixa() {
   if (badgeLiquidez) {
     if (saldoFinalPeriodo > 0 && geracaoLiquidaPeriodo >= 0) {
       badgeLiquidez.textContent = '🟢 Liquidez Saudável (Superávit)';
-      badgeLiquidez.className = 'px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold border border-emerald-400/30';
+      badgeLiquidez.className = 'px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-extrabold border border-emerald-200';
     } else if (saldoFinalPeriodo >= 0 && geracaoLiquidaPeriodo < 0) {
       badgeLiquidez.textContent = '🟡 Atenção: Consumo de Reserva';
-      badgeLiquidez.className = 'px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-extrabold border border-amber-400/30';
+      badgeLiquidez.className = 'px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[10px] font-extrabold border border-amber-200';
     } else {
       badgeLiquidez.textContent = '🔴 Alerta: Caixa Pressionado';
-      badgeLiquidez.className = 'px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-extrabold border border-rose-400/30';
+      badgeLiquidez.className = 'px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 text-[10px] font-extrabold border border-rose-200';
     }
   }
 
@@ -21383,13 +21383,13 @@ function renderContasAPagar() {
   if (badgeTopo) {
     if (qtdVencidas > 0) {
       badgeTopo.textContent = `🚨 ${qtdVencidas} Conta(s) Vencida(s)`;
-      badgeTopo.className = 'px-2.5 py-0.5 rounded-full bg-rose-500/30 text-rose-200 text-[10px] font-extrabold border border-rose-400/50 animate-pulse';
+      badgeTopo.className = 'px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 text-[10px] font-extrabold border border-rose-200 animate-pulse';
     } else if (qtdAberto > 0) {
       badgeTopo.textContent = `⏳ ${qtdAberto} Conta(s) a Vencer`;
-      badgeTopo.className = 'px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-extrabold border border-amber-400/30';
+      badgeTopo.className = 'px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[10px] font-extrabold border border-amber-200';
     } else {
       badgeTopo.textContent = '✅ Obrigações em Dia';
-      badgeTopo.className = 'px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold border border-emerald-400/30';
+      badgeTopo.className = 'px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-extrabold border border-emerald-200';
     }
   }
 

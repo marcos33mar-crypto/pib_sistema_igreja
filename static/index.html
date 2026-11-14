@@ -2516,7 +2516,7 @@
          🛡️ Blindagem Cloud • Auto-Backup Ativo
       </div>
       <div class="text-[10px] text-slate-500 font-medium mt-1 tracking-wider" id="versao-sistema-tag">
-        KAIRÓS • Versão 2.41 • Build 20261113
+        KAIRÓS • Versão 2.42 • Build 20261113
       </div>
 
 
@@ -2784,181 +2784,7 @@
 
 
 
-      <section id="tab-dashboard" class="tab-section space-y-6">
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        <!-- Barra de Boas-vindas e Seletor do Exercício na Visão Geral -->
-
-
-
-
-
-
-
-        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
-
-
-
-
-
-
-
-          <div class="flex items-center gap-3">
-
-
-
-
-
-
-
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-slate-900 text-white flex items-center justify-center text-lg font-bold shadow-xs">
-
-
-
-
-
-
-
-              📊
-
-
-
-
-
-
-
-            </div>
-
-
-
-
-
-
-
-            <div>
-
-
-
-
-
-
-
-              <h2 class="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
-
-
-
-
-
-
-
-                Visão Geral do Fluxo & Painel Executivo
-
-
-
-
-
-
-
-                <span class="text-[10px] bg-emerald-100 text-emerald-800 font-extrabold px-2 py-0.5 rounded-full border border-emerald-200">Ao Vivo</span>
-
-
-
-
-
-
-
-              </h2>
-
-
-
-
-
-
-
-              <p class="text-xs text-slate-500">Valores consolidados em tempo real com dimensionamento perfeito nos quadros</p>
-
-
-
-
-
-
-
-            </div>
-
-
-
-
-
-
-
-          </div>
-
-
-
-
-
-
-
-          <!-- Seletor Vertical Limpo de Ano no Dashboard -->
-          <div class="inline-flex items-center bg-white border border-slate-300 hover:border-indigo-400 rounded-xl px-2.5 py-0.5 shadow-2xs transition select-none gap-2 cursor-default"
-               onwheel="aoRolarScrollAno(event)"
-               title="Alterar ano contábil (▲ / ▼ ou roda do mouse)">
-            <input type="hidden" id="sel-ano-dashboard" value="2026" />
-            <div class="flex items-center gap-1.5">
-              <span class="text-xs">📅</span>
-              <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">EXERCÍCIO</span>
-              <strong id="display-ano-exercicio-dash" class="text-sm font-black text-slate-800">2026</strong>
-            </div>
-            <div class="flex flex-col ml-1 pl-1.5 border-l border-slate-200">
-              <button type="button" 
-                      onclick="navegarAnoExercicio(1)" 
-                      title="Avançar ano" 
-                      class="w-4 h-3 flex items-center justify-center text-[8px] font-black text-slate-400 hover:text-indigo-600 rounded transition cursor-pointer active:scale-90">
-                ▲
-              </button>
-              <button type="button" 
-                      onclick="navegarAnoExercicio(-1)" 
-                      title="Voltar ano" 
-                      class="w-4 h-3 flex items-center justify-center text-[8px] font-black text-slate-400 hover:text-indigo-600 rounded transition cursor-pointer active:scale-90">
-                ▼
-              </button>
-            </div>
-          </div>
-
-
-
-
-
-
-
-        </div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+      <section id="tab-dashboard" class="tab-section space-y-5">
 
         <!-- 5 Quadros de Indicadores Principais com Design Responsivo que Nunca Transborda -->
 
@@ -3585,21 +3411,7 @@
 
 
               <div class="flex flex-wrap items-center justify-between gap-3 mb-5 pb-4 border-b border-slate-100">
-
-
-
-
-
-
-
                 <div>
-
-
-
-
-
-
-
                   <div class="flex flex-wrap items-center gap-2.5">
                     <h3 class="font-extrabold text-slate-800 text-base flex items-center gap-2">
                       <span>⚡</span> Painel Executivo — PIB Parque São Paulo
@@ -3607,30 +3419,36 @@
                     <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-900 text-emerald-400 text-[10px] font-black tracking-[0.18em] border border-slate-800 shadow-2xs">
                       KAIRÓS
                     </span>
+                    <span class="text-[10px] bg-emerald-100 text-emerald-800 font-extrabold px-2 py-0.5 rounded-full border border-emerald-200">Ao Vivo</span>
                   </div>
-
-
-
-
-
-
-
                   <p class="text-xs text-slate-500">Resumo consolidado em tempo real dos departamentos</p>
-
-
-
-
-
-
-
                 </div>
 
-
-
-
-
-
-
+                <!-- Seletor Vertical Limpo de Ano no Dashboard -->
+                <div class="inline-flex items-center bg-slate-50 border border-slate-300 hover:border-indigo-400 rounded-xl px-2.5 py-1 shadow-2xs transition select-none gap-2 cursor-default"
+                     onwheel="aoRolarScrollAno(event)"
+                     title="Alterar ano contábil (▲ / ▼ ou roda do mouse)">
+                  <input type="hidden" id="sel-ano-dashboard" value="2026" />
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-xs">📅</span>
+                    <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">EXERCÍCIO</span>
+                    <strong id="display-ano-exercicio-dash" class="text-sm font-black text-slate-800">2026</strong>
+                  </div>
+                  <div class="flex flex-col ml-1 pl-1.5 border-l border-slate-200">
+                    <button type="button" 
+                            onclick="navegarAnoExercicio(1)" 
+                            title="Avançar ano" 
+                            class="w-4 h-3 flex items-center justify-center text-[8px] font-black text-slate-400 hover:text-indigo-600 rounded transition cursor-pointer active:scale-90">
+                      ▲
+                    </button>
+                    <button type="button" 
+                            onclick="navegarAnoExercicio(-1)" 
+                            title="Voltar ano" 
+                            class="w-4 h-3 flex items-center justify-center text-[8px] font-black text-slate-400 hover:text-indigo-600 rounded transition cursor-pointer active:scale-90">
+                      ▼
+                    </button>
+                  </div>
+                </div>
               </div>
 
 
@@ -5936,380 +5754,43 @@
 
         <div id="tes-subtab-orcamento" class="hidden space-y-5">
 
-
-
-
-
-
-
           <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
 
-
-
-
-
-
-
-            <!-- Barra Seletora de Anos da Tesouraria (Sincronizada) -->
-
-
-
-
-
-
-
-            <div class="mb-4 flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-3.5 rounded-2xl border border-indigo-900/40 shadow-sm">
-
-
-
-
-
-
-
-              <div class="flex items-center gap-2">
-
-
-
-
-
-
-
-                <span class="text-xl">📅</span>
-
-
-
-
-
-
-
-                <div>
-
-
-
-
-
-
-
-                  <span class="text-xs font-bold block text-white">Anos de Análise Orçamentária:</span>
-
-
-
-
-
-
-
-                  <span class="text-[10px] text-indigo-200">Escolha os anos para calcular a meta, o histórico e o executado</span>
-
-
-
-
-
-
-
-                </div>
-
-
-
-
-
-
-
-              </div>
-
-
-
-
-
-
-
-              <div class="flex flex-wrap items-center gap-2.5 text-xs">
-
-
-
-
-
-
-
-                <div class="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-xl border border-white/15">
-
-
-
-
-
-
-
-                  <span class="text-[10px] font-bold uppercase text-slate-300">Realizado:</span>
-
-
-
-
-
-
-
-                  <select id="sel-ano-realizado-tab" onchange="mudarAnosMinisterios('realizado', this.value)" class="bg-slate-900 text-white font-extrabold text-xs px-2 py-1 rounded-lg border border-slate-500 focus:outline-none cursor-pointer"></select>
-
-
-
-
-
-
-
-                </div>
-
-
-
-
-
-
-
-                <div class="flex items-center gap-1.5 bg-indigo-500/20 px-3 py-1.5 rounded-xl border border-indigo-400/30">
-
-
-
-
-
-
-
-                  <span class="text-[10px] font-bold uppercase text-indigo-300">Orçamento:</span>
-
-
-
-
-
-
-
-                  <select id="sel-ano-orcamento-tab" onchange="mudarAnosMinisterios('orcamento', this.value)" class="bg-slate-900 text-indigo-300 font-extrabold text-xs px-2 py-1 rounded-lg border border-indigo-400 focus:outline-none cursor-pointer"></select>
-
-
-
-
-
-
-
-                </div>
-
-
-
-
-
-
-
-                <div class="flex items-center gap-1.5 bg-emerald-500/20 px-3 py-1.5 rounded-xl border border-emerald-400/30">
-
-
-
-
-
-
-
-                  <span class="text-[10px] font-bold uppercase text-emerald-300">Executado:</span>
-
-
-
-
-
-
-
-                  <select id="sel-ano-executado-tab" onchange="mudarAnosMinisterios('executado', this.value)" class="bg-slate-900 text-emerald-300 font-extrabold text-xs px-2 py-1 rounded-lg border border-emerald-400 focus:outline-none cursor-pointer"></select>
-
-
-
-
-
-
-
-                </div>
-
-
-
-
-
-
-
-              </div>
-
-
-
-
-
-
-
-            </div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-
-
-
-
-
-
-
+            <!-- Cabeçalho Unificado e Enxuto: Título + Seletores de Ano + Totais Consolidados -->
+            <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-3 mb-4 pb-3.5 border-b border-slate-100">
               <div>
-
-
-
-
-
-
-
-                <span class="text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full">Planejamento Orçamentário Anual</span>
-
-
-
-
-
-
-
-                <h3 class="font-bold text-slate-800 text-base mt-1">Quadro Comparativo dos 15 Ministérios</h3>
-
-
-
-
-
-
-
-                <p class="text-xs text-slate-500">Clique em <strong>"✏️ Editar Orçamento / Obs"</strong> em qualquer ministério para ajustar valores ou observações em tempo real</p>
-
-
-
-
-
-
-
+                <div class="flex flex-wrap items-center gap-2">
+                  <h3 class="font-extrabold text-slate-900 text-base">Quadro Comparativo dos 15 Ministérios</h3>
+                  <span class="text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full">Planejamento Anual</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-0.5">Ajuste metas, histórico e valores executados diretamente em cada ministério</p>
               </div>
 
-
-
-
-
-
-
-              <div class="flex gap-3 text-xs">
-
-
-
-
-
-
-
-                <div class="bg-slate-100 px-3.5 py-2 rounded-xl">
-
-
-
-
-
-
-
-                  <span class="text-slate-500 block text-[10px] uppercase font-bold">Total Realizado <span id="tot-min-real-ano-lbl">2025</span></span>
-
-
-
-
-
-
-
-                  <strong id="tot-min-2025" class="text-sm text-slate-800">R$ 0,00</strong>
-
-
-
-
-
-
-
+              <div class="flex flex-wrap items-center gap-2 text-xs">
+                <div class="flex items-center gap-2 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl">
+                  <div>
+                    <span class="text-[10px] font-bold uppercase text-slate-500 block leading-none">Realizado <select id="sel-ano-realizado-tab" onchange="mudarAnosMinisterios('realizado', this.value)" class="bg-transparent text-slate-800 font-extrabold text-[11px] focus:outline-none cursor-pointer"></select></span>
+                    <strong id="tot-min-2025" class="text-xs sm:text-sm text-slate-800 font-black">R$ 0,00</strong>
+                    <span id="tot-min-real-ano-lbl" class="hidden">2025</span>
+                  </div>
                 </div>
 
-
-
-
-
-
-
-                <div class="bg-indigo-50 border border-indigo-200 px-3.5 py-2 rounded-xl">
-
-
-
-
-
-
-
-                  <span class="text-indigo-600 block text-[10px] uppercase font-bold">Orçamento Aprovado <span id="tot-min-orc-ano-lbl">2026</span></span>
-
-
-
-
-
-
-
-                  <strong id="tot-min-2026" class="text-sm text-indigo-900">R$ 0,00</strong>
-
-
-
-
-
-
-
+                <div class="flex items-center gap-2 bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-xl">
+                  <div>
+                    <span class="text-[10px] font-bold uppercase text-indigo-600 block leading-none">Orçamento <select id="sel-ano-orcamento-tab" onchange="mudarAnosMinisterios('orcamento', this.value)" class="bg-transparent text-indigo-900 font-extrabold text-[11px] focus:outline-none cursor-pointer"></select></span>
+                    <strong id="tot-min-2026" class="text-xs sm:text-sm text-indigo-900 font-black">R$ 0,00</strong>
+                    <span id="tot-min-orc-ano-lbl" class="hidden">2026</span>
+                  </div>
                 </div>
 
-
-
-
-
-
-
-                <div class="bg-emerald-50 border border-emerald-200 px-3.5 py-2 rounded-xl">
-
-
-
-
-
-
-
-                  <span class="text-emerald-700 block text-[10px] uppercase font-bold">Executado em <span id="tot-min-exec-ano-lbl">2026</span></span>
-
-
-
-
-
-
-
-                  <strong id="tot-min-exec-2026" class="text-sm text-emerald-800">R$ 0,00</strong>
-
-
-
-
-
-
-
+                <div class="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
+                  <div>
+                    <span class="text-[10px] font-bold uppercase text-emerald-700 block leading-none">Executado <select id="sel-ano-executado-tab" onchange="mudarAnosMinisterios('executado', this.value)" class="bg-transparent text-emerald-900 font-extrabold text-[11px] focus:outline-none cursor-pointer"></select></span>
+                    <strong id="tot-min-exec-2026" class="text-xs sm:text-sm text-emerald-800 font-black">R$ 0,00</strong>
+                    <span id="tot-min-exec-ano-lbl" class="hidden">2026</span>
+                  </div>
                 </div>
-
-
-
-
-
-
-
               </div>
-
-
-
-
-
-
-
             </div>
 
 
@@ -8573,32 +8054,24 @@
         <!-- ========================================================= -->
         <!-- SUB-ABA 4: FLUXO DE CAIXA (DFC CONSOLIDADO & PROGRESSIVO) -->
         <!-- ========================================================= -->
-        <div id="tes-subtab-fluxocaixa" class="hidden space-y-6">
+        <div id="tes-subtab-fluxocaixa" class="hidden space-y-5">
 
-          <!-- CABEÇALHO EXECUTIVO & CONTROLES DO FLUXO DE CAIXA -->
-          <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-teal-950 rounded-2xl p-5 text-white shadow-lg border border-slate-700/80 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div class="space-y-1">
-              <div class="flex flex-wrap items-center gap-2">
-                <span class="px-2.5 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[10px] font-black tracking-[0.18em] uppercase">KAIRÓS • DFC</span>
-                <span class="text-slate-500 text-xs">•</span>
-                <span class="text-[11px] font-semibold text-slate-300">PIB Parque São Paulo</span>
-                <span id="fc-badge-status-liquidez" class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold border border-emerald-400/30">🟢 Liquidez Saudável</span>
-              </div>
-              <h3 class="text-lg sm:text-xl font-black tracking-tight text-white flex items-center gap-2">
-                <span>📈</span> Demonstrativo de Fluxo de Caixa (DFC) & Saldo Progressivo
+          <!-- BARRA COMPACTA DE CONTROLES DO FLUXO DE CAIXA -->
+          <div class="bg-white rounded-2xl p-4 shadow-xs border border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-2.5">
+              <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                <span>📈</span> Demonstrativo de Fluxo de Caixa (DFC)
               </h3>
-              <p class="text-xs text-slate-300 max-w-3xl">
-                Controle integrado de entradas operacionais, saídas por centro de custo, geração líquida de caixa, evolução de saldo acumulado mês a mês e extrato cronológico por canal bancário.
-              </p>
+              <span id="fc-badge-status-liquidez" class="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-extrabold border border-emerald-200">🟢 Liquidez Saudável</span>
             </div>
 
             <!-- CONTROLES INTERATIVOS DO FLUXO DE CAIXA -->
-            <div class="flex flex-wrap items-center gap-2.5">
+            <div class="flex flex-wrap items-center gap-2">
               <!-- Seletor de Exercício -->
-              <div class="inline-flex items-center bg-slate-950/90 text-white rounded-xl border border-slate-700 shadow-sm overflow-hidden select-none">
-                <div class="flex items-center gap-1.5 pl-3 pr-2.5 py-1.5">
+              <div class="inline-flex items-center bg-slate-900 text-white rounded-xl border border-slate-800 shadow-xs overflow-hidden select-none">
+                <div class="flex items-center gap-1.5 pl-2.5 pr-2 py-1">
                   <span class="text-xs">📅</span>
-                  <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Exercício</span>
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-slate-300">Ano</span>
                   <input
                     id="fc-ano-input"
                     type="number"
@@ -8607,17 +8080,17 @@
                     step="1"
                     value="2026"
                     onchange="alterarAnoMatriz(this.value); renderFluxoDeCaixa();"
-                    class="w-14 bg-transparent text-white font-black text-sm text-center focus:outline-none focus:bg-slate-800 rounded px-0.5"
+                    class="w-13 bg-transparent text-white font-black text-xs text-center focus:outline-none focus:bg-slate-800 rounded px-0.5"
                   />
                 </div>
-                <div class="flex flex-col border-l border-slate-700 bg-slate-900">
-                  <button type="button" onclick="stepAnoMatriz(1); renderFluxoDeCaixa();" class="px-2 py-0.5 text-[9px] leading-none text-slate-300 hover:bg-emerald-600 hover:text-white transition cursor-pointer font-black border-b border-slate-700" title="Próximo Ano">▲</button>
-                  <button type="button" onclick="stepAnoMatriz(-1); renderFluxoDeCaixa();" class="px-2 py-0.5 text-[9px] leading-none text-slate-300 hover:bg-emerald-600 hover:text-white transition cursor-pointer font-black" title="Ano Anterior">▼</button>
+                <div class="flex flex-col border-l border-slate-700 bg-slate-800">
+                  <button type="button" onclick="stepAnoMatriz(1); renderFluxoDeCaixa();" class="px-1.5 py-0.5 text-[8px] leading-none text-slate-300 hover:bg-emerald-600 hover:text-white transition cursor-pointer font-black border-b border-slate-700" title="Próximo Ano">▲</button>
+                  <button type="button" onclick="stepAnoMatriz(-1); renderFluxoDeCaixa();" class="px-1.5 py-0.5 text-[8px] leading-none text-slate-300 hover:bg-emerald-600 hover:text-white transition cursor-pointer font-black" title="Ano Anterior">▼</button>
                 </div>
               </div>
 
               <!-- Filtro de Período -->
-              <select id="fc-filtro-periodo" onchange="renderFluxoDeCaixa()" class="bg-slate-900/90 border border-slate-700 text-white text-xs font-bold rounded-xl px-3 py-2 focus:ring-2 focus:ring-emerald-400 cursor-pointer">
+              <select id="fc-filtro-periodo" onchange="renderFluxoDeCaixa()" class="bg-slate-50 border border-slate-300 text-slate-800 text-xs font-bold rounded-xl px-2.5 py-1.5 focus:ring-2 focus:ring-emerald-500 cursor-pointer">
                 <option value="ANO">📅 Ano Completo (Jan–Dez)</option>
                 <option value="S1">📊 1º Semestre (Jan–Jun)</option>
                 <option value="S2">📊 2º Semestre (Jul–Dez)</option>
@@ -8640,20 +8113,20 @@
               </select>
 
               <!-- Saldo Inicial do Exercício -->
-              <div class="flex items-center gap-1.5 bg-slate-900/90 border border-slate-700 rounded-xl px-3 py-1.5" title="Saldo de abertura em Caixa / Bancos no início do exercício">
-                <span class="text-[10px] font-bold uppercase text-amber-300 whitespace-nowrap">💰 Saldo Inicial: R$</span>
+              <div class="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-xl px-2.5 py-1" title="Saldo de abertura em Caixa / Bancos no início do exercício">
+                <span class="text-[10px] font-bold uppercase text-amber-800 whitespace-nowrap">💰 Saldo Inicial: R$</span>
                 <input
                   id="fc-saldo-inicial-input"
                   type="number"
                   step="0.01"
                   value="0.00"
                   onchange="salvarSaldoInicialFluxoCaixa(this.value)"
-                  class="w-24 bg-slate-950/90 border border-slate-700 rounded-lg px-2 py-0.5 text-xs font-extrabold text-amber-300 text-right focus:outline-none focus:ring-1 focus:ring-amber-400"
+                  class="w-22 bg-white border border-amber-300 rounded-lg px-2 py-0.5 text-xs font-extrabold text-amber-900 text-right focus:outline-none focus:ring-1 focus:ring-amber-500"
                 />
               </div>
 
               <!-- Botão Imprimir DFC -->
-              <button type="button" onclick="imprimirDemonstrativoFluxoCaixa()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold shadow-md transition flex items-center gap-1.5 cursor-pointer">
+              <button type="button" onclick="imprimirDemonstrativoFluxoCaixa()" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-xs transition flex items-center gap-1.5 cursor-pointer">
                 <span>🖨️</span> Imprimir DFC
               </button>
             </div>
@@ -8845,28 +8318,20 @@
         <!-- ========================================================= -->
         <!-- SUB-ABA 5: CONTAS A PAGAR (VENCIMENTOS, BAIXAS E PARCELAS) -->
         <!-- ========================================================= -->
-        <div id="tes-subtab-contaspagar" class="hidden space-y-6">
+        <div id="tes-subtab-contaspagar" class="hidden space-y-5">
 
-          <!-- CABEÇALHO EXECUTIVO DE CONTAS A PAGAR -->
-          <div class="bg-gradient-to-r from-slate-900 via-rose-950 to-slate-900 rounded-2xl p-5 text-white shadow-lg border border-rose-500/30 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div class="space-y-1">
-              <div class="flex flex-wrap items-center gap-2">
-                <span class="px-2.5 py-0.5 rounded-md bg-rose-500/20 border border-rose-400/40 text-rose-300 text-[10px] font-black tracking-[0.18em] uppercase">KAIRÓS • CONTAS A PAGAR</span>
-                <span class="text-slate-500 text-xs">•</span>
-                <span class="text-[11px] font-semibold text-slate-300">PIB Parque São Paulo</span>
-                <span id="cp-badge-alerta-topo" class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold border border-emerald-400/30">✅ Obrigações em Dia</span>
-              </div>
-              <h3 class="text-lg sm:text-xl font-black tracking-tight text-white flex items-center gap-2">
-                <span>🧾</span> Gestão de Contas a Pagar, Vencimentos & Obrigações
+          <!-- BARRA COMPACTA DE CONTAS A PAGAR -->
+          <div class="bg-white rounded-2xl p-4 shadow-xs border border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-2.5">
+              <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                <span>🧾</span> Gestão de Contas a Pagar & Vencimentos
               </h3>
-              <p class="text-xs text-slate-300 max-w-3xl">
-                Controle de boletos, fornecedores, folha pastoral/operacional, impostos e parcelamentos. Ao dar baixa em uma conta, o sistema lança automaticamente a saída no Livro-Caixa e na Planilha Mensal.
-              </p>
+              <span id="cp-badge-alerta-topo" class="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-extrabold border border-emerald-200">✅ Obrigações em Dia</span>
             </div>
 
-            <div class="flex flex-wrap items-center gap-2.5">
+            <div class="flex flex-wrap items-center gap-2">
               <!-- Filtro de Mês / Exercício -->
-              <select id="cp-filtro-mes" onchange="renderContasAPagar()" class="bg-slate-900/90 border border-slate-700 text-white text-xs font-bold rounded-xl px-3 py-2 focus:ring-2 focus:ring-rose-400 cursor-pointer">
+              <select id="cp-filtro-mes" onchange="renderContasAPagar()" class="bg-slate-50 border border-slate-300 text-slate-800 text-xs font-bold rounded-xl px-3 py-1.5 focus:ring-2 focus:ring-rose-500 cursor-pointer">
                 <option value="TODOS">📅 Todos os Meses do Exercício</option>
                 <option value="1">Janeiro</option>
                 <option value="2">Fevereiro</option>
@@ -8883,7 +8348,7 @@
               </select>
 
               <!-- Botão Imprimir Relatório de Contas a Pagar -->
-              <button type="button" onclick="imprimirRelatorioContasAPagar()" class="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-extrabold shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+              <button type="button" onclick="imprimirRelatorioContasAPagar()" class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold shadow-xs transition flex items-center gap-1.5 cursor-pointer">
                 <span>🖨️</span> Imprimir Relatório
               </button>
             </div>
@@ -9425,125 +8890,11 @@
 
 
         <!-- PAINEL 1: FORMULÁRIO DE NOVA SOLICITAÇÃO (ATIVO POR PADRÃO, SOLICITAÇÕES OCULTAS) -->
-
-
-
-
-
-
-
         <div id="painel-pedidos-novo" class="max-w-3xl mx-auto bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-
-
-
-
-
-
-
-          <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-
-
-
-
-
-
-
-            <div>
-
-
-
-
-
-
-
-              <span class="text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full">Fluxo de Requisição</span>
-
-
-
-
-
-
-
-              <h3 class="font-bold text-slate-800 text-base mt-1.5">Solicitar Verba / Compra para Ministério</h3>
-
-
-
-
-
-
-
-              <p class="text-xs text-slate-500">Preencha os dados e anexe a nota fiscal ou recibo em PDF para avaliação da Tesouraria.</p>
-
-
-
-
-
-
-
-            </div>
-
-
-
-
-
-
-
-            <button
-
-
-
-
-
-
-
-              type="button"
-
-
-
-
-
-
-
-              onclick="alternarMenuPedidos('lista')"
-
-
-
-
-
-
-
-              class="hidden sm:inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition cursor-pointer"
-
-
-
-
-
-
-
-            >
-
-
-
-
-
-
-
-              Ver Solicitações Anteriores →
-
-
-
-
-
-
-
-            </button>
-
-
-
-
-
-
-
+          <div class="border-b border-slate-100 pb-3 mb-4">
+            <span class="text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full">Fluxo de Requisição</span>
+            <h3 class="font-bold text-slate-800 text-base mt-1.5">Solicitar Verba / Compra para Ministério</h3>
+            <p class="text-xs text-slate-500">Preencha os dados e anexe a nota fiscal ou recibo em PDF para avaliação da Tesouraria.</p>
           </div>
 
 
@@ -10264,94 +9615,10 @@
 
 
 
-            <div class="pt-2 flex flex-col sm:flex-row items-center gap-3">
-
-
-
-
-
-
-
-              <button type="submit" class="w-full sm:flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer">
-
-
-
-
-
-
-
+            <div class="pt-2">
+              <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer">
                 <span>📤 Enviar Pedido para a Tesouraria</span>
-
-
-
-
-
-
-
               </button>
-
-
-
-
-
-
-
-              <button
-
-
-
-
-
-
-
-                type="button"
-
-
-
-
-
-
-
-                onclick="alternarMenuPedidos('lista')"
-
-
-
-
-
-
-
-                class="w-full sm:w-auto px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition text-center cursor-pointer"
-
-
-
-
-
-
-
-              >
-
-
-
-
-
-
-
-                Consultar Solicitações
-
-
-
-
-
-
-
-              </button>
-
-
-
-
-
-
-
             </div>
 
 
@@ -10873,77 +10140,7 @@
 
 
               <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
-
-
-
-
-
-
-
                 <span id="lbl-total-requisicoes-filtradas" class="text-xs font-bold text-slate-500"></span>
-
-
-
-
-
-
-
-                <button
-
-
-
-
-
-
-
-                  type="button"
-
-
-
-
-
-
-
-                  onclick="alternarMenuPedidos('novo')"
-
-
-
-
-
-
-
-                  class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
-
-
-
-
-
-
-
-                >
-
-
-
-
-
-
-
-                  <span>+ Nova Solicitação</span>
-
-
-
-
-
-
-
-                </button>
-
-
-
-
-
-
-
               </div>
 
 
@@ -11048,310 +10245,30 @@
 
 
 
-      <section id="tab-projecao" class="tab-section hidden space-y-6">
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        <!-- Barra Superior de Navegação e Ações Rápidas -->
-
-
-
-
-
-
-
-        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
-
-
-
-
-
-
-
-          <div class="flex items-center gap-2.5">
-
-
-
-
-
-
-
-            <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-slate-900 text-white flex items-center justify-center text-xl shadow-xs">📽️</span>
-
-
-
-
-
-
-
-            <div>
-
-
-
-
-
-
-
-              <h2 class="text-base font-extrabold text-slate-800 flex items-center gap-2">
-
-
-
-
-
-
-
-                Gráfico de Projeção Financeira & Assembleia
-
-
-
-
-
-
-
-                <span class="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-full">Oficial</span>
-
-
-
-
-
-
-
-              </h2>
-
-
-
-
-
-
-
-              <p class="text-xs text-slate-500">Comparativo visual de Entradas, Despesas e Saldo, mais detalhamento percentual das categorias</p>
-
-
-
-
-
-
-
-            </div>
-
-
-
-
-
-
-
+      <section id="tab-projecao" class="tab-section hidden space-y-5">
+
+        <!-- Barra Unificada de Seleção de Slide e Ações da Projeção -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-3 sm:p-3.5 shadow-xs flex flex-wrap items-center justify-between gap-3 no-print">
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" id="btn-slide-geral" onclick="alternarSlideProjecao('geral')" class="px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition shadow-xs bg-slate-900 text-white flex items-center gap-2 cursor-pointer">
+              <span>📊 Slide 1: Entradas, Saídas & Despesas</span>
+            </button>
+            <button type="button" id="btn-slide-ministerios" onclick="alternarSlideProjecao('ministerios')" class="px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 flex items-center gap-2 cursor-pointer">
+              <span>🏛️ Slide 2: Orçamento dos 15 Ministérios</span>
+            </button>
           </div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
           <div id="projecao-botoes-topo" class="flex flex-wrap items-center gap-2">
-
-
-
-
-
-
-
-            <button type="button" onclick="abrirModalQRCodeAssembleia()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow">
-
-
-
-
-
-
-
-              📱 QR Code da Apresentação
-
-
-
-
-
-
-
+            <button type="button" onclick="abrirModalQRCodeAssembleia()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs">
+              📱 QR Code
             </button>
-
-
-
-
-
-
-
-            <button type="button" onclick="abrirSlideTelaCheia()" class="bg-slate-900 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow">
-
-
-
-
-
-
-
-              🖥️ Projetar em Tela Cheia (Assembleia)
-
-
-
-
-
-
-
+            <button type="button" onclick="abrirSlideTelaCheia()" class="bg-slate-900 hover:bg-indigo-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs">
+              🖥️ Tela Cheia
             </button>
-
-
-
-
-
-
-
-          </div>
-
-
-
-
-
-
-
-        </div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        <!-- PAINEL GRÁFICO ESTILO SLIDE DA ASSEMBLEIA: ENTRADAS E SAÍDAS + RESUMO DESPESAS -->
-
-
-
-
-
-
-
-                <!-- Barra de Seleção de Slide para Assembleia / Telão -->
-
-
-
-
-
-
-
-        <div class="bg-white rounded-2xl border border-slate-200 p-2.5 sm:p-3 shadow-xs flex flex-wrap items-center justify-between gap-3 no-print">
-
-
-
-
-
-
-
-          <div class="flex flex-wrap items-center gap-2">
-
-
-
-
-
-
-
-            <button type="button" id="btn-slide-geral" onclick="alternarSlideProjecao('geral')" class="px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition shadow-xs bg-slate-900 text-white flex items-center gap-2 cursor-pointer">
-
-
-
-
-
-
-
-              <span>📊 Slide 1: Entradas, Saídas & Despesas</span>
-
-
-
-
-
-
-
-            </button>
-
-
-
-
-
-
-
-            <button type="button" id="btn-slide-ministerios" onclick="alternarSlideProjecao('ministerios')" class="px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 flex items-center gap-2 cursor-pointer">
-
-
-
-
-
-
-
-              <span>🏛️ Slide 2: Orçamento dos 15 Ministérios</span>
-
-
-
-
-
-
-
-            </button>
-
-
-
-
-
-
-
-          </div>
-
-
-
-
-
-
-
-          <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500 font-medium">
-            <span class="hidden sm:inline">Alterne os slides durante a assembleia:</span>
-            <button type="button" onclick="alternarSlideProjecao(SLIDE_PROJECAO_ATIVO === 'ministerios' ? 'geral' : 'ministerios')" class="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer">
-              🔄 Alternar Slide
-            </button>
-            <button type="button" onclick="encerrarProjecaoAssembleia()" class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Fechar e encerrar a projeção">
+            <button type="button" onclick="encerrarProjecaoAssembleia()" class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Fechar e encerrar a projeção">
               🚪 Sair da Projeção
             </button>
           </div>
-
-
-
-
-
-
-
         </div>
 
 
@@ -12700,325 +11617,33 @@
 
 
 
-      <section id="tab-relatorios" class="tab-section hidden space-y-6">
+      <section id="tab-relatorios" class="tab-section hidden space-y-5">
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        <!-- Sub-Navegação Superior: Central de Relatórios em PDF vs Painel Gráficos BI -->
-
-
-
-
-
-
-
-        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
-
-
-
-
-
-
-
+        <!-- Sub-Navegação Superior Unificada + Busca Rápida de Relatórios -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-3.5 sm:p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
           <div class="flex flex-wrap gap-2">
-
-
-
-
-
-
-
             <button type="button" onclick="switchRelatoriosSubtab('pdf')" id="rel-btn-subtab-pdf" class="subtab-btn active bg-slate-900 text-white text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-900 shadow transition flex items-center gap-2 cursor-pointer">
-
-
-
-
-
-
-
-              📑 1. Central de Relatórios Oficiais em PDF (Todos os Setores)
-
-
-
-
-
-
-
+              📑 1. Central de Relatórios em PDF
             </button>
-
-
-
-
-
-
-
             <button type="button" onclick="switchRelatoriosSubtab('graficos')" id="rel-btn-subtab-graficos" class="subtab-btn bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-200 shadow-xs transition flex items-center gap-2 cursor-pointer">
-
-
-
-
-
-
-
-              📊 2. Gráficos & BI Financeiro (Painel Visual)
-
-
-
-
-
-
-
+              📊 2. Gráficos & BI Financeiro
             </button>
-
-
-
-
-
-
-
           </div>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-          <div class="flex items-center gap-2">
-
-
-
-
-
-
-
-            <span class="text-xs font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-xl">
-
-
-
-
-
-
-
-              🖨️ Timbre Oficial & Assinaturas
-
-
-
-
-
-
-
+          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <div class="w-full sm:w-72">
+              <input type="text" oninput="filtrarCardsRelatorios(this.value)" placeholder="🔍 Buscar relatório (Livro Caixa, Membros, DRE)..." class="w-full bg-slate-50 border border-slate-300 text-slate-800 placeholder-slate-400 text-xs rounded-xl px-3.5 py-2 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium" />
+            </div>
+            <span class="hidden lg:inline-flex text-xs font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-2 rounded-xl">
+              🖨️ Timbre Oficial
             </span>
-
-
-
-
-
-
-
           </div>
-
-
-
-
-
-
-
         </div>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         <!-- ===================================================== -->
-
-
-
-
-
-
-
         <!-- SUB-ABA 1: CENTRAL DE RELATÓRIOS EM PDF (TODOS OS SETORES) -->
-
-
-
-
-
-
-
         <!-- ===================================================== -->
-
-
-
-
-
-
-
         <div id="rel-subtab-pdf" class="space-y-6">
-
-
-
-
-
-
-
-          
-
-
-
-
-
-
-
-          <!-- Barra de Busca Rápida de Relatórios -->
-
-
-
-
-
-
-
-          <div class="bg-gradient-to-r from-slate-900 via-slate-900 to-teal-950 text-white p-5 rounded-2xl border border-teal-800/40 shadow-sm flex flex-wrap items-center justify-between gap-4">
-
-
-
-
-
-
-
-            <div>
-
-
-
-
-
-
-
-              <div class="flex items-center gap-3">
-
-
-
-
-
-
-
-                <img src="/logo.png" alt="Logo PIB" class="w-11 h-11 rounded-full object-contain shrink-0 bg-white p-0.5 border border-[#57a695]/40 shadow-xs" />
-
-
-
-
-
-
-
-                <div>
-
-
-
-
-
-
-
-                  <div class="flex flex-wrap items-center gap-2.5">
-                    <h3 class="text-base font-black text-white">Emissão de Relatórios Oficiais da Igreja em PDF</h3>
-                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-950/80 text-emerald-400 text-[10px] font-black tracking-[0.18em] border border-emerald-500/30">
-                      KAIRÓS
-                    </span>
-                  </div>
-                  <span class="text-[11px] font-bold block mt-0.5" style="color: #57a695;">Primeira Igreja Batista no Parque São Paulo</span>
-
-
-
-
-
-
-
-                </div>
-
-
-
-
-
-
-
-              </div>
-
-
-
-
-
-
-
-              <p class="text-xs text-indigo-200 mt-1">Gere relatórios formatados com cabeçalho timbrado, subtotais consolidados, assinaturas da diretoria e conselho fiscal</p>
-
-
-
-
-
-
-
-            </div>
-
-
-
-
-
-
-
-            <div class="w-full sm:w-80">
-
-
-
-
-
-
-
-              <input type="text" oninput="filtrarCardsRelatorios(this.value)" placeholder="🔍 Buscar relatório (ex: Livro Caixa, Membros, Balancete, Patrimônio)..." class="w-full bg-white/10 border border-white/20 text-white placeholder-slate-300 text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 font-medium" />
-
-
-
-
-
-
-
-            </div>
-
-
-
-
-
-
-
-          </div>
 
 
 
@@ -18611,26 +17236,7 @@
                 >
                   <span>🧹 Limpar</span>
                 </button>
-
-                <button
-                  type="button"
-                  onclick="alternarMenuAtas('novo')"
-                  class="px-3.5 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5 shrink-0 cursor-pointer"
-                >
-                  <span>➕</span>
-                  <span>Nova Ata</span>
-                </button>
               </div>
-            </div>
-
-            <!-- BOTÕES DE CONSULTA RÁPIDA / FILTROS EM 1 CLIQUE -->
-            <div class="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 text-xs">
-              <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Consultar:</span>
-              <button type="button" onclick="setFiltroAtasRapido('')" class="btn-filtro-ata-rapido px-2.5 py-1 rounded-lg bg-violet-100 text-violet-800 font-bold transition cursor-pointer">Todas as Atas</button>
-              <button type="button" onclick="setFiltroAtasRapido('Assembleia Geral Ordinária')" class="btn-filtro-ata-rapido px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition cursor-pointer">🏛️ AGO</button>
-              <button type="button" onclick="setFiltroAtasRapido('Assembleia Geral Extraordinária')" class="btn-filtro-ata-rapido px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition cursor-pointer">⚡ AGE</button>
-              <button type="button" onclick="setFiltroAtasRapido('Reunião de Diretoria')" class="btn-filtro-ata-rapido px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition cursor-pointer">👔 Diretoria</button>
-              <button type="button" onclick="setFiltroAtasRapido('anexo')" class="btn-filtro-ata-rapido px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition cursor-pointer">📎 Com Anexo Digital</button>
             </div>
           </div>
 
@@ -18841,14 +17447,6 @@
 
 
             <div class="flex flex-wrap gap-2">
-
-
-
-
-
-
-
-              <button type="button" onclick="abrirNovoCadastroMembro()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer"><span>➕</span> Cadastrar Novo Membro</button>
               <select id="filtro-status-membro" onchange="renderMembros()" class="border border-slate-300 rounded-xl px-3 py-2 text-xs bg-white font-semibold">
 
 
@@ -23410,37 +22008,32 @@
         </div>
 
         <!-- SUB-ABA 2: QUADRO DE EMPRÉSTIMOS DE BENS (ALOCADO EM SUBMENU) -->
-        <div id="subtab-pat-emprestimos" class="space-y-6 hidden">
-          <!-- Banner Executivo de Gestão Patrimonial -->
-          <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 text-white shadow-xl border border-slate-800 flex flex-wrap items-center justify-between gap-4">
-            <div class="flex items-center gap-3.5">
-              <div class="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-2xl shadow-inner shrink-0">
-                📦
-              </div>
-              <div>
-                <h3 class="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                  Quadro de Empréstimos & Devoluções de Bens
-                  <span class="text-[10px] font-bold uppercase tracking-wider bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 px-2.5 py-0.5 rounded-full">Gestão Patrimonial</span>
-                </h3>
-                <p class="text-xs text-slate-300 font-medium mt-0.5">
-                  Fluxo seguro com aprovação do setor, liberação patrimonial e assinatura digital do termo de cautela no celular.
-                </p>
-              </div>
+        <div id="subtab-pat-emprestimos" class="space-y-5 hidden">
+          <!-- Barra Compacta de Ações do Quadro de Empréstimos -->
+          <div class="bg-white rounded-2xl p-4 shadow-xs border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                <span>📦</span> Quadro de Empréstimos & Devoluções de Bens
+                <span class="text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full">Cautela Digital</span>
+              </h3>
+              <p class="text-xs text-slate-500 mt-0.5">
+                Aprovação do setor, liberação patrimonial e assinatura digital no celular
+              </p>
             </div>
-            <div class="flex items-center gap-2.5 flex-wrap">
-              <button type="button" onclick="imprimirRelatorioGeralEmprestimos()" class="bg-slate-800/90 hover:bg-slate-700 text-slate-200 font-bold text-xs px-4 py-2.5 rounded-xl border border-slate-700 transition flex items-center gap-2 cursor-pointer shadow-sm">
-                <span>📄</span> Relatório Consolidado (PDF)
+            <div class="flex items-center gap-2 flex-wrap">
+              <button type="button" onclick="imprimirRelatorioGeralEmprestimos()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-2 rounded-xl border border-slate-200 transition flex items-center gap-1.5 cursor-pointer">
+                <span>📄</span> Relatório (PDF)
               </button>
-              <button type="button" onclick="abrirModalNovoEmprestimoPatrimonio()" class="bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl shadow-lg hover:shadow-indigo-500/40 transition flex items-center gap-2 cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0">
-                <span>➕</span> Registrar Novo Empréstimo
+              <button type="button" onclick="abrirModalNovoEmprestimoPatrimonio()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                <span>➕</span> Novo Empréstimo
               </button>
             </div>
           </div>
 
-          <!-- Cards de Indicadores Rápidos (KPIs Modernos) -->
-          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex items-center gap-3.5">
-              <div class="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center text-2xl shrink-0 font-bold">
+          <!-- Cards de Indicadores Rápidos Clicáveis -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <div onclick="setFiltroStatusEmprestimo('ABERTO')" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs hover:border-amber-300 transition cursor-pointer flex items-center gap-3.5" title="Filtrar Em Aberto">
+              <div class="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center text-xl shrink-0 font-bold">
                 🟡
               </div>
               <div>
@@ -23450,8 +22043,8 @@
               </div>
             </div>
 
-            <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex items-center gap-3.5">
-              <div class="w-12 h-12 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 flex items-center justify-center text-2xl shrink-0 font-bold">
+            <div onclick="setFiltroStatusEmprestimo('PENDENTE')" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs hover:border-blue-300 transition cursor-pointer flex items-center gap-3.5" title="Filtrar Aguardando OKs">
+              <div class="w-11 h-11 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 flex items-center justify-center text-xl shrink-0 font-bold">
                 ⏳
               </div>
               <div>
@@ -23461,8 +22054,8 @@
               </div>
             </div>
 
-            <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex items-center gap-3.5">
-              <div class="w-12 h-12 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 flex items-center justify-center text-2xl shrink-0 font-bold">
+            <div onclick="setFiltroStatusEmprestimo('ATRASADO')" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs hover:border-rose-300 transition cursor-pointer flex items-center gap-3.5" title="Filtrar Em Atraso">
+              <div class="w-11 h-11 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 flex items-center justify-center text-xl shrink-0 font-bold">
                 🔴
               </div>
               <div>
@@ -23472,8 +22065,8 @@
               </div>
             </div>
 
-            <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex items-center gap-3.5">
-              <div class="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center text-2xl shrink-0 font-bold">
+            <div onclick="setFiltroStatusEmprestimo('DEVOLVIDO')" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs hover:border-emerald-300 transition cursor-pointer flex items-center gap-3.5" title="Filtrar Devolvidos">
+              <div class="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center text-xl shrink-0 font-bold">
                 ✅
               </div>
               <div>
@@ -23571,42 +22164,39 @@
 
 
 
-            <!-- SEÇÃO 12: CONTROLE DE ACESSOS & OPERADORES -->
-      <section id="tab-acessos" class="tab-section hidden space-y-6">
+      <!-- SEÇÃO 12: CONTROLE DE ACESSOS & OPERADORES -->
+      <section id="tab-acessos" class="tab-section hidden space-y-5">
 
-        <!-- Banner de Cabeçalho Executivo do Setor -->
-        <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 text-white shadow-xl border border-slate-800 flex flex-wrap items-center justify-between gap-4">
-          <div class="flex items-center gap-3.5">
-            <div class="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-2xl shadow-inner shrink-0">
+        <!-- Barra Compacta de Controle de Acessos & Backup -->
+        <div class="bg-white rounded-2xl p-4 shadow-xs border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center text-lg shrink-0">
               🛡️
             </div>
             <div>
-              <h2 class="text-xl font-black text-white tracking-tight flex items-center gap-2">
+              <h2 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
                 Controle de Acessos & Usuários
-                <span class="text-[10px] font-bold uppercase tracking-wider bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 px-2.5 py-0.5 rounded-full">Segurança PIB</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full">Segurança PIB</span>
               </h2>
-              <p class="text-xs text-slate-300 font-medium mt-0.5">Gestão de credenciais, permissões por setor e controle estrito de senhas seguras</p>
+              <p class="text-xs text-slate-500">Gestão de credenciais, permissões por setor e cópias de segurança</p>
             </div>
           </div>
 
-          <!-- BOTÃO PRINCIPAL DE CADASTRO DE NOVO USUÁRIO -->
-          <div class="flex items-center gap-3">
-            <div class="flex items-center gap-2 flex-wrap">
-              <button type="button" onclick="abrirFormularioNovoUsuario()" class="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-extrabold text-sm px-6 py-3.5 rounded-2xl shadow-lg hover:shadow-emerald-500/40 transition-all flex items-center gap-2.5 cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0">
-              <span class="text-xl">➕</span> Cadastrar Novo Usuário
+          <div class="flex items-center gap-2 flex-wrap">
+            <button type="button" onclick="abrirFormularioNovoUsuario()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+              <span>➕</span> Cadastrar Novo Usuário
             </button>
-              <a href="/api/sistema/backup-db" target="_blank" download="igreja_erp_backup.db" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-3 rounded-2xl shadow-lg transition flex items-center gap-1.5 cursor-pointer text-xs" title="Baixar cópia de segurança completa do banco de dados (SQLite)">
-                <span>💾</span> Baixar Backup (.db)
-              </a>
-              <button type="button" onclick="abrirModalRestaurarBackup()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold px-4 py-3 rounded-2xl border border-slate-700 transition flex items-center gap-1.5 cursor-pointer text-xs" title="Restaurar banco de dados a partir de arquivo de backup">
-                <span>📥</span> Restaurar Banco
-              </button>
-            </div>
+            <a href="/api/sistema/backup-db" target="_blank" download="igreja_erp_backup.db" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-3.5 py-2.5 rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer text-xs" title="Baixar cópia de segurança completa do banco de dados (SQLite)">
+              <span>💾</span> Baixar Backup (.db)
+            </a>
+            <button type="button" onclick="abrirModalRestaurarBackup()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3.5 py-2.5 rounded-xl border border-slate-200 transition flex items-center gap-1.5 cursor-pointer text-xs" title="Restaurar banco de dados a partir de arquivo de backup">
+              <span>📥</span> Restaurar Banco
+            </button>
           </div>
         </div>
 
         <!-- Mini Cards com Resumo de Métricas -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
           <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex items-center gap-3.5">
             <div class="w-11 h-11 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center text-xl shrink-0 font-bold">
               👥
@@ -23645,35 +22235,6 @@
               <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">1º Acesso Pendente</span>
               <strong id="kpi-total-senhas-pendentes" class="text-lg font-black text-amber-700">0 pendentes</strong>
             </div>
-          </div>
-        </div>
-
-        <!-- QUADRO DE IDENTIFICAÇÃO E SENHA DO OPERADOR ATIVO -->
-        <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-5 text-white shadow-xl border border-indigo-400/30 flex flex-wrap items-center justify-between gap-4">
-          <div class="flex items-center gap-4 min-w-0">
-            <div id="card-sessao-avatar" class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-black text-lg sm:text-xl flex items-center justify-center shrink-0 shadow-md border border-white/20">
-              MS
-            </div>
-            <div class="min-w-0">
-              <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                  Sessão Ativa
-                </span>
-                <span id="card-sessao-perfil" class="text-[10px] font-bold uppercase tracking-wider bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 px-2.5 py-0.5 rounded-full">ADMIN</span>
-              </div>
-              <h3 id="card-sessao-nome" class="text-base sm:text-lg font-black text-white tracking-tight mt-1 truncate">Marcos Silva (Administrador)</h3>
-              <p class="text-xs text-slate-300 font-medium">Sua conta de acesso e credenciais de segurança no sistema</p>
-            </div>
-          </div>
-
-          <div class="flex items-center gap-2.5 flex-wrap">
-            <button type="button" onclick="abrirModalTrocaSenhaPropria()" class="bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-extrabold text-xs px-5 py-3 rounded-2xl shadow-lg hover:shadow-indigo-500/30 transition flex items-center gap-2 cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0">
-              <span class="text-base">🔑</span> Alterar Minha Senha
-            </button>
-            <button type="button" onclick="sairDoSistema()" class="bg-rose-500/20 hover:bg-rose-600 text-rose-200 hover:text-white border border-rose-500/40 hover:border-rose-600 font-bold text-xs px-4 py-3 rounded-2xl transition flex items-center gap-1.5 cursor-pointer">
-              <span>🚪</span> Sair
-            </button>
           </div>
         </div>
 
@@ -24362,12 +22923,7 @@
 
       <form id="form-login-sistema" onsubmit="executarLoginSistema(event)" class="space-y-4 text-xs" autocomplete="off">
         <div>
-          <div class="flex items-center justify-between mb-1.5">
-            <label class="font-bold text-slate-700 block">Selecione o seu Usuário *</label>
-            <button type="button" onclick="limparSelecaoLogin()" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold hover:underline cursor-pointer flex items-center gap-1">
-              <span>🔄</span> Trocar Usuário
-            </button>
-          </div>
+          <label class="font-bold text-slate-700 block mb-1.5">Selecione o seu Usuário *</label>
           <select id="login-operador-id" onchange="aoMudarOperadorLogin()" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 bg-slate-50 font-bold text-slate-800 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
             <option value="">-- Selecione seu Usuário Cadastrado --</option>
             <option value="1">Marcos Silva (Administrador) [ADMIN]</option>
@@ -24414,14 +22970,6 @@
           <div id="capslock-warning-login" class="hidden text-[11px] text-amber-800 font-bold bg-amber-100 border border-amber-300 rounded-xl px-3 py-1.5 mt-1.5 flex items-center gap-1.5 shadow-2xs">
             <span>⚠️</span> <span>Aviso: A tecla Fixa / Caps Lock está ativada.</span>
           </div>
-        </div>
-
-        <!-- Orientação Prática e Desmistificação de Avisos do Navegador -->
-        <div class="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-[11px] text-slate-600 flex items-start gap-2">
-          <span class="text-indigo-600 font-bold shrink-0 text-sm">💡</span>
-          <span class="leading-relaxed">
-            Todos os operadores cadastrados podem acessar normalmente selecionando seu nome ou digitando o e-mail. <em>(Se o Google Chrome exibir aviso de "sincronização de senhas pausada", é um lembrete exclusivo do navegador/Google e não interfere no sistema PIB).</em>
-          </span>
         </div>
 
         <div id="login-erro" class="hidden text-rose-700 font-bold bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs flex items-center justify-between gap-2">
@@ -24869,7 +23417,7 @@
   </div>
 
   <script src="/qrcode.min.js"></script>
-  <script src="/app.js?v=20261113_v241_planilha_mensal_enxuta"></script>
+  <script src="/app.js?v=20261113_v242_modulos_enxutos"></script>
 
 
 
