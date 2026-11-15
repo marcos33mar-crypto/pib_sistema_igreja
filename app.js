@@ -5958,9 +5958,153 @@ function renderAll() {
   }
 }
 
+function localizarRubricaMatrizParaLancamentoJS(rowsAno, f) {
+  const tipoClean = String(f.tipo || 'SAIDA').toUpperCase();
+  const rows = rowsAno.filter(r => r.tipo_fluxo === tipoClean);
+  if (!rows.length) return null;
+
+  const catClean = String(f.categoria || '').trim().toLowerCase();
+  const descClean = String(f.descricao || '').trim().toLowerCase();
+  const textoBusca = `${catClean} ${descClean}`;
+
+  for (const r of rows) {
+    const rLow = String(r.rubrica || '').trim().toLowerCase();
+    if (rLow === catClean || rLow === descClean) return r;
+  }
+
+  if (tipoClean === 'ENTRADA') {
+    if (textoBusca.includes('gasofil')) return rows.find(r => r.rubrica.toLowerCase().includes('gasofil')) || rows[0];
+    if (textoBusca.includes('itaú') || textoBusca.includes('itau')) return rows.find(r => r.rubrica.toLowerCase().includes('itaú') || r.rubrica.toLowerCase().includes('itau')) || rows[0];
+    if (textoBusca.includes('bradesco')) return rows.find(r => r.rubrica.toLowerCase().includes('bradesco')) || rows[0];
+    if (textoBusca.includes('aplic') || textoBusca.includes('rendimento')) return rows.find(r => r.rubrica.toLowerCase().includes('aplic')) || rows[0];
+    if (textoBusca.includes('saldo') && textoBusca.includes('anterior')) return rows.find(r => r.rubrica.toLowerCase().includes('saldo')) || rows[0];
+    if (['missõ', 'misso', 'missão', 'missao', 'jmm', 'jmn', 'jme'].some(w => textoBusca.includes(w))) return rows.find(r => r.rubrica.toLowerCase().includes('missõ') || r.rubrica.toLowerCase().includes('misso')) || rows[0];
+    if (['cantina', 'bazar'].some(w => textoBusca.includes(w))) return rows.find(r => r.rubrica.toLowerCase().includes('cantina')) || rows[0];
+    if (textoBusca.includes('acampamento') || textoBusca.includes('retiro')) return rows.find(r => r.rubrica.toLowerCase().includes('acampamento')) || rows[0];
+    if (textoBusca.includes('evento')) return rows.find(r => r.rubrica.toLowerCase().includes('evento')) || rows[0];
+    if (textoBusca.includes('promessa') || textoBusca.includes('campanha')) return rows.find(r => r.rubrica.toLowerCase().includes('promessa')) || rows[0];
+    if (['reembolso', 'estorno', 'devolu', 'ressarc'].some(w => textoBusca.includes(w))) return rows.find(r => ['reembolso', 'estorno', 'devolu'].some(w => r.rubrica.toLowerCase().includes(w))) || rows[0];
+    if (textoBusca.includes('dízimo') || textoBusca.includes('dizimo')) return rows.find(r => r.rubrica.toLowerCase().includes('dízimo') || r.rubrica.toLowerCase().includes('dizimo')) || rows[0];
+    if (textoBusca.includes('oferta')) return rows.find(r => r.rubrica.toLowerCase().includes('oferta') && !r.rubrica.toLowerCase().includes('miss')) || rows[0];
+    return rows.find(r => r.rubrica.toLowerCase().includes('outras entradas')) || rows[0];
+  } else {
+    let minNome = '';
+    if (f.ministerio_id) {
+      const mObj = (STATE.ministerios || []).find(m => Number(m.id) === Number(f.ministerio_id));
+      if (mObj && mObj.nome) minNome = mObj.nome.toLowerCase();
+    } else if (f.ministerio_nome) {
+      minNome = String(f.ministerio_nome).toLowerCase();
+    }
+
+    if (minNome || catClean.includes('ministério') || catClean.includes('ministerio') || descClean.includes('ebd')) {
+      const buscaMin = `${minNome} ${descClean} ${catClean}`;
+      if (buscaMin.includes('viver')) { const m = rows.find(r => r.rubrica.toLowerCase().includes('viver')); if (m) return m; }
+      if (buscaMin.includes('ebd') || buscaMin.includes('escola bíblica') || buscaMin.includes('escola biblica')) { const m = rows.find(r => r.rubrica.toLowerCase().includes('ebd')); if (m) return m; }
+      if (['jovem', 'jovens', 'adolescente'].some(w => buscaMin.includes(w))) { const m = rows.find(r => ['jovem', 'adolescente'].some(w => r.rubrica.toLowerCase().includes(w))); if (m) return m; }
+      if (buscaMin.includes('evento')) { const m = rows.find(r => r.rubrica.toLowerCase().includes('evento') && r.grupo === 'Despesas com Ministérios'); if (m) return m; }
+      if (['social', 'ação', 'acao'].some(w => buscaMin.includes(w))) { const m = rows.find(r => ['social', 'ação', 'acao'].some(w => r.rubrica.toLowerCase().includes(w))); if (m) return m; }
+      if (['som', 'sonoplastia'].some(w => buscaMin.includes(w))) { const m = rows.find(r => ['som', 'sonoplastia'].some(w => r.rubrica.toLowerCase().includes(w))); if (m) return m; }
+      if (['infantil', 'criança', 'ebf'].some(w => buscaMin.includes(w))) { const m = rows.find(r => ['infantil', 'criança'].some(w => r.rubrica.toLowerCase().includes(w))); if (m) return m; }
+      if (buscaMin.includes('mulher') || buscaMin.includes('mcm')) { const m = rows.find(r => r.rubrica.toLowerCase().includes('mulher')); if (m) return m; }
+      if (buscaMin.includes('homem') || buscaMin.includes('homens') || buscaMin.includes('umhb')) { const m = rows.find(r => r.rubrica.toLowerCase().includes('homem')); if (m) return m; }
+      if (['missão', 'missao', 'missões', 'missoes'].some(w => buscaMin.includes(w))) { const m = rows.find(r => r.grupo === 'Despesas com Ministérios' && ['missão', 'missao', 'missões'].some(w => r.rubrica.toLowerCase().includes(w))); if (m) return m; }
+      if (buscaMin.includes('casais') || buscaMin.includes('casal') || buscaMin.includes('família')) { const m = rows.find(r => r.rubrica.toLowerCase().includes('casais')); if (m) return m; }
+      if (buscaMin.includes('coral')) { const m = rows.find(r => r.rubrica.toLowerCase().includes('coral')); if (m) return m; }
+      if (buscaMin.includes('louvor') || buscaMin.includes('música')) { const m = rows.find(r => r.rubrica.toLowerCase().includes('louvor')); if (m) return m; }
+      if (['diácon', 'diacon', 'diacono', 'diácono'].some(w => buscaMin.includes(w))) { const m = rows.find(r => ['diácon', 'diacon'].some(w => r.rubrica.toLowerCase().includes(w))); if (m) return m; }
+      if (buscaMin.includes('comunica') || buscaMin.includes('mídia') || buscaMin.includes('midia')) { const m = rows.find(r => r.rubrica.toLowerCase().includes('comunica')); if (m) return m; }
+    }
+
+    const palavrasRubrica = [
+      [['água', 'agua', 'sabesp'], 'Conta de Água (Sabesp)'],
+      [['luz', 'energia', 'enel', 'eletric'], 'Conta de Energia (Enel)'],
+      [['telefone', 'internet', 'claro', 'vivo', 'fibra', 'wi-fi'], 'Telefone e Internet (Claro)'],
+      [['alarme', 'adt', 'monitoramento', 'segurança'], 'Monitoramento Alarme (ADT)'],
+      [['extintor', 'bombeiro'], 'Recarga de Extintores'],
+      [['dedetiza'], 'Dedetização'],
+      [["caixa d'água", 'caixa d agua', 'limpeza caixa'], "Limpeza Caixa D'água"],
+      [['diarista', 'viviane', 'faxina'], 'Diarista (Viviane)'],
+      [['contabilidade', 'contador', 'honorário'], 'Contabilidade'],
+      [['inss', 'gps', 'previdência'], 'INSS'],
+      [['renda eclesiástica', 'prebenda', 'pastor ivan', 'pr. ivan'], 'Renda Eclesiástica (Pr. Ivan)'],
+      [['13º', 'decimo terceiro', 'férias'], '13º Salário / Férias'],
+      [['iptu'], 'IPTU'],
+      [['darf', 'irrf', 'pis'], 'DARF'],
+      [['taxa prefeitura', 'prefeitura'], 'Taxas Prefeitura'],
+      [['tarifa', 'manutenção conta', 'taxa banc'], 'Tarifa Manutenção de Conta'],
+      [['cartório', 'cartorio', 'ata', 'autentica'], 'Cartório (Atas/Documentos)'],
+      [['sistema', 'software', 'informática', 'site', 'domínio'], 'Sistema de Gestão / Informática'],
+      [['convenção', 'convencao', 'cbm', 'cbb'], 'Convenção Batista'],
+      [['mundiais', 'jmm'], 'Campanha Missões Mundiais'],
+      [['nacionais', 'jmn'], 'Campanha Missões Nacionais'],
+      [['estaduais', 'jme'], 'Campanha Missões Estaduais'],
+      [['cláudio', 'claudio', 'balneário', 'balneario'], 'Pr. Cláudio do Balneário'],
+      [['valmir'], 'Missionário Valmir'],
+      [['reforma', 'pedreiro', 'pintura', 'telhado'], 'Reforma e Construção'],
+      [['elétrica', 'eletrica', 'lâmpada', 'lampada', 'fiação'], 'Manutenção Elétrica / Hidráulica'],
+      [['equipamento', 'compra de bem', 'instrumento', 'microfone', 'cadeira'], 'Compra de Equipamentos'],
+      [['limpeza', 'descart', 'papel', 'detergente', 'sabão'], 'Material de Limpeza / Descartáveis'],
+      [['santa ceia', 'ceia', 'pão', 'suco de uva'], 'Santa Ceia'],
+      [['café', 'cafe', 'cozinha', 'açúcar', 'acucar', 'lanche'], 'Café e Cozinha'],
+      [['ajuda de custo', 'uber', 'combustível', 'gasolina', 'passagem'], 'Ajuda de Custo / Transporte'],
+      [['gráfica', 'grafica', 'boletim', 'banner', 'faixa'], 'Impressos / Boletins / Faixas'],
+      [['livraria', 'bíblia', 'biblia', 'revista'], 'Livraria / Bíblias / Revistas'],
+      [['expediente', 'papelaria', 'caneta', 'toner', 'impressora'], 'Material de Expediente / Secretaria']
+    ];
+    for (const [termos, rubAlvo] of palavrasRubrica) {
+      if (termos.some(t => textoBusca.includes(t))) {
+        const enc = rows.find(r => r.rubrica.toLowerCase() === rubAlvo.toLowerCase());
+        if (enc) return enc;
+      }
+    }
+
+    return rows.find(r => r.grupo === 'Despesas Operacionais' && r.rubrica.toLowerCase().includes('outros')) || rows[0];
+  }
+}
+
 function calcularResumoAnoMatriz(ano) {
   const anoNum = Number(ano || 2026);
   const rows = (STATE.matriz_tesouraria || []).filter(r => Number(r.ano) === anoNum);
+
+  // Garante reconciliação em tempo real diretamente nas CÉLULAS e RUBRICAS da matriz caso haja lançamentos em STATE.financeiro
+  const somaLancsPorCelula = {};
+  (STATE.financeiro || []).forEach(f => {
+    if (!f.data_lancamento || f.status === 'Cancelado') return;
+    const [aStr, mStr] = String(f.data_lancamento).split('-');
+    if (Number(aStr) !== anoNum) return;
+    const idx = Number(mStr) - 1;
+    if (idx < 0 || idx >= 12) return;
+    const val = Number(f.valor || 0);
+    if (val <= 0) return;
+    const rowAlvo = localizarRubricaMatrizParaLancamentoJS(rows, f);
+    if (rowAlvo) {
+      const chave = `${rowAlvo.id}_${idx}`;
+      somaLancsPorCelula[chave] = Math.round(((somaLancsPorCelula[chave] || 0) + val) * 100) / 100;
+    }
+  });
+
+  rows.forEach(r => {
+    if (!Array.isArray(r.meses) || r.meses.length < 12) {
+      r.meses = Array.from({ length: 12 }, (_, i) => Number(r[`m${i + 1}`] || 0));
+    }
+    let modificouLinha = false;
+    for (let i = 0; i < 12; i++) {
+      const chave = `${r.id}_${i}`;
+      const esperado = somaLancsPorCelula[chave] || 0;
+      const atual = Number(r.meses[i] ?? r[`m${i + 1}`] ?? 0);
+      if (esperado > atual) {
+        r.meses[i] = esperado;
+        r[`m${i + 1}`] = esperado;
+        modificouLinha = true;
+      }
+    }
+    if (modificouLinha || r.total_anual === undefined) {
+      const somaLinha = r.meses.reduce((acc, v) => acc + Number(v || 0), 0);
+      r.total_anual = Math.round(somaLinha * 100) / 100;
+      r.media_mensal = Math.round((somaLinha / 12) * 100) / 100;
+    }
+  });
+
   const entradasRows = rows.filter(r => r.tipo_fluxo === 'ENTRADA');
   const saidasRows = rows.filter(r => r.tipo_fluxo === 'SAIDA');
 
@@ -5973,26 +6117,6 @@ function calcularResumoAnoMatriz(ano) {
   saidasRows.forEach(r => {
     for (let i = 0; i < 12; i++) saiMes[i] += Number((r.meses && r.meses[i]) ?? r[`m${i + 1}`] ?? 0);
   });
-
-  // Garante reconciliação em tempo real caso haja lançamentos em STATE.financeiro ainda não refletidos na matriz local
-  const finEntMes = Array(12).fill(0);
-  const finSaiMes = Array(12).fill(0);
-  (STATE.financeiro || []).forEach(f => {
-    if (!f.data_lancamento || f.status === 'Cancelado') return;
-    const [aStr, mStr] = String(f.data_lancamento).split('-');
-    if (Number(aStr) === anoNum) {
-      const idx = Number(mStr) - 1;
-      if (idx >= 0 && idx < 12) {
-        if (f.tipo === 'ENTRADA') finEntMes[idx] += Number(f.valor || 0);
-        else if (f.tipo === 'SAIDA') finSaiMes[idx] += Number(f.valor || 0);
-      }
-    }
-  });
-
-  for (let i = 0; i < 12; i++) {
-    if (finEntMes[i] > entMes[i]) entMes[i] = finEntMes[i];
-    if (finSaiMes[i] > saiMes[i]) saiMes[i] = finSaiMes[i];
-  }
 
   const totalEntradas = entMes.reduce((a, b) => a + b, 0);
   const totalSaidas = saiMes.reduce((a, b) => a + b, 0);

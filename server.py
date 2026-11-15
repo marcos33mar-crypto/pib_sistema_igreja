@@ -21,6 +21,7 @@ import random
 import os
 
 import re
+import shutil
 
 import socket
 
@@ -2116,7 +2117,7 @@ def reconciliar_lancamentos_com_matriz(conn):
         "SELECT id, data_lancamento, tipo, categoria, descricao, valor, status, ministerio_id FROM financeiro WHERE status != 'Cancelado'"
     ).fetchall()
     if not lancs:
-        return
+        return False
 
     esperado_por_celula = {}
     for l in lancs:
@@ -2130,6 +2131,7 @@ def reconciliar_lancamentos_com_matriz(conn):
             chave = (row_enc["id"], col)
             esperado_por_celula[chave] = round(esperado_por_celula.get(chave, 0.0) + val, 2)
 
+    alterou = False
     for (rid, col), val_esperado in esperado_por_celula.items():
         r_atual = cur.execute(f"SELECT id, ano, tipo_fluxo, rubrica, {col} as v FROM matriz_tesouraria WHERE id=?", (rid,)).fetchone()
         if not r_atual:
@@ -2138,6 +2140,7 @@ def reconciliar_lancamentos_com_matriz(conn):
         if val_atual < val_esperado:
             diferenca = round(val_esperado - val_atual, 2)
             cur.execute(f"UPDATE matriz_tesouraria SET {col}=? WHERE id=?", (val_esperado, rid))
+            alterou = True
             fallbacks = cur.execute(
                 f"SELECT id, rubrica, {col} as v FROM matriz_tesouraria WHERE ano=? AND tipo_fluxo=? AND id != ?",
                 (r_atual["ano"], r_atual["tipo_fluxo"], rid),
@@ -2152,6 +2155,7 @@ def reconciliar_lancamentos_com_matriz(conn):
                     novo_fb = max(0.0, round(fb_val - diferenca, 2))
                     cur.execute(f"UPDATE matriz_tesouraria SET {col}=? WHERE id=?", (novo_fb, fb_id))
                     break
+    return alterou
 
 
 def _sincronizar_lancamento_na_matriz_legado(cur, data_lanc, tipo, categoria, descricao, valor_delta, ministerio_id=None):
@@ -2789,6 +2793,13 @@ def build_bootstrap_data(req_handler=None):
         ministerios_orcamentos = [dict(r) for r in cur.execute("SELECT * FROM ministerios_orcamentos").fetchall()]
 
         celulas = [dict(r) for r in cur.execute("SELECT * FROM celulas ORDER BY id").fetchall()]
+
+        try:
+            if reconciliar_lancamentos_com_matriz(conn):
+                conn.commit()
+                agendar_auto_backup_nuvem(2.0)
+        except Exception as e_rec_boot:
+            print(f"[Bootstrap Reconciliacao Matriz] Aviso: {e_rec_boot}")
 
         matriz_rows = [dict(r) for r in cur.execute("SELECT * FROM matriz_tesouraria ORDER BY ano DESC, tipo_fluxo ASC, id ASC").fetchall()]
 
