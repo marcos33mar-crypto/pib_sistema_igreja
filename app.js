@@ -4721,35 +4721,10 @@ function renderOrcamento15Ministerios() {
         </td>
         <td class="py-3 px-3 text-right font-mono text-slate-600">${formatBRL(rVal)}</td>
         <td class="py-3 px-3 text-right font-mono font-extrabold text-indigo-900">${formatBRL(oVal)}</td>
-        <td class="py-2.5 px-3 text-center">
-          <div class="flex flex-col items-center gap-1">
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${Number(aum) > 0 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}" title="Variação entre Realizado ${anoReal} e Orçamento ${anoOrc}">
-              ${Number(aum) > 0 ? '+' : ''}${aum}%
-            </span>
-            <div class="inline-flex items-center gap-1 bg-indigo-50/80 border border-indigo-200 rounded-lg px-1.5 py-0.5 no-print" title="Digite o % de acréscimo sobre o Orçamento ${anoBaseCalc} (${formatBRL(baseCalcVal)}) para ${anoDestCalc}">
-              <span class="text-[9px] font-bold text-indigo-700">+%</span>
-              <input
-                type="number"
-                step="0.1"
-                id="inp-perc-min-${m.id}"
-                data-min-id="${m.id}"
-                data-base-val="${baseCalcVal}"
-                placeholder="0%"
-                oninput="aoDigitarPercentualMinisterio(${m.id}, ${baseCalcVal})"
-                onkeydown="if(event.key==='Enter'){event.preventDefault();aplicarPercentualIndividualMinisterio(${m.id});}"
-                class="inp-perc-ministerio w-14 text-right font-extrabold text-indigo-900 text-[11px] bg-white border border-indigo-200 rounded px-1 py-0.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
-              />
-              <button
-                type="button"
-                onclick="aplicarPercentualIndividualMinisterio(${m.id})"
-                class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] px-1.5 py-0.5 rounded transition cursor-pointer"
-                title="Aplicar este % ao ministério para o exercício ${anoDestCalc}"
-              >
-                ✓
-              </button>
-            </div>
-            <span id="prev-orc-min-${m.id}" class="hidden text-[10px] font-mono font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded"></span>
-          </div>
+        <td class="py-3 px-3 text-center">
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${Number(aum) > 0 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}" title="Variação entre Realizado ${anoReal} e Orçamento ${anoOrc}">
+            ${Number(aum) > 0 ? '+' : ''}${aum}%
+          </span>
         </td>
         <td class="py-3 px-3 text-right font-mono font-bold text-rose-600">${formatBRL(exVal)}</td>
         <td class="py-3 px-3 text-right font-mono font-bold ${saldo >= 0 ? 'text-emerald-600' : 'text-rose-600'}">${formatBRL(saldo)}</td>
