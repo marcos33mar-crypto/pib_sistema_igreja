@@ -1649,6 +1649,9 @@ def init_db():
         # Garante que todos os anos de 2020 a 2035 tenham o plano de contas padrão completo sem perder nenhum valor já lançado
         padronizar_matriz_todos_os_anos(conn)
 
+        # Reconcilia lançamentos diários com a matriz_tesouraria garantindo 100% de fidelidade nas rubricas
+        reconciliar_lancamentos_com_matriz(conn)
+
         conn.commit()
 
         conn.close()
@@ -1786,6 +1789,327 @@ def integrar_planilha_real(conn, zerar_valores=True):
 
 
 def sincronizar_lancamento_na_matriz(cur, data_lanc, tipo, categoria, descricao, valor_delta, ministerio_id=None):
+    """Sincroniza lançamentos diários do livro caixa diretamente na célula mensal da matriz_tesouraria."""
+    row_encontrada, ano, mes, col, grupo_alvo, rubrica_insercao = localizar_rubrica_matriz_para_lancamento(
+        cur, data_lanc, tipo, categoria, descricao, ministerio_id
+    )
+
+    if row_encontrada:
+        novo_val = max(0.0, round(float(row_encontrada["val_atual"] or 0) + float(valor_delta), 2))
+        cur.execute(f"UPDATE matriz_tesouraria SET {col}=? WHERE id=?", (novo_val, row_encontrada["id"]))
+    elif valor_delta > 0:
+        meses = [0.0] * 12
+        meses[mes - 1] = round(float(valor_delta), 2)
+        cur.execute(
+            """INSERT INTO matriz_tesouraria
+            (ano, tipo_fluxo, grupo, rubrica, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (ano, tipo, grupo_alvo, rubrica_insercao, *meses),
+        )
+
+
+def localizar_rubrica_matriz_para_lancamento(cur, data_lanc, tipo, categoria, descricao, ministerio_id=None):
+    """Localiza com precisão cirúrgica a rubrica correspondente na matriz_tesouraria para um lançamento."""
+    try:
+        partes = str(data_lanc).split("-")
+        ano = int(partes[0]) if len(partes) >= 1 and partes[0].isdigit() else 2026
+        mes = int(partes[1]) if len(partes) >= 2 and partes[1].isdigit() else 10
+        if mes < 1 or mes > 12:
+            mes = 10
+    except Exception:
+        ano, mes = 2026, 10
+
+    col = f"m{mes}"
+    cat_clean = (categoria or "").strip().lower()
+    desc_clean = (descricao or "").strip().lower()
+    texto_busca = f"{cat_clean} {desc_clean}".strip()
+
+    rows = cur.execute(
+        f"SELECT id, rubrica, grupo, {col} as val_atual FROM matriz_tesouraria WHERE ano=? AND tipo_fluxo=? ORDER BY id ASC",
+        (ano, tipo),
+    ).fetchall()
+
+    row_encontrada = None
+    grupo_alvo = "Entradas" if tipo == "ENTRADA" else "Despesas Operacionais"
+    rubrica_insercao = descricao or categoria or "Lançamento Geral"
+
+    if tipo == "ENTRADA":
+        grupo_alvo = "Entradas"
+        for r in rows:
+            r_low = r["rubrica"].strip().lower()
+            if cat_clean == r_low or desc_clean == r_low:
+                row_encontrada = r
+                break
+
+        if not row_encontrada:
+            if "gasofil" in texto_busca:
+                for r in rows:
+                    if "gasofil" in r["rubrica"].lower():
+                        row_encontrada = r; break
+            elif any(w in texto_busca for w in ["itaú", "itau"]):
+                for r in rows:
+                    if any(w in r["rubrica"].lower() for w in ["itaú", "itau"]):
+                        row_encontrada = r; break
+            elif "bradesco" in texto_busca:
+                for r in rows:
+                    if "bradesco" in r["rubrica"].lower():
+                        row_encontrada = r; break
+            elif "aplic" in texto_busca or "rendimento" in texto_busca:
+                for r in rows:
+                    if "aplic" in r["rubrica"].lower():
+                        row_encontrada = r; break
+            elif "saldo" in texto_busca and "anterior" in texto_busca:
+                for r in rows:
+                    if "saldo" in r["rubrica"].lower():
+                        row_encontrada = r; break
+            elif any(w in texto_busca for w in ["missõ", "misso", "missão", "missao", "jmm", "jmn", "jme"]):
+                for r in rows:
+                    if any(w in r["rubrica"].lower() for w in ["missõ", "misso"]):
+                        row_encontrada = r; break
+            elif any(w in texto_busca for w in ["cantina", "bazar"]):
+                for r in rows:
+                    if "cantina" in r["rubrica"].lower():
+                        row_encontrada = r; break
+            elif "acampamento" in texto_busca or "retiro" in texto_busca:
+                for r in rows:
+                    if "acampamento" in r["rubrica"].lower():
+                        row_encontrada = r; break
+            elif "evento" in texto_busca:
+                for r in rows:
+                    if "evento" in r["rubrica"].lower():
+                        row_encontrada = r; break
+            elif "promessa" in texto_busca or "campanha" in texto_busca:
+                for r in rows:
+                    if "promessa" in r["rubrica"].lower():
+                        row_encontrada = r; break
+            elif any(w in texto_busca for w in ["reembolso", "estorno", "devolu", "ressarc"]):
+                for r in rows:
+                    if any(w in r["rubrica"].lower() for w in ["reembolso", "estorno", "devolu"]):
+                        row_encontrada = r; break
+            elif any(w in texto_busca for w in ["dízimo", "dizimo"]):
+                for r in rows:
+                    if any(w in r["rubrica"].lower() for w in ["dízimo", "dizimo"]):
+                        row_encontrada = r; break
+            elif "oferta" in texto_busca:
+                for r in rows:
+                    if "oferta" in r["rubrica"].lower() and "miss" not in r["rubrica"].lower():
+                        row_encontrada = r; break
+
+        if not row_encontrada:
+            for r in rows:
+                r_low = r["rubrica"].lower()
+                if (cat_clean and cat_clean in r_low) or (desc_clean and desc_clean in r_low) or (r_low in cat_clean):
+                    row_encontrada = r; break
+
+        if not row_encontrada:
+            for r in rows:
+                if "outras entradas" in r["rubrica"].lower():
+                    row_encontrada = r; break
+        if not row_encontrada and rows:
+            row_encontrada = rows[0]
+
+        rubrica_insercao = categoria or descricao or "Receitas Diversas"
+
+    else:
+        min_nome = ""
+        if ministerio_id:
+            row_min = cur.execute("SELECT id, nome FROM ministerios WHERE id=?", (int(ministerio_id),)).fetchone()
+            if row_min:
+                min_nome = row_min["nome"].lower()
+
+        if min_nome or "ministério" in cat_clean or "ministerio" in cat_clean:
+            grupo_alvo = "Despesas com Ministérios"
+            busca_min = f"{min_nome} {desc_clean} {cat_clean}"
+            if "viver" in busca_min:
+                for r in rows:
+                    if "viver" in r["rubrica"].lower(): row_encontrada = r; break
+            elif "ebd" in busca_min or "escola bíblica" in busca_min or "escola biblica" in busca_min:
+                for r in rows:
+                    if "ebd" in r["rubrica"].lower(): row_encontrada = r; break
+            elif any(w in busca_min for w in ["jovem", "jovens", "adolescente"]):
+                for r in rows:
+                    if any(w in r["rubrica"].lower() for w in ["jovem", "adolescente"]): row_encontrada = r; break
+            elif "evento" in busca_min:
+                for r in rows:
+                    if "evento" in r["rubrica"].lower() and r["grupo"] == "Despesas com Ministérios": row_encontrada = r; break
+            elif any(w in busca_min for w in ["social", "ação", "acao"]):
+                for r in rows:
+                    if any(w in r["rubrica"].lower() for w in ["social", "ação", "acao"]): row_encontrada = r; break
+            elif any(w in busca_min for w in ["som", "sonoplastia"]):
+                for r in rows:
+                    if any(w in r["rubrica"].lower() for w in ["som", "sonoplastia"]): row_encontrada = r; break
+            elif any(w in busca_min for w in ["infantil", "criança", "ebf"]):
+                for r in rows:
+                    if any(w in r["rubrica"].lower() for w in ["infantil", "criança"]): row_encontrada = r; break
+            elif "mulher" in busca_min or "mcm" in busca_min:
+                for r in rows:
+                    if "mulher" in r["rubrica"].lower(): row_encontrada = r; break
+            elif "homem" in busca_min or "homens" in busca_min or "umhb" in busca_min:
+                for r in rows:
+                    if "homem" in r["rubrica"].lower(): row_encontrada = r; break
+            elif any(w in busca_min for w in ["missão", "missao", "missões", "missoes"]):
+                for r in rows:
+                    if r["grupo"] == "Despesas com Ministérios" and any(w in r["rubrica"].lower() for w in ["missão", "missao", "missões"]): row_encontrada = r; break
+            elif "casais" in busca_min or "casal" in busca_min or "família" in busca_min:
+                for r in rows:
+                    if "casais" in r["rubrica"].lower(): row_encontrada = r; break
+            elif "coral" in busca_min:
+                for r in rows:
+                    if "coral" in r["rubrica"].lower(): row_encontrada = r; break
+            elif "louvor" in busca_min or "música" in busca_min:
+                for r in rows:
+                    if "louvor" in r["rubrica"].lower(): row_encontrada = r; break
+            elif any(w in busca_min for w in ["diácon", "diacon", "diacono", "diácono"]):
+                for r in rows:
+                    if any(w in r["rubrica"].lower() for w in ["diácon", "diacon"]): row_encontrada = r; break
+            elif "comunica" in busca_min or "mídia" in busca_min or "midia" in busca_min:
+                for r in rows:
+                    if "comunica" in r["rubrica"].lower(): row_encontrada = r; break
+
+            if not row_encontrada and min_nome:
+                for r in rows:
+                    if r["grupo"] == "Despesas com Ministérios" and (min_nome[:8] in r["rubrica"].lower() or r["rubrica"].lower()[:8] in min_nome):
+                        row_encontrada = r; break
+
+        if not row_encontrada:
+            palavras_rubrica = [
+                (["água", "agua", "sabesp"], "Conta de Água (Sabesp)"),
+                (["luz", "energia", "enel", "eletric"], "Conta de Energia (Enel)"),
+                (["telefone", "internet", "claro", "vivo", "fibra", "wi-fi"], "Telefone e Internet (Claro)"),
+                (["alarme", "adt", "monitoramento", "segurança"], "Monitoramento Alarme (ADT)"),
+                (["extintor", "bombeiro"], "Recarga de Extintores"),
+                (["dedetiza"], "Dedetização"),
+                (["caixa d'água", "caixa d agua", "limpeza caixa"], "Limpeza Caixa D'água"),
+                (["diarista", "viviane", "faxina"], "Diarista (Viviane)"),
+                (["contabilidade", "contador", "honorário"], "Contabilidade"),
+                (["inss", "gps", "previdência"], "INSS"),
+                (["renda eclesiástica", "prebenda", "pastor ivan", "pr. ivan"], "Renda Eclesiástica (Pr. Ivan)"),
+                (["13º", "decimo terceiro", "férias"], "13º Salário / Férias"),
+                (["iptu"], "IPTU"),
+                (["darf", "irrf", "pis"], "DARF"),
+                (["taxa prefeitura", "prefeitura"], "Taxas Prefeitura"),
+                (["tarifa", "manutenção conta", "taxa banc"], "Tarifa Manutenção de Conta"),
+                (["cartório", "cartorio", "ata", "autentica"], "Cartório (Atas/Documentos)"),
+                (["sistema", "software", "informática", "site", "domínio"], "Sistema de Gestão / Informática"),
+                (["convenção", "convencao", "cbm", "cbb"], "Convenção Batista"),
+                (["mundiais", "jmm"], "Campanha Missões Mundiais"),
+                (["nacionais", "jmn"], "Campanha Missões Nacionais"),
+                (["estaduais", "jme"], "Campanha Missões Estaduais"),
+                (["cláudio", "claudio", "balneário", "balneario"], "Pr. Cláudio do Balneário"),
+                (["valmir"], "Missionário Valmir"),
+                (["reforma", "pedreiro", "pintura", "telhado"], "Reforma e Construção"),
+                (["elétrica", "eletrica", "lâmpada", "lampada", "fiação"], "Manutenção Elétrica / Hidráulica"),
+                (["equipamento", "compra de bem", "instrumento", "microfone", "cadeira"], "Compra de Equipamentos"),
+                (["limpeza", "descart", "papel", "detergente", "sabão"], "Material de Limpeza / Descartáveis"),
+                (["santa ceia", "ceia", "pão", "suco de uva"], "Santa Ceia"),
+                (["café", "cafe", "cozinha", "açúcar", "acucar", "lanche"], "Café e Cozinha"),
+                (["ajuda de custo", "uber", "combustível", "gasolina", "passagem"], "Ajuda de Custo / Transporte"),
+                (["gráfica", "grafica", "boletim", "banner", "faixa"], "Impressos / Boletins / Faixas"),
+                (["livraria", "bíblia", "biblia", "revista"], "Livraria / Bíblias / Revistas"),
+                (["expediente", "papelaria", "caneta", "toner", "impressora"], "Material de Expediente / Secretaria"),
+            ]
+            for termos, rub_alvo in palavras_rubrica:
+                if any(t in texto_busca for t in termos):
+                    for r in rows:
+                        if r["rubrica"].lower() == rub_alvo.lower():
+                            row_encontrada = r
+                            grupo_alvo = r["grupo"]
+                            break
+                    if row_encontrada:
+                        break
+
+        if not row_encontrada:
+            mapa_grupos = {
+                "folha de pagamento": "Folha de Pagamento",
+                "despesas fixas": "Despesas Fixas",
+                "despesa fixa": "Despesas Fixas",
+                "manutenção/patrimônio": "Manutenção/Patrimônio/Equip.",
+                "manutencao/patrimonio": "Manutenção/Patrimônio/Equip.",
+                "convenção/campanhas miss": "Convenção/Campanhas Miss.",
+                "convenção / missões": "Convenção/Campanhas Miss.",
+                "convencao / missoes": "Convenção/Campanhas Miss.",
+                "missionários fixos": "Missionários Fixos",
+                "missionarios fixos": "Missionários Fixos",
+                "impostos": "Impostos",
+                "desp. banco/cartório/sistema": "Desp. Banco/Cartório/Sistema",
+                "desp. banco": "Desp. Banco/Cartório/Sistema",
+                "gráfica /livraria/adm": "Gráfica /Livraria/ADM",
+                "grafica /livraria/adm": "Gráfica /Livraria/ADM",
+                "despesas com ministérios": "Despesas com Ministérios",
+                "despesas operacionais": "Despesas Operacionais",
+                "outras saídas": "Despesas Operacionais",
+                "outras saidas": "Despesas Operacionais",
+            }
+            for k_cat, g_nome in mapa_grupos.items():
+                if k_cat in cat_clean:
+                    grupo_alvo = g_nome
+                    break
+
+            for r in rows:
+                if r["grupo"] == grupo_alvo:
+                    r_low = r["rubrica"].lower()
+                    if desc_clean and (desc_clean in r_low or r_low in desc_clean):
+                        row_encontrada = r; break
+            if not row_encontrada:
+                for r in rows:
+                    if r["grupo"] == grupo_alvo and "outros" in r["rubrica"].lower():
+                        row_encontrada = r; break
+            if not row_encontrada:
+                for r in rows:
+                    if r["grupo"] == grupo_alvo:
+                        row_encontrada = r; break
+
+        rubrica_insercao = descricao or categoria or "Despesa Diversa"
+
+    return row_encontrada, ano, mes, col, grupo_alvo, rubrica_insercao
+
+
+def reconciliar_lancamentos_com_matriz(conn):
+    """Garante que os lançamentos diários pagos em `financeiro` estejam refletidos nas rubricas exatas da `matriz_tesouraria`."""
+    cur = conn.cursor()
+    lancs = cur.execute(
+        "SELECT id, data_lancamento, tipo, categoria, descricao, valor, status, ministerio_id FROM financeiro WHERE status != 'Cancelado'"
+    ).fetchall()
+    if not lancs:
+        return
+
+    esperado_por_celula = {}
+    for l in lancs:
+        val = float(l["valor"] or 0)
+        if val <= 0:
+            continue
+        row_enc, ano, mes, col, _, _ = localizar_rubrica_matriz_para_lancamento(
+            cur, l["data_lancamento"], l["tipo"], l["categoria"], l["descricao"], l["ministerio_id"]
+        )
+        if row_enc:
+            chave = (row_enc["id"], col)
+            esperado_por_celula[chave] = round(esperado_por_celula.get(chave, 0.0) + val, 2)
+
+    for (rid, col), val_esperado in esperado_por_celula.items():
+        r_atual = cur.execute(f"SELECT id, ano, tipo_fluxo, rubrica, {col} as v FROM matriz_tesouraria WHERE id=?", (rid,)).fetchone()
+        if not r_atual:
+            continue
+        val_atual = float(r_atual["v"] or 0)
+        if val_atual < val_esperado:
+            diferenca = round(val_esperado - val_atual, 2)
+            cur.execute(f"UPDATE matriz_tesouraria SET {col}=? WHERE id=?", (val_esperado, rid))
+            fallbacks = cur.execute(
+                f"SELECT id, rubrica, {col} as v FROM matriz_tesouraria WHERE ano=? AND tipo_fluxo=? AND id != ?",
+                (r_atual["ano"], r_atual["tipo_fluxo"], rid),
+            ).fetchall()
+            for fb in fallbacks:
+                fb_id = fb["id"]
+                fb_val = float(fb["v"] or 0)
+                fb_esperado = esperado_por_celula.get((fb_id, col), 0.0)
+                if fb_val >= diferenca and fb_esperado == 0.0 and any(
+                    w in fb["rubrica"].lower() for w in ["média de entrada", "eventos (retiro/aniversário)"]
+                ):
+                    novo_fb = max(0.0, round(fb_val - diferenca, 2))
+                    cur.execute(f"UPDATE matriz_tesouraria SET {col}=? WHERE id=?", (novo_fb, fb_id))
+                    break
+
+
+def _sincronizar_lancamento_na_matriz_legado(cur, data_lanc, tipo, categoria, descricao, valor_delta, ministerio_id=None):
 
     """Sincroniza lançamentos diários do livro caixa diretamente na célula mensal da matriz_tesouraria."""
 
@@ -2740,43 +3064,47 @@ def build_bootstrap_data(req_handler=None):
 
             voluntarios_por_min[v["ministerio_id"]] = voluntarios_por_min.get(v["ministerio_id"], 0) + 1
 
-
+        # Agrupa lançamentos pagos por (ministerio_id, ano, mes) para reconciliar com a matriz sem duplicar
+        fin_por_min_ano_mes = {}
+        for f in financeiro:
+            if f.get("tipo") == "SAIDA" and f.get("status") != "Cancelado" and f.get("ministerio_id") and f.get("data_lancamento"):
+                partes_dt = str(f["data_lancamento"]).split("-")
+                if len(partes_dt) >= 2 and partes_dt[0].isdigit() and partes_dt[1].isdigit():
+                    chave_fm = (int(f["ministerio_id"]), int(partes_dt[0]), int(partes_dt[1]))
+                    fin_por_min_ano_mes[chave_fm] = round(fin_por_min_ano_mes.get(chave_fm, 0.0) + float(f.get("valor") or 0), 2)
 
         for min_item in ministerios:
 
             nome_low = min_item["nome"].lower().strip()
+            mid = int(min_item["id"])
+            executado_por_ano = {}
 
-            gasto_2026 = 0.0
+            for ano_ref in [2023, 2024, 2025, 2026, 2027]:
+                meses_mat = [0.0] * 12
+                for r in matriz_rows:
+                    if int(r["ano"]) == ano_ref and "Ministérios" in r["grupo"]:
+                        k_clean = r["rubrica"].lower().strip()
+                        match = False
+                        if "ebd" in nome_low and "ebd" in k_clean:
+                            match = True
+                        elif ("diácono" in nome_low or "diacono" in nome_low) and ("diácono" in k_clean or "diacono" in k_clean):
+                            match = True
+                        else:
+                            n_core = nome_low.replace("ministério", "").replace("de", "").replace("dos", "").strip()
+                            k_core = k_clean.replace("ministério", "").replace("de", "").replace("dos", "").strip()
+                            if n_core and k_core and (n_core in k_core or k_core in n_core):
+                                match = True
+                        if match:
+                            for idx_m in range(12):
+                                meses_mat[idx_m] += float(r["meses"][idx_m] or 0)
 
-            for k, val in gastos_matriz_2026_por_nome.items():
+                soma_ano = 0.0
+                for idx_m in range(12):
+                    val_fin = fin_por_min_ano_mes.get((mid, ano_ref, idx_m + 1), 0.0)
+                    soma_ano += max(meses_mat[idx_m], val_fin)
+                executado_por_ano[str(ano_ref)] = round(soma_ano, 2)
 
-                k_clean = k.lower().strip()
-
-                match = False
-
-                if 'ebd' in nome_low and 'ebd' in k_clean:
-
-                    match = True
-
-                elif ('diácono' in nome_low or 'diacono' in nome_low) and ('diácono' in k_clean or 'diacono' in k_clean):
-
-                    match = True
-
-                else:
-
-                    n_core = nome_low.replace('ministério', '').replace('de', '').replace('dos', '').strip()
-
-                    k_core = k_clean.replace('ministério', '').replace('de', '').replace('dos', '').strip()
-
-                    if n_core and k_core and (n_core in k_core or k_core in n_core):
-
-                        match = True
-
-                if match:
-
-                    gasto_2026 += val
-
-
+            gasto_2026 = executado_por_ano.get("2026", 0.0)
 
             # Garante orcamento_2026 preenchido
 
@@ -2784,9 +3112,8 @@ def build_bootstrap_data(req_handler=None):
 
                 min_item["orcamento_2026"] = round(float(min_item.get("orcamento_mensal", 0)) * 12, 2)
 
-
-
             min_item["gasto_atual"] = round(gasto_2026, 2)
+            min_item["executado_por_ano"] = executado_por_ano
 
             min_item["orcamento_mensal"] = round(float(min_item["orcamento_2026"]) / 12.0, 2)
 

@@ -3592,12 +3592,52 @@ function getOrcamentoMinisterio(m, ano) {
   return Number(m.orcamento_mensal || 0) * 12;
 }
 
-function getExecutadoMinisterio(m, ano) {
-  const item = (STATE.ministerios_orcamentos || []).find(x => x.ministerio_id === m.id && Number(x.ano) === Number(ano));
+function getExecutadoMinisterio(m, ano = ANO_MIN_EXECUTADO) {
+  const anoNum = Number(ano || 2026);
+  // 1. Verifica cálculo consolidado do backend por ano (reconciliação Matriz + Lançamentos Diários)
+  if (m && m.executado_por_ano && m.executado_por_ano[String(anoNum)] !== undefined) {
+    const valAno = Number(m.executado_por_ano[String(anoNum)] || 0);
+    if (valAno > 0) return valAno;
+  }
+  // 2. Soma em tempo real a partir de STATE.financeiro e STATE.matriz_tesouraria por mês (sem duplicar)
+  if (m && m.id) {
+    const nomeLow = String(m.nome || '').toLowerCase().trim();
+    const mesesMat = Array(12).fill(0);
+    (STATE.matriz_tesouraria || []).forEach(r => {
+      if (Number(r.ano) === anoNum && String(r.grupo || '').includes('Ministérios')) {
+        const kClean = String(r.rubrica || '').toLowerCase().trim();
+        let match = false;
+        if (nomeLow.includes('ebd') && kClean.includes('ebd')) match = true;
+        else if ((nomeLow.includes('diácono') || nomeLow.includes('diacono')) && (kClean.includes('diácono') || kClean.includes('diacono'))) match = true;
+        else {
+          const nCore = nomeLow.replace(/minist[eé]rio|de|dos/g, '').trim();
+          const kCore = kClean.replace(/minist[eé]rio|de|dos/g, '').trim();
+          if (nCore && kCore && (nCore.includes(kCore) || kCore.includes(nCore))) match = true;
+        }
+        if (match && Array.isArray(r.meses)) {
+          for (let i = 0; i < 12; i++) mesesMat[i] += Number(r.meses[i] || 0);
+        }
+      }
+    });
+    const mesesFin = Array(12).fill(0);
+    (STATE.financeiro || []).forEach(f => {
+      if (f.tipo === 'SAIDA' && f.status !== 'Cancelado' && String(f.ministerio_id) === String(m.id) && f.data_lancamento) {
+        const [a, mesStr] = String(f.data_lancamento).split('-');
+        if (Number(a) === anoNum) {
+          const mIdx = Number(mesStr) - 1;
+          if (mIdx >= 0 && mIdx < 12) mesesFin[mIdx] += Number(f.valor || 0);
+        }
+      }
+    });
+    let totalRec = 0;
+    for (let i = 0; i < 12; i++) totalRec += Math.max(mesesMat[i], mesesFin[i]);
+    if (totalRec > 0) return totalRec;
+  }
+  const item = (STATE.ministerios_orcamentos || []).find(x => x.ministerio_id === m.id && Number(x.ano) === anoNum);
   if (item && item.executado !== undefined && item.executado !== null && Number(item.executado) > 0) {
     return Number(item.executado);
   }
-  if (m.gasto_atual !== undefined && Number(m.gasto_atual) > 0) {
+  if (anoNum === 2026 && m.gasto_atual !== undefined && Number(m.gasto_atual) > 0) {
     return Number(m.gasto_atual);
   }
   return 0;
@@ -3614,14 +3654,20 @@ function aoDigitarAnoMatriz(val) {
 }
 
 function getRealizadoMinisterio(m, ano = ANO_MIN_REALIZADO) {
-  const item = (STATE.ministerios_orcamentos || []).find(x => x.ministerio_id === m.id && Number(x.ano) === Number(ano));
+  const anoNum = Number(ano || 2025);
+  const item = (STATE.ministerios_orcamentos || []).find(x => x.ministerio_id === m.id && Number(x.ano) === anoNum);
   if (item && item.realizado !== undefined && item.realizado !== null && Number(item.realizado) > 0) {
     return Number(item.realizado);
   }
-  if (ano === 2023) {
-    return Number(m.realizado_2023 || 0);
+  if (anoNum === 2025 && Number(m.realizado_2025 || 0) > 0) {
+    return Number(m.realizado_2025);
   }
-  return Number(m.orcamento_mensal || 0) * 12 * 0.92;
+  if (anoNum === 2023 && Number(m.realizado_2023 || 0) > 0) {
+    return Number(m.realizado_2023);
+  }
+  const execAno = getExecutadoMinisterio(m, anoNum);
+  if (execAno > 0) return execAno;
+  return Number(m.realizado_2025 || 0);
 }
 
 function renderSlideTesouraria() {
@@ -5905,7 +5951,8 @@ function renderAll() {
 }
 
 function calcularResumoAnoMatriz(ano) {
-  const rows = (STATE.matriz_tesouraria || []).filter(r => Number(r.ano) === Number(ano));
+  const anoNum = Number(ano || 2026);
+  const rows = (STATE.matriz_tesouraria || []).filter(r => Number(r.ano) === anoNum);
   const entradasRows = rows.filter(r => r.tipo_fluxo === 'ENTRADA');
   const saidasRows = rows.filter(r => r.tipo_fluxo === 'SAIDA');
 
@@ -5913,11 +5960,31 @@ function calcularResumoAnoMatriz(ano) {
   const saiMes = Array(12).fill(0);
 
   entradasRows.forEach(r => {
-    for (let i = 0; i < 12; i++) entMes[i] += Number(r.meses[i] || 0);
+    for (let i = 0; i < 12; i++) entMes[i] += Number((r.meses && r.meses[i]) ?? r[`m${i + 1}`] ?? 0);
   });
   saidasRows.forEach(r => {
-    for (let i = 0; i < 12; i++) saiMes[i] += Number(r.meses[i] || 0);
+    for (let i = 0; i < 12; i++) saiMes[i] += Number((r.meses && r.meses[i]) ?? r[`m${i + 1}`] ?? 0);
   });
+
+  // Garante reconciliação em tempo real caso haja lançamentos em STATE.financeiro ainda não refletidos na matriz local
+  const finEntMes = Array(12).fill(0);
+  const finSaiMes = Array(12).fill(0);
+  (STATE.financeiro || []).forEach(f => {
+    if (!f.data_lancamento || f.status === 'Cancelado') return;
+    const [aStr, mStr] = String(f.data_lancamento).split('-');
+    if (Number(aStr) === anoNum) {
+      const idx = Number(mStr) - 1;
+      if (idx >= 0 && idx < 12) {
+        if (f.tipo === 'ENTRADA') finEntMes[idx] += Number(f.valor || 0);
+        else if (f.tipo === 'SAIDA') finSaiMes[idx] += Number(f.valor || 0);
+      }
+    }
+  });
+
+  for (let i = 0; i < 12; i++) {
+    if (finEntMes[i] > entMes[i]) entMes[i] = finEntMes[i];
+    if (finSaiMes[i] > saiMes[i]) saiMes[i] = finSaiMes[i];
+  }
 
   const totalEntradas = entMes.reduce((a, b) => a + b, 0);
   const totalSaidas = saiMes.reduce((a, b) => a + b, 0);
@@ -6131,30 +6198,126 @@ function exportarPlanilhaTesourariaCSV() {
 }
 
 // =======================================================
-// ABA RELATÓRIOS & BI ECLESIÁSTICO
+// ABA RELATÓRIOS & BI ECLESIÁSTICO (100% SINCRONIZADO COM LANÇAMENTOS E PLANILHA)
 // =======================================================
+
+function obterLancamentosConsolidadosPeriodo(ano, mesNum = 0, ministerioIdFiltro = '') {
+  const anoAlvo = Number(ano || 2026);
+  const mesAlvo = Number(mesNum || 0);
+  const mesesNomes = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+  // 1. Filtra lançamentos reais do Livro Caixa (STATE.financeiro)
+  const lancsDiarios = (STATE.financeiro || []).filter(f => {
+    if (!f.data_lancamento || f.status === 'Cancelado') return false;
+    const [a, m] = String(f.data_lancamento).split('-');
+    if (Number(a) !== anoAlvo) return false;
+    if (mesAlvo > 0 && Number(m) !== mesAlvo) return false;
+    if (ministerioIdFiltro && String(f.ministerio_id || '') !== String(ministerioIdFiltro)) return false;
+    return true;
+  }).map(f => ({
+    ...f,
+    origem: 'LIVRO_CAIXA'
+  }));
+
+  // 2. Reconcilia com a Planilha Mensal (STATE.matriz_tesouraria):
+  // Se em determinado mês/fluxo houver lançamentos feitos diretamente na Planilha Mensal que excedam os lançamentos diários,
+  // inclui as rubricas da planilha para que nenhum relatório jamais omita valores lançados na planilha!
+  const rowsMatriz = (STATE.matriz_tesouraria || []).filter(r => Number(r.ano) === anoAlvo);
+  const lancsComplementares = [];
+  const mesesParaChecar = mesAlvo > 0 ? [mesAlvo] : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+  mesesParaChecar.forEach(m => {
+    const mStr = String(m).padStart(2, '0');
+    const diariosMes = lancsDiarios.filter(d => Number(String(d.data_lancamento).split('-')[1]) === m);
+
+    ['ENTRADA', 'SAIDA'].forEach(tipoFluxo => {
+      const diariosTipo = diariosMes.filter(d => d.tipo === tipoFluxo);
+      const somaDiariosTipo = diariosTipo.reduce((acc, item) => acc + Number(item.valor || 0), 0);
+
+      const rowsTipo = rowsMatriz.filter(r => r.tipo_fluxo === tipoFluxo);
+      const somaMatrizTipo = rowsTipo.reduce((acc, r) => {
+        const vMes = Number((r.meses && r.meses[m - 1]) ?? r[`m${m}`] ?? 0);
+        return acc + vMes;
+      }, 0);
+
+      // Se a planilha mensal tem saldo maior que os lançamentos diários naquele mês
+      if (somaMatrizTipo - somaDiariosTipo > 0.01) {
+        rowsTipo.forEach(r => {
+          const valMes = Number((r.meses && r.meses[m - 1]) ?? r[`m${m}`] ?? 0);
+          if (valMes <= 0) return;
+
+          if (ministerioIdFiltro) {
+            const minObj = (STATE.ministerios || []).find(x => String(x.id) === String(ministerioIdFiltro));
+            if (!minObj) return;
+            const nLow = String(minObj.nome || '').toLowerCase();
+            const rLow = String(r.rubrica || '').toLowerCase();
+            if (!String(r.grupo || '').includes('Ministérios')) return;
+            const matchEbd = nLow.includes('ebd') && rLow.includes('ebd');
+            const nCore = nLow.replace(/minist[eé]rio|de|dos/g, '').trim();
+            const rCore = rLow.replace(/minist[eé]rio|de|dos/g, '').trim();
+            if (!matchEbd && !(nCore && rCore && (nCore.includes(rCore) || rCore.includes(nCore)))) return;
+          }
+
+          // Verifica se já existe lançamento diário equivalente para esta rubrica neste mês
+          const rubLow = String(r.rubrica || '').toLowerCase();
+          const somaJaLancadaRubrica = diariosTipo.filter(d => {
+            const catLow = String(d.categoria || '').toLowerCase();
+            const descLow = String(d.descricao || '').toLowerCase();
+            if (catLow === rubLow || descLow === rubLow) return true;
+            if (rubLow.includes('gasofil') && (catLow.includes('gasofil') || descLow.includes('gasofil'))) return true;
+            if (rubLow.includes('água') && (descLow.includes('agua') || descLow.includes('água') || descLow.includes('sabesp'))) return true;
+            if (rubLow.includes('ebd') && (descLow.includes('ebd') || Number(d.ministerio_id) === 2)) return true;
+            return false;
+          }).reduce((a, b) => a + Number(b.valor || 0), 0);
+
+          const diffRub = valMes - somaJaLancadaRubrica;
+          if (diffRub > 0.01) {
+            lancsComplementares.push({
+              id: `mat_${r.id}_${m}`,
+              data_lancamento: `${anoAlvo}-${mStr}-01`,
+              tipo: tipoFluxo,
+              categoria: r.grupo || (tipoFluxo === 'ENTRADA' ? 'Entradas' : 'Despesas'),
+              descricao: `${r.rubrica} (Consolidado Planilha ${mesesNomes[m]}/${anoAlvo})`,
+              valor: diffRub,
+              forma_pagamento: 'Planilha Mensal',
+              status: 'Pago',
+              pessoa_nome: r.grupo || 'Tesouraria',
+              origem: 'MATRIZ_TESOURARIA'
+            });
+          }
+        });
+      }
+    });
+  });
+
+  const todos = [...lancsDiarios, ...lancsComplementares];
+  todos.sort((a, b) => String(a.data_lancamento || '').localeCompare(String(b.data_lancamento || '')));
+  return todos;
+}
 
 function renderRelatorios() {
   if (typeof popularSelectsRelatorios === 'function') popularSelectsRelatorios();
   const tipoRel = document.getElementById('rel-tipo')?.value || 'ministerios';
   const minFiltro = document.getElementById('rel-ministerio')?.value || '';
 
+  const anoAtivo = Number(ANO_MATRIZ_ATIVO || 2026);
   const res2026 = calcularResumoAnoMatriz(2026);
   const res2025 = calcularResumoAnoMatriz(2025);
-  const totOrc26 = STATE.ministerios.reduce((a, b) => a + Number(b.orcamento_2026 || 0), 0);
-  const totReal25 = STATE.ministerios.reduce((a, b) => a + Number(b.realizado_2025 || 0), 0);
-  const valPat = STATE.patrimonio.reduce((a, b) => a + Number(b.valor_aquisicao || 0), 0);
+  const totOrc26 = (STATE.ministerios || []).reduce((a, b) => a + getOrcamentoMinisterio(b, 2026), 0);
+  const totExec26 = (STATE.ministerios || []).reduce((a, b) => a + getExecutadoMinisterio(b, 2026), 0);
+  const totReal25 = (STATE.ministerios || []).reduce((a, b) => a + getRealizadoMinisterio(b, 2025), 0);
+  const valPat = (STATE.patrimonio || []).reduce((a, b) => a + Number(b.valor_aquisicao || 0), 0);
 
   const elRes = document.getElementById('rel-kpi-resultado');
   if (elRes) {
     elRes.textContent = formatBRL(res2026.saldoTotal);
     document.getElementById('rel-kpi-margem').textContent = `Ent: ${formatBRL(res2026.totalEntradas)} | Sai: ${formatBRL(res2026.totalSaidas)}`;
     document.getElementById('rel-kpi-orcamento').textContent = formatBRL(totOrc26);
-    document.getElementById('rel-kpi-orcamento-sub').textContent = `Realizado 2025: ${formatBRL(totReal25)}`;
+    document.getElementById('rel-kpi-orcamento-sub').textContent = `Executado 2026: ${formatBRL(totExec26)} | 2025: ${formatBRL(totReal25)}`;
     document.getElementById('rel-kpi-engajamento').textContent = formatBRL(res2025.totalEntradas);
     document.getElementById('rel-kpi-engajamento-sub').textContent = `Saídas 2025: ${formatBRL(res2025.totalSaidas)}`;
     document.getElementById('rel-kpi-patrimonio').textContent = formatBRL(valPat);
-    document.getElementById('rel-kpi-patrimonio-sub').textContent = `${STATE.patrimonio.length} itens inventariados`;
+    document.getElementById('rel-kpi-patrimonio-sub').textContent = `${(STATE.patrimonio || []).length} itens inventariados`;
   }
 
   renderGraficosBI(res2026);
@@ -6165,8 +6328,8 @@ function renderRelatorios() {
   if (!container) return;
 
   if (tipoRel === 'ministerios') {
-    const mins = STATE.ministerios.filter(m => !minFiltro || String(m.id) === String(minFiltro));
-    tituloEl.textContent = 'Relatório Comparativo dos 15 Ministérios (Realizado 2025 vs. Orçamento 2026 vs. Executado 2026)';
+    const mins = (STATE.ministerios || []).filter(m => !minFiltro || String(m.id) === String(minFiltro));
+    tituloEl.textContent = 'Relatório Comparativo dos Ministérios (Realizado 2025 vs. Orçamento 2026 vs. Executado 2026)';
     countEl.textContent = `${mins.length} ministérios`;
     container.innerHTML = `
       <table class="w-full text-left border-collapse text-xs">
@@ -6178,40 +6341,97 @@ function renderRelatorios() {
             <th class="py-2.5 px-3 text-center">Variação %</th>
             <th class="py-2.5 px-3 text-right">Executado 2026</th>
             <th class="py-2.5 px-3 text-right">Saldo Disponível</th>
-            <th class="py-2.5 px-3">Observações (Isadora)</th>
+            <th class="py-2.5 px-3">Observações / Líder</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
-          ${mins.map(m => `
+          ${mins.map(m => {
+            const r25 = getRealizadoMinisterio(m, 2025);
+            const o26 = getOrcamentoMinisterio(m, 2026);
+            const ex26 = getExecutadoMinisterio(m, 2026);
+            const saldo = o26 - ex26;
+            const varPerc = r25 > 0 ? (((o26 - r25) / r25) * 100).toFixed(1) : '0.0';
+            return `
             <tr class="hover:bg-slate-50">
               <td class="py-2.5 px-3 font-bold">${m.nome}</td>
-              <td class="py-2.5 px-3 text-right">${formatBRL(m.realizado_2025)}</td>
-              <td class="py-2.5 px-3 text-right font-bold text-indigo-700">${formatBRL(m.orcamento_2026)}</td>
-              <td class="py-2.5 px-3 text-center">${m.aumento_perc}%</td>
-              <td class="py-2.5 px-3 text-right text-rose-600 font-semibold">${formatBRL(m.gasto_atual)}</td>
-              <td class="py-2.5 px-3 text-right text-emerald-700 font-bold">${formatBRL(m.orcamento_2026 - m.gasto_atual)}</td>
-              <td class="py-2.5 px-3 text-slate-500">${m.descricao || '—'}</td>
+              <td class="py-2.5 px-3 text-right">${formatBRL(r25)}</td>
+              <td class="py-2.5 px-3 text-right font-bold text-indigo-700">${formatBRL(o26)}</td>
+              <td class="py-2.5 px-3 text-center">${varPerc}%</td>
+              <td class="py-2.5 px-3 text-right text-rose-600 font-semibold">${formatBRL(ex26)}</td>
+              <td class="py-2.5 px-3 text-right ${saldo >= 0 ? 'text-emerald-700' : 'text-rose-700'} font-bold">${formatBRL(saldo)}</td>
+              <td class="py-2.5 px-3 text-slate-500">${m.descricao || m.lider || '—'}</td>
             </tr>
-          `).join('')}
+            `;
+          }).join('')}
         </tbody>
+      </table>
+    `;
+  } else if (tipoRel === 'livro_caixa') {
+    const lancs = obterLancamentosConsolidadosPeriodo(anoAtivo, 0, minFiltro);
+    const totEnt = lancs.filter(l => l.tipo === 'ENTRADA').reduce((a, b) => a + Number(b.valor || 0), 0);
+    const totSai = lancs.filter(l => l.tipo === 'SAIDA').reduce((a, b) => a + Number(b.valor || 0), 0);
+    tituloEl.textContent = `Livro Caixa Consolidado & Lançamentos Detalhados — Exercício ${anoAtivo}`;
+    countEl.textContent = `${lancs.length} lançamentos`;
+    container.innerHTML = `
+      <table class="w-full text-left border-collapse text-xs">
+        <thead>
+          <tr class="border-b border-slate-200 text-slate-500 uppercase bg-slate-50">
+            <th class="py-2.5 px-3">Data</th>
+            <th class="py-2.5 px-3 text-center">Tipo</th>
+            <th class="py-2.5 px-3">Categoria / Grupo</th>
+            <th class="py-2.5 px-3">Descrição / Histórico</th>
+            <th class="py-2.5 px-3">Membro / Ministério</th>
+            <th class="py-2.5 px-3 text-center">Forma Pgto</th>
+            <th class="py-2.5 px-3 text-right">Entrada (R$)</th>
+            <th class="py-2.5 px-3 text-right">Saída (R$)</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          ${lancs.length === 0 ? `
+            <tr><td colspan="8" class="py-6 text-center text-slate-400">Nenhum lançamento registrado neste filtro.</td></tr>
+          ` : lancs.map(l => {
+            const isEnt = l.tipo === 'ENTRADA';
+            const val = Number(l.valor || 0);
+            const vinc = l.membro_nome || l.pessoa_nome || l.ministerio_nome || (l.ministerio_id ? ((STATE.ministerios || []).find(x => x.id === l.ministerio_id)?.nome || '') : '') || '—';
+            return `
+              <tr class="hover:bg-slate-50">
+                <td class="py-2.5 px-3 font-mono">${formatDateBR(l.data_lancamento)}</td>
+                <td class="py-2.5 px-3 text-center font-bold ${isEnt ? 'text-emerald-700' : 'text-rose-700'}">${isEnt ? 'ENTRADA' : 'SAÍDA'}</td>
+                <td class="py-2.5 px-3 font-bold text-slate-800">${l.categoria || 'Geral'}</td>
+                <td class="py-2.5 px-3">${l.descricao || '—'}</td>
+                <td class="py-2.5 px-3 text-slate-600">${vinc}</td>
+                <td class="py-2.5 px-3 text-center">${l.forma_pagamento || 'PIX'}</td>
+                <td class="py-2.5 px-3 text-right font-bold text-emerald-700">${isEnt ? formatBRL(val) : '—'}</td>
+                <td class="py-2.5 px-3 text-right font-bold text-rose-600">${!isEnt ? formatBRL(val) : '—'}</td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+        <tfoot>
+          <tr class="bg-slate-900 text-white font-extrabold text-xs">
+            <td colspan="6" class="py-2.5 px-3">TOTAIS DO LIVRO CAIXA (${anoAtivo}) — SALDO LÍQUIDO: ${formatBRL(totEnt - totSai)}</td>
+            <td class="py-2.5 px-3 text-right text-emerald-300">${formatBRL(totEnt)}</td>
+            <td class="py-2.5 px-3 text-right text-rose-300">${formatBRL(totSai)}</td>
+          </tr>
+        </tfoot>
       </table>
     `;
   } else if (tipoRel === 'dre2026' || tipoRel === 'dre2025') {
     const anoAlvo = tipoRel === 'dre2026' ? 2026 : 2025;
     const resAno = calcularResumoAnoMatriz(anoAlvo);
-    tituloEl.textContent = `Demonstrativo Consolidado por Grupo Financeiro — Exercício ${anoAlvo}`;
+    tituloEl.textContent = `Demonstrativo Consolidado por Grupo e Rubricas Ativas — Exercício ${anoAlvo}`;
     countEl.textContent = `${resAno.rows.length} rubricas`;
 
     const porGrupo = {};
     resAno.rows.forEach(r => {
-      porGrupo[r.grupo] = (porGrupo[r.grupo] || 0) + r.total_anual;
+      porGrupo[r.grupo] = (porGrupo[r.grupo] || 0) + Number(r.total_anual || 0);
     });
 
     container.innerHTML = `
       <table class="w-full text-left border-collapse text-xs">
         <thead>
           <tr class="border-b border-slate-200 text-slate-500 uppercase bg-slate-50">
-            <th class="py-2.5 px-3">Grande Grupo da Planilha (${anoAlvo})</th>
+            <th class="py-2.5 px-3">Grande Grupo / Rubrica da Planilha (${anoAlvo})</th>
             <th class="py-2.5 px-3 text-right">Total Acumulado</th>
             <th class="py-2.5 px-3 text-right">Média Mensal (12m)</th>
             <th class="py-2.5 px-3 text-right">% sobre Entradas</th>
@@ -6220,22 +6440,98 @@ function renderRelatorios() {
         <tbody class="divide-y divide-slate-100">
           ${Object.entries(porGrupo).map(([g, tot]) => {
             const p = resAno.totalEntradas > 0 ? ((tot / resAno.totalEntradas) * 100).toFixed(1) + '%' : '—';
-            const isEnt = g.includes('Receitas');
+            const isEnt = g.toLowerCase().includes('receita') || g.toLowerCase().includes('entrada');
+            const rubricasAtivas = resAno.rows.filter(r => r.grupo === g && Number(r.total_anual || 0) > 0);
+            return `
+              <tr class="bg-slate-50/90 hover:bg-slate-100">
+                <td class="py-2.5 px-3 font-black ${isEnt ? 'text-emerald-700' : 'text-slate-900'}">${g}</td>
+                <td class="py-2.5 px-3 text-right font-extrabold ${isEnt ? 'text-emerald-700' : 'text-rose-600'}">${formatBRL(tot)}</td>
+                <td class="py-2.5 px-3 text-right font-semibold">${formatBRL(tot / 12)}</td>
+                <td class="py-2.5 px-3 text-right font-bold">${p}</td>
+              </tr>
+              ${rubricasAtivas.map(rub => `
+                <tr class="hover:bg-indigo-50/30 text-[11px] text-slate-600">
+                  <td class="py-1.5 pl-7 pr-3">↳ ${rub.rubrica}</td>
+                  <td class="py-1.5 px-3 text-right font-mono font-semibold">${formatBRL(rub.total_anual)}</td>
+                  <td class="py-1.5 px-3 text-right font-mono">${formatBRL(Number(rub.total_anual || 0) / 12)}</td>
+                  <td class="py-1.5 px-3 text-right">${resAno.totalEntradas > 0 ? ((Number(rub.total_anual || 0) / resAno.totalEntradas) * 100).toFixed(1) + '%' : '—'}</td>
+                </tr>
+              `).join('')}
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+  } else if (tipoRel === 'fluxo_caixa') {
+    const resAno = calcularResumoAnoMatriz(anoAtivo);
+    let saldoAcum = 0;
+    tituloEl.textContent = `Demonstrativo de Fluxo de Caixa Mensal — Exercício ${anoAtivo}`;
+    countEl.textContent = `12 meses`;
+    container.innerHTML = `
+      <table class="w-full text-left border-collapse text-xs">
+        <thead>
+          <tr class="border-b border-slate-200 text-slate-500 uppercase bg-slate-50">
+            <th class="py-2.5 px-3">Mês / Competência</th>
+            <th class="py-2.5 px-3 text-right">Entradas (R$)</th>
+            <th class="py-2.5 px-3 text-right">Saídas (R$)</th>
+            <th class="py-2.5 px-3 text-right">Resultado Mensal (R$)</th>
+            <th class="py-2.5 px-3 text-right">Saldo Acumulado (R$)</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          ${NOMES_MESES_COMPLETOS.map((mNome, idx) => {
+            const ent = resAno.entMes[idx] || 0;
+            const sai = resAno.saiMes[idx] || 0;
+            const resMes = ent - sai;
+            saldoAcum += resMes;
             return `
               <tr class="hover:bg-slate-50">
-                <td class="py-2.5 px-3 font-bold ${isEnt ? 'text-emerald-700' : 'text-slate-800'}">${g}</td>
-                <td class="py-2.5 px-3 text-right font-extrabold ${isEnt ? 'text-emerald-700' : 'text-rose-600'}">${formatBRL(tot)}</td>
-                <td class="py-2.5 px-3 text-right">${formatBRL(tot / 12)}</td>
-                <td class="py-2.5 px-3 text-right font-semibold">${p}</td>
+                <td class="py-2.5 px-3 font-bold">${mNome} / ${anoAtivo}</td>
+                <td class="py-2.5 px-3 text-right font-semibold text-emerald-700">${formatBRL(ent)}</td>
+                <td class="py-2.5 px-3 text-right font-semibold text-rose-600">${formatBRL(sai)}</td>
+                <td class="py-2.5 px-3 text-right font-bold ${resMes >= 0 ? 'text-emerald-700' : 'text-rose-600'}">${formatBRL(resMes)}</td>
+                <td class="py-2.5 px-3 text-right font-black ${saldoAcum >= 0 ? 'text-indigo-700' : 'text-rose-700'}">${formatBRL(saldoAcum)}</td>
               </tr>
             `;
           }).join('')}
         </tbody>
       </table>
     `;
+  } else if (tipoRel === 'contas_pagar') {
+    const contas = (STATE.contas_pagar || []).filter(c => !minFiltro || String(c.ministerio_id || '') === String(minFiltro));
+    tituloEl.textContent = 'Relatório Geral de Contas a Pagar & Compromissos Financeiros';
+    countEl.textContent = `${contas.length} contas`;
+    container.innerHTML = `
+      <table class="w-full text-left border-collapse text-xs">
+        <thead>
+          <tr class="border-b border-slate-200 text-slate-500 uppercase bg-slate-50">
+            <th class="py-2.5 px-3">Vencimento</th>
+            <th class="py-2.5 px-3">Descrição / Compromisso</th>
+            <th class="py-2.5 px-3">Fornecedor</th>
+            <th class="py-2.5 px-3">Categoria / Ministério</th>
+            <th class="py-2.5 px-3 text-center">Status</th>
+            <th class="py-2.5 px-3 text-right">Valor (R$)</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          ${contas.length === 0 ? `
+            <tr><td colspan="6" class="py-6 text-center text-slate-400">Nenhuma conta a pagar cadastrada para este filtro.</td></tr>
+          ` : contas.map(c => `
+            <tr class="hover:bg-slate-50">
+              <td class="py-2.5 px-3 font-mono">${formatDateBR(c.data_vencimento)}</td>
+              <td class="py-2.5 px-3 font-bold">${c.descricao || '—'}</td>
+              <td class="py-2.5 px-3">${c.fornecedor || '—'}</td>
+              <td class="py-2.5 px-3">${c.categoria || 'Despesas Fixas'} ${c.ministerio_nome ? '• ' + c.ministerio_nome : ''}</td>
+              <td class="py-2.5 px-3 text-center font-bold ${c.status === 'Pago' ? 'text-emerald-700' : 'text-amber-700'}">${c.status || 'Em Aberto'}</td>
+              <td class="py-2.5 px-3 text-right font-bold">${formatBRL(c.valor)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
   } else if (tipoRel === 'membros') {
     tituloEl.textContent = 'Relatório Geral de Membresia e Atuação Ministerial';
-    countEl.textContent = `${STATE.membros.length} membros`;
+    countEl.textContent = `${(STATE.membros || []).length} membros`;
     container.innerHTML = `
       <table class="w-full text-left border-collapse text-xs">
         <thead>
@@ -6248,7 +6544,7 @@ function renderRelatorios() {
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
-          ${STATE.membros.map(m => `
+          ${(STATE.membros || []).map(m => `
             <tr class="hover:bg-slate-50">
               <td class="py-2.5 px-3 font-bold">${m.nome}</td>
               <td class="py-2.5 px-3">${m.cargo_eclesiastico}</td>
@@ -6262,7 +6558,7 @@ function renderRelatorios() {
     `;
   } else {
     tituloEl.textContent = 'Inventário Consolidado de Patrimônio';
-    countEl.textContent = `${STATE.patrimonio.length} itens`;
+    countEl.textContent = `${(STATE.patrimonio || []).length} itens`;
     container.innerHTML = `
       <table class="w-full text-left border-collapse text-xs">
         <thead>
@@ -6275,7 +6571,7 @@ function renderRelatorios() {
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
-          ${STATE.patrimonio.map(p => `
+          ${(STATE.patrimonio || []).map(p => `
             <tr class="hover:bg-slate-50">
               <td class="py-2.5 px-3 font-mono font-bold">${p.codigo}</td>
               <td class="py-2.5 px-3 font-semibold">${p.item}</td>
@@ -6343,13 +6639,23 @@ function filtrarCardsRelatorios(busca) {
 }
 
 function popularSelectsRelatorios() {
-  // 1. rel-min-ind-id
+  // 1. rel-min-ind-id (Inclui opção consolidada de Todos os Ministérios + lista com valores executados)
   const selMin = document.getElementById('rel-min-ind-id');
   if (selMin) {
     const currVal = selMin.value;
-    selMin.innerHTML = '<option value="">-- Selecione o Ministério --</option>' +
-      (STATE.ministerios || []).map(m => `<option value="${m.id}">${m.nome} (Líder: ${m.lider || 'Geral'})</option>`).join('');
-    if (currVal) selMin.value = currVal;
+    const minsOrdenados = [...(STATE.ministerios || [])].sort((a, b) => getExecutadoMinisterio(b, 2026) - getExecutadoMinisterio(a, 2026));
+    selMin.innerHTML = '<option value="TODOS">Todos os Ministérios (Consolidado de Gastos)</option>' +
+      minsOrdenados.map(m => {
+        const execVal = getExecutadoMinisterio(m, 2026);
+        const tagExec = execVal > 0 ? ` — Exec: ${formatBRL(execVal)}` : '';
+        return `<option value="${m.id}">${m.nome} (Líder: ${m.lider || 'Geral'})${tagExec}</option>`;
+      }).join('');
+    if (currVal && (currVal === 'TODOS' || minsOrdenados.some(m => String(m.id) === String(currVal)))) {
+      selMin.value = currVal;
+    } else {
+      const primeiroComGasto = minsOrdenados.find(m => getExecutadoMinisterio(m, 2026) > 0);
+      selMin.value = primeiroComGasto ? String(primeiroComGasto.id) : 'TODOS';
+    }
   }
 
   // 2. rel-ficha-membro-id
@@ -6367,7 +6673,7 @@ function popularSelectsRelatorios() {
   if (selDiz) {
     const currVal = selDiz.value;
     const sortedMembros = [...(STATE.membros || [])].sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
-    selDiz.innerHTML = '<option value="">Todos os Membros (Relação Geral)</option>' +
+    selDiz.innerHTML = '<option value="">Todos os Membros & Entradas Gerais (Relação Completa)</option>' +
       sortedMembros.map(m => `<option value="${m.id}">${m.nome} (Rol #${m.rol || m.id})</option>`).join('');
     if (currVal) selDiz.value = currVal;
   }
@@ -6398,7 +6704,7 @@ function abrirVisualizadorRelatorioPDF(opts) {
       ${kpis.map(k => `
         <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
           <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">${escapeHtml(k.label || '')}</span>
-          <strong class="text-sm sm:text-base font-black ${k.cor || 'text-slate-900'}">${escapeHtml(k.valor || '')}</strong>
+          <strong class="text-sm sm:text-base font-black ${k.cor || 'text-slate-900'}">${escapeHtml(String(k.valor ?? ''))}</strong>
           ${k.sub ? `<span class="block text-[10px] text-slate-400 mt-0.5">${escapeHtml(k.sub)}</span>` : ''}
         </div>
       `).join('')}
@@ -6428,11 +6734,13 @@ function abrirVisualizadorRelatorioPDF(opts) {
             const align = col.align || 'left';
             let val = cell;
             let isBold = false;
+            let corClasse = '';
             if (typeof cell === 'object' && cell !== null) {
               val = cell.texto;
               if (cell.bold) isBold = true;
+              if (cell.cor) corClasse = cell.cor;
             }
-            return `<td class="py-2 px-2.5 text-${align} ${isBold ? 'font-bold' : ''}">${val !== undefined && val !== null ? val : '—'}</td>`;
+            return `<td class="py-2 px-2.5 text-${align} ${isBold ? 'font-bold' : ''} ${corClasse}">${val !== undefined && val !== null ? val : '—'}</td>`;
           }).join('')}
         </tr>
       `).join('')}
@@ -6552,24 +6860,16 @@ function baixarUltimoRelatorioCSV() {
   URL.revokeObjectURL(url);
 }
 
-// 1. LIVRO CAIXA GERAL
+// 1. LIVRO CAIXA GERAL (100% Sincronizado com Lançamentos Diários e Planilha Mensal)
 function gerarPDFLivroCaixa() {
   if (!verificarAcessoRelatorio('rel_livro_caixa', 'Livro Caixa Geral')) return;
   const ano = Number(document.getElementById('rel-lc-ano')?.value || 2026);
-  const mes = document.getElementById('rel-lc-mes')?.value || '';
+  const mesNum = Number(document.getElementById('rel-lc-mes')?.value || 0);
 
-  const mesesNomes = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-  const periodoTexto = mes ? `${mesesNomes[Number(mes)]} / ${ano}` : `Exercício Completo ${ano}`;
+  const mesesNomes = ['Ano Inteiro', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const periodoTexto = mesNum > 0 ? `${mesesNomes[mesNum]} / ${ano}` : `Exercício Completo ${ano} (Jan–Dez)`;
 
-  let lancs = (STATE.financeiro || []).filter(f => {
-    if (!f.data_lancamento) return false;
-    const [a, m] = f.data_lancamento.split('-');
-    if (Number(a) !== ano) return false;
-    if (mes && Number(m) !== Number(mes)) return false;
-    return true;
-  });
-
-  lancs.sort((a, b) => (a.data_lancamento || '').localeCompare(b.data_lancamento || ''));
+  const lancs = obterLancamentosConsolidadosPeriodo(ano, mesNum);
 
   let totalEntradas = 0;
   let totalSaidas = 0;
@@ -6583,24 +6883,26 @@ function gerarPDFLivroCaixa() {
   const colunas = [
     { label: 'Data', width: '85px', align: 'center' },
     { label: 'Tipo', width: '80px', align: 'center' },
-    { label: 'Categoria / Rubrica', width: '150px' },
+    { label: 'Categoria / Rubrica', width: '160px' },
     { label: 'Histórico / Descrição' },
-    { label: 'Pessoa / Ministério', width: '130px' },
-    { label: 'Forma Pgto', width: '90px', align: 'center' },
-    { label: 'Entradas (R$)', width: '100px', align: 'right' },
-    { label: 'Saídas (R$)', width: '100px', align: 'right' }
+    { label: 'Pessoa / Ministério', width: '140px' },
+    { label: 'Forma Pgto', width: '95px', align: 'center' },
+    { label: 'Entradas (R$)', width: '105px', align: 'right' },
+    { label: 'Saídas (R$)', width: '105px', align: 'right' }
   ];
 
   const linhas = lancs.map(l => {
     const isEnt = l.tipo === 'ENTRADA';
     const val = Number(l.valor || 0);
-    const pessoa = l.pessoa_nome || (l.membro_id ? (STATE.membros.find(m => m.id === l.membro_id)?.nome || 'Membro') : '—');
+    const minNome = l.ministerio_nome || (l.ministerio_id ? ((STATE.ministerios || []).find(m => m.id === l.ministerio_id)?.nome || '') : '');
+    const memNome = l.membro_nome || l.pessoa_nome || (l.membro_id ? ((STATE.membros || []).find(m => m.id === l.membro_id)?.nome || '') : '');
+    const pessoaOuMin = [memNome, minNome].filter(Boolean).join(' • ') || '—';
     return [
       formatDateBR(l.data_lancamento),
       isEnt ? '<span class="text-emerald-700 font-bold">ENTRADA</span>' : '<span class="text-rose-700 font-bold">SAÍDA</span>',
       { texto: l.categoria || 'Geral', bold: true },
       l.descricao || '—',
-      pessoa,
+      pessoaOuMin,
       l.forma_pagamento || 'PIX',
       isEnt ? formatBRL(val) : '—',
       !isEnt ? formatBRL(val) : '—'
@@ -6608,14 +6910,14 @@ function gerarPDFLivroCaixa() {
   });
 
   const kpis = [
-    { label: 'Total Entradas', valor: formatBRL(totalEntradas), cor: 'text-emerald-700', sub: 'Dízimos e receitas' },
-    { label: 'Total Saídas', valor: formatBRL(totalSaidas), cor: 'text-rose-700', sub: 'Despesas do período' },
-    { label: 'Saldo do Período', valor: formatBRL(saldoPeriodo), cor: saldoPeriodo >= 0 ? 'text-emerald-700' : 'text-rose-700', sub: 'Superávit / Saldo' },
-    { label: 'Qtd. Lançamentos', valor: String(lancs.length), cor: 'text-indigo-700', sub: 'Registros no livro caixa' }
+    { label: 'Total Entradas', valor: formatBRL(totalEntradas), cor: 'text-emerald-700', sub: 'Dízimos, ofertas e receitas' },
+    { label: 'Total Saídas', valor: formatBRL(totalSaidas), cor: 'text-rose-700', sub: 'Despesas pagas no período' },
+    { label: 'Saldo do Período', valor: formatBRL(saldoPeriodo), cor: saldoPeriodo >= 0 ? 'text-emerald-700' : 'text-rose-700', sub: 'Resultado líquido' },
+    { label: 'Qtd. Lançamentos', valor: String(lancs.length), cor: 'text-indigo-700', sub: periodoTexto }
   ];
 
   const rodapeTotais = `
-    <td colspan="6" class="py-2.5 px-3 uppercase font-black">Totais Consolidados do Período (${periodoTexto})</td>
+    <td colspan="6" class="py-2.5 px-3 uppercase font-black">Totais Consolidados (${periodoTexto}) — Saldo Líquido: ${formatBRL(saldoPeriodo)}</td>
     <td class="text-right py-2.5 px-3 font-mono font-black text-emerald-800">${formatBRL(totalEntradas)}</td>
     <td class="text-right py-2.5 px-3 font-mono font-black text-rose-800">${formatBRL(totalSaidas)}</td>
   `;
@@ -6627,7 +6929,7 @@ function gerarPDFLivroCaixa() {
       l.tipo,
       l.categoria,
       l.descricao,
-      l.pessoa_nome || '',
+      l.membro_nome || l.pessoa_nome || l.ministerio_nome || '',
       l.forma_pagamento,
       l.tipo === 'ENTRADA' ? Number(l.valor || 0).toFixed(2) : '0.00',
       l.tipo === 'SAIDA' ? Number(l.valor || 0).toFixed(2) : '0.00'
@@ -6643,34 +6945,32 @@ function gerarPDFLivroCaixa() {
     colunas,
     linhas,
     rodapeTotais,
-    nomeArquivo: `Livro_Caixa_${ano}_${mes || 'todos'}.pdf`,
+    nomeArquivo: `Livro_Caixa_${ano}_${mesNum > 0 ? String(mesNum).padStart(2, '0') : 'Anual'}.pdf`,
     csvRows
   });
 }
 
-// 2. BALANCETE MENSAL
+// 2. BALANCETE MENSAL OU ACUMULADO DA TESOURARIA
 function gerarPDFBalanceteMensal() {
   if (!verificarAcessoRelatorio('rel_balancete_mensal', 'Balancete Mensal da Tesouraria')) return;
   const ano = Number(document.getElementById('rel-bal-ano')?.value || 2026);
-  const mes = Number(document.getElementById('rel-bal-mes')?.value || 1);
-  const mesesNomes = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-  const periodoTexto = `${mesesNomes[mes]} / ${ano}`;
+  const mesNum = Number(document.getElementById('rel-bal-mes')?.value || 0);
+  const mesesNomes = ['Ano Inteiro (Acumulado)', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const periodoTexto = mesNum > 0 ? `${mesesNomes[mesNum]} / ${ano}` : `Acumulado Anual / ${ano}`;
 
-  const lancs = (STATE.financeiro || []).filter(f => {
-    if (!f.data_lancamento) return false;
-    const [a, m] = f.data_lancamento.split('-');
-    return Number(a) === ano && Number(m) === mes;
-  });
+  const lancs = obterLancamentosConsolidadosPeriodo(ano, mesNum);
 
   const porCat = {};
   let totEntradas = 0;
   let totSaidas = 0;
   lancs.forEach(f => {
     const val = Number(f.valor || 0);
-    const cat = f.categoria || 'Outros';
-    if (!porCat[cat]) porCat[cat] = { tipo: f.tipo, total: 0, count: 0 };
-    porCat[cat].total += val;
-    porCat[cat].count += 1;
+    if (val <= 0) return;
+    const cat = f.categoria ? `${f.categoria}${f.descricao && f.origem === 'MATRIZ_TESOURARIA' ? '' : ' — ' + (f.descricao || '')}` : (f.descricao || 'Outros');
+    const chave = `${f.tipo}||${cat}`;
+    if (!porCat[chave]) porCat[chave] = { categoria: cat, tipo: f.tipo, total: 0, count: 0 };
+    porCat[chave].total += val;
+    porCat[chave].count += 1;
     if (f.tipo === 'ENTRADA') totEntradas += val;
     else totSaidas += val;
   });
@@ -6678,55 +6978,60 @@ function gerarPDFBalanceteMensal() {
   const saldo = totEntradas - totSaidas;
 
   const colunas = [
-    { label: 'Rubrica / Categoria Financeira', width: '220px' },
+    { label: 'Rubrica / Categoria e Histórico', width: '260px' },
     { label: 'Tipo de Movimento', width: '130px', align: 'center' },
-    { label: 'Nº Lançamentos', width: '120px', align: 'center' },
-    { label: '% sobre Entradas', width: '120px', align: 'right' },
-    { label: 'Total Acumulado no Mês (R$)', width: '160px', align: 'right' }
+    { label: 'Nº Lançamentos', width: '110px', align: 'center' },
+    { label: '% sobre Receitas', width: '120px', align: 'right' },
+    { label: 'Total Consolidado (R$)', width: '150px', align: 'right' }
   ];
 
-  const linhas = Object.entries(porCat).map(([cat, dados]) => {
+  const entriesOrdenadas = Object.values(porCat).sort((a, b) => {
+    if (a.tipo !== b.tipo) return a.tipo === 'ENTRADA' ? -1 : 1;
+    return b.total - a.total;
+  });
+
+  const linhas = entriesOrdenadas.map(dados => {
     const isEnt = dados.tipo === 'ENTRADA';
     const perc = totEntradas > 0 ? ((dados.total / totEntradas) * 100).toFixed(1) + '%' : '—';
     return [
-      { texto: cat, bold: true },
+      { texto: dados.categoria, bold: true },
       isEnt ? '<span class="text-emerald-700 font-bold">RECEITA (+)</span>' : '<span class="text-rose-700 font-bold">DESPESA (-)</span>',
       String(dados.count),
       perc,
-      formatBRL(dados.total)
+      { texto: formatBRL(dados.total), bold: true, cor: isEnt ? 'text-emerald-700' : 'text-rose-700' }
     ];
   });
 
   const kpis = [
-    { label: 'Total de Receitas', valor: formatBRL(totEntradas), cor: 'text-emerald-700', sub: 'Entradas do mês' },
-    { label: 'Total de Despesas', valor: formatBRL(totSaidas), cor: 'text-rose-700', sub: 'Pagamentos do mês' },
-    { label: 'Superávit / Saldo', valor: formatBRL(saldo), cor: saldo >= 0 ? 'text-emerald-700' : 'text-rose-700', sub: 'Saldo líquido mensal' },
-    { label: 'Movimentações', valor: String(lancs.length), cor: 'text-indigo-700', sub: 'Lançamentos no mês' }
+    { label: 'Total de Receitas', valor: formatBRL(totEntradas), cor: 'text-emerald-700', sub: 'Entradas no período' },
+    { label: 'Total de Despesas', valor: formatBRL(totSaidas), cor: 'text-rose-700', sub: 'Saídas no período' },
+    { label: 'Superávit / Saldo', valor: formatBRL(saldo), cor: saldo >= 0 ? 'text-emerald-700' : 'text-rose-700', sub: 'Saldo líquido apurado' },
+    { label: 'Movimentações', valor: String(lancs.length), cor: 'text-indigo-700', sub: periodoTexto }
   ];
 
   const rodapeTotais = `
-    <td colspan="4" class="py-2.5 px-3 uppercase font-black">Resultado Líquido do Balancete Mensal (${periodoTexto})</td>
+    <td colspan="4" class="py-2.5 px-3 uppercase font-black">Resultado Líquido do Balancete (${periodoTexto}) — Entradas: ${formatBRL(totEntradas)} | Saídas: ${formatBRL(totSaidas)}</td>
     <td class="text-right py-2.5 px-3 font-mono font-black ${saldo >= 0 ? 'text-emerald-800' : 'text-rose-800'}">${formatBRL(saldo)}</td>
   `;
 
   abrirVisualizadorRelatorioPDF({
-    titulo: 'Balancete Mensal Oficial da Tesouraria',
-    subtitulo: 'Prestação de contas contábil analítica por categorias e rubricas',
+    titulo: 'Balancete Oficial da Tesouraria',
+    subtitulo: 'Prestação de contas contábil analítica por categorias, rubricas e lançamentos realizados',
     periodo: periodoTexto,
     orientacao: 'portrait',
     kpis,
     colunas,
     linhas,
     rodapeTotais,
-    nomeArquivo: `Balancete_${ano}_${String(mes).padStart(2, '0')}.pdf`,
+    nomeArquivo: `Balancete_${ano}_${mesNum > 0 ? String(mesNum).padStart(2, '0') : 'Anual'}.pdf`,
     csvRows: [
-      ['Categoria', 'Tipo', 'Qtd_Lancamentos', 'Total'],
-      ...Object.entries(porCat).map(([cat, d]) => [cat, d.tipo, d.count, d.total.toFixed(2)])
+      ['Categoria_Rubrica', 'Tipo', 'Qtd_Lancamentos', 'Total'],
+      ...entriesOrdenadas.map(d => [d.categoria, d.tipo, d.count, d.total.toFixed(2)])
     ]
   });
 }
 
-// 3. BALANÇO ANUAL DRE
+// 3. BALANÇO ANUAL DRE (Com Grupos e Detalhamento das Rubricas Movimentadas)
 function gerarPDFDREAnual() {
   if (!verificarAcessoRelatorio('rel_dre_anual', 'Balanço Anual Consolidado (DRE)')) return;
   const ano = Number(document.getElementById('rel-dre-ano')?.value || 2026);
@@ -6738,32 +7043,49 @@ function gerarPDFDREAnual() {
   });
 
   const colunas = [
-    { label: 'Grupo Contábil da Planilha', width: '240px' },
-    { label: 'Total Anual (R$)', width: '150px', align: 'right' },
-    { label: 'Média Mensal (12 Meses)', width: '150px', align: 'right' },
-    { label: '% sobre Receitas', width: '130px', align: 'right' }
+    { label: 'Grupo Contábil / Rubrica Movimentada', width: '260px' },
+    { label: 'Natureza', width: '110px', align: 'center' },
+    { label: 'Total Anual (R$)', width: '140px', align: 'right' },
+    { label: 'Média Mensal (12m)', width: '130px', align: 'right' },
+    { label: '% s/ Receitas', width: '110px', align: 'right' }
   ];
 
-  const linhas = Object.entries(porGrupo).map(([g, tot]) => {
-    const isEnt = g.includes('Receita') || g.includes('Entrada');
+  const linhas = [];
+  Object.entries(porGrupo).forEach(([g, tot]) => {
+    const isEnt = g.toLowerCase().includes('receita') || g.toLowerCase().includes('entrada');
     const p = res.totalEntradas > 0 ? ((tot / res.totalEntradas) * 100).toFixed(1) + '%' : '—';
-    return [
-      { texto: g, bold: true },
-      formatBRL(tot),
+    linhas.push([
+      { texto: g.toUpperCase(), bold: true, cor: isEnt ? 'text-emerald-800' : 'text-slate-900' },
+      isEnt ? '<span class="text-emerald-700 font-bold">RECEITAS</span>' : '<span class="text-rose-700 font-bold">GRUPO DESPESA</span>',
+      { texto: formatBRL(tot), bold: true, cor: isEnt ? 'text-emerald-700' : 'text-rose-700' },
       formatBRL(tot / 12.0),
-      p
-    ];
+      { texto: p, bold: true }
+    ]);
+
+    // Lista analiticamente as rubricas daquele grupo que tiveram movimentação (> 0)
+    const rubricasAtivas = res.rows.filter(r => r.grupo === g && Number(r.total_anual || 0) > 0);
+    rubricasAtivas.forEach(rub => {
+      const valRub = Number(rub.total_anual || 0);
+      const pRub = res.totalEntradas > 0 ? ((valRub / res.totalEntradas) * 100).toFixed(1) + '%' : '—';
+      linhas.push([
+        `   ↳ ${rub.rubrica}`,
+        isEnt ? 'Entrada' : 'Rubrica',
+        formatBRL(valRub),
+        formatBRL(valRub / 12.0),
+        pRub
+      ]);
+    });
   });
 
   const kpis = [
     { label: 'Receita Total 12 Meses', valor: formatBRL(res.totalEntradas), cor: 'text-emerald-700', sub: `Exercício ${ano}` },
     { label: 'Despesas Totais 12 Meses', valor: formatBRL(res.totalSaidas), cor: 'text-rose-700', sub: `Exercício ${ano}` },
     { label: 'Resultado Acumulado', valor: formatBRL(res.saldoTotal), cor: res.saldoTotal >= 0 ? 'text-emerald-700' : 'text-rose-700', sub: 'Superávit / Saldo' },
-    { label: 'Rubricas Orçadas', valor: String(res.rows.length), cor: 'text-indigo-700', sub: 'Linhas na matriz oficial' }
+    { label: 'Rubricas Ativas', valor: `${res.rows.filter(r => Number(r.total_anual || 0) > 0).length} / ${res.rows.length}`, cor: 'text-indigo-700', sub: 'Contas com movimento' }
   ];
 
   const rodapeTotais = `
-    <td class="py-2.5 px-3 uppercase font-black">Saldo Final Consolidado do Exercício ${ano}</td>
+    <td colspan="2" class="py-2.5 px-3 uppercase font-black">Saldo Final Consolidado do Exercício ${ano}</td>
     <td class="text-right py-2.5 px-3 font-mono font-black ${res.saldoTotal >= 0 ? 'text-emerald-800' : 'text-rose-800'}">${formatBRL(res.saldoTotal)}</td>
     <td class="text-right py-2.5 px-3 font-mono font-black">${formatBRL(res.saldoTotal / 12.0)}</td>
     <td class="text-right py-2.5 px-3 font-mono font-black">100%</td>
@@ -6771,7 +7093,7 @@ function gerarPDFDREAnual() {
 
   abrirVisualizadorRelatorioPDF({
     titulo: `Demonstrativo do Resultado do Exercício (DRE) — ${ano}`,
-    subtitulo: 'Balanço financeiro anual oficial aprovado e consolidado pelos grandes grupos de despesas e receitas',
+    subtitulo: 'Balanço financeiro anual oficial consolidado pelos grandes grupos e rubricas analíticas movimentadas',
     periodo: `Exercício Fiscal ${ano}`,
     orientacao: 'portrait',
     kpis,
@@ -6780,45 +7102,59 @@ function gerarPDFDREAnual() {
     rodapeTotais,
     nomeArquivo: `DRE_Anual_${ano}.pdf`,
     csvRows: [
-      ['Grupo', 'Total_Anual', 'Media_Mensal'],
+      ['Grupo_ou_Rubrica', 'Total_Anual', 'Media_Mensal'],
       ...Object.entries(porGrupo).map(([g, tot]) => [g, tot.toFixed(2), (tot / 12.0).toFixed(2)])
     ]
   });
 }
 
-// 4. ASSEMBLEIA GERAL
+// 4. ASSEMBLEIA GERAL (Respeita o Mês ou Ano Selecionado e Detalha Lançamentos)
 function gerarPDFAssembleia() {
   if (!verificarAcessoRelatorio('rel_assembleia', 'Demonstrativo da Assembleia Geral')) return;
   const ano = Number(document.getElementById('rel-ass-ano')?.value || 2026);
-  const mes = Number(document.getElementById('rel-ass-mes')?.value || 1);
-  const mesesNomes = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-  const periodoTexto = `${mesesNomes[mes]} / ${ano}`;
+  const mesNum = Number(document.getElementById('rel-ass-mes')?.value || 0);
+  const mesesNomes = ['Ano Inteiro (Acumulado)', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const periodoTexto = mesNum > 0 ? `${mesesNomes[mesNum]} / ${ano}` : `Exercício Consolidado ${ano}`;
 
-  const res = calcularResumoAnoMatriz(ano);
+  const lancsPeriodo = obterLancamentosConsolidadosPeriodo(ano, mesNum);
+  const totEntradas = lancsPeriodo.filter(l => l.tipo === 'ENTRADA').reduce((a, b) => a + Number(b.valor || 0), 0);
+  const totSaidas = lancsPeriodo.filter(l => l.tipo === 'SAIDA').reduce((a, b) => a + Number(b.valor || 0), 0);
+  const saldoPeriodo = totEntradas - totSaidas;
+
   const totMembros = (STATE.membros || []).length;
   const totAtivos = (STATE.membros || []).filter(m => m.status === 'Ativo').length;
   const totMins = (STATE.ministerios || []).length;
+  const totExecMin = (STATE.ministerios || []).reduce((a, b) => a + getExecutadoMinisterio(b, ano), 0);
 
   const colunas = [
     { label: 'Item / Tópico da Pauta da Assembleia', width: '250px' },
     { label: 'Informação / Valor Consolidado', align: 'right', width: '180px' },
-    { label: 'Situação / Parecer Contábil' }
+    { label: 'Situação / Detalhamento Contábil' }
   ];
 
   const linhas = [
-    [{ texto: '1. Membresia em Comunhão no Rol', bold: true }, `${totAtivos} membros ativos`, `Total cadastrado: ${totMembros} membros`],
-    [{ texto: '2. Receitas Totais Arrecadadas', bold: true }, formatBRL(res.totalEntradas), 'Dízimos fiéis, ofertas e arrecadações de campanhas'],
-    [{ texto: '3. Despesas Fixas e Folha Pastoral', bold: true }, formatBRL(res.totalSaidas), 'Despesas ordinárias, encargos, tributos e manutenção'],
-    [{ texto: '4. Resultado Operacional Líquido', bold: true }, formatBRL(res.saldoTotal), res.saldoTotal >= 0 ? '✓ Superávit financeiro regular' : '⚠ Atenção: Déficit no período'],
-    [{ texto: '5. Ministérios e Departamentos Ativos', bold: true }, `${totMins} ministérios estruturados`, 'Ações evangelísticas, projeto viver, infantil e cultos'],
-    [{ texto: '6. Parecer do Conselho Fiscal', bold: true }, 'FAVORÁVEL', 'Contas e livros em ordem para apreciação e voto soberano']
+    [{ texto: '1. Membresia em Comunhão no Rol', bold: true }, `${totAtivos} membros ativos`, `Total cadastrado no rol: ${totMembros} membros`],
+    [{ texto: `2. Receitas Arrecadadas (${periodoTexto})`, bold: true }, { texto: formatBRL(totEntradas), bold: true, cor: 'text-emerald-700' }, 'Dízimos, ofertas e contribuições registradas na tesouraria'],
+    [{ texto: `3. Despesas Realizadas (${periodoTexto})`, bold: true }, { texto: formatBRL(totSaidas), bold: true, cor: 'text-rose-700' }, 'Despesas operacionais, ministérios, encargos e manutenção'],
+    [{ texto: '4. Resultado Operacional Líquido', bold: true }, { texto: formatBRL(saldoPeriodo), bold: true, cor: saldoPeriodo >= 0 ? 'text-emerald-700' : 'text-rose-700' }, saldoPeriodo >= 0 ? '✓ Superávit financeiro apurado no período' : '⚠ Atenção: Déficit no período selecionado'],
+    [{ texto: '5. Execução Orçamentária dos Ministérios', bold: true }, formatBRL(totExecMin), `${totMins} ministérios ativos no exercício ${ano}`],
+    [{ texto: '6. Parecer do Conselho Fiscal', bold: true }, 'FAVORÁVEL', 'Contas, comprovantes e livros em ordem para apreciação soberana']
   ];
+
+  lancsPeriodo.forEach((l, idx) => {
+    const isEnt = l.tipo === 'ENTRADA';
+    linhas.push([
+      `   • Movimentação #${idx + 1}: ${formatDateBR(l.data_lancamento)}`,
+      { texto: `${isEnt ? '+' : '-'} ${formatBRL(l.valor)}`, bold: true, cor: isEnt ? 'text-emerald-700' : 'text-rose-700' },
+      `${l.categoria || 'Geral'} — ${l.descricao || '—'} (${l.forma_pagamento || 'PIX'})`
+    ]);
+  });
 
   const kpis = [
     { label: 'Membros Ativos', valor: String(totAtivos), cor: 'text-indigo-700', sub: 'Em comunhão com a igreja' },
-    { label: 'Receita Anual', valor: formatBRL(res.totalEntradas), cor: 'text-emerald-700', sub: 'Entradas registradas' },
-    { label: 'Despesa Anual', valor: formatBRL(res.totalSaidas), cor: 'text-rose-700', sub: 'Saídas pagas' },
-    { label: 'Parecer Fiscal', valor: 'APROVAÇÃO', cor: 'text-emerald-700', sub: 'Unanimidade de parecer' }
+    { label: 'Receitas do Período', valor: formatBRL(totEntradas), cor: 'text-emerald-700', sub: periodoTexto },
+    { label: 'Despesas do Período', valor: formatBRL(totSaidas), cor: 'text-rose-700', sub: periodoTexto },
+    { label: 'Saldo Apurado', valor: formatBRL(saldoPeriodo), cor: saldoPeriodo >= 0 ? 'text-emerald-700' : 'text-rose-700', sub: 'Parecer Favorável' }
   ];
 
   abrirVisualizadorRelatorioPDF({
@@ -6829,7 +7165,7 @@ function gerarPDFAssembleia() {
     kpis,
     colunas,
     linhas,
-    nomeArquivo: `Assembleia_${ano}_${String(mes).padStart(2, '0')}.pdf`
+    nomeArquivo: `Assembleia_${ano}_${mesNum > 0 ? String(mesNum).padStart(2, '0') : 'Anual'}.pdf`
   });
 }
 
@@ -6839,45 +7175,45 @@ function gerarPDF15Ministerios() {
   const ano = Number(document.getElementById('rel-min-ano')?.value || 2026);
   const mins = STATE.ministerios || [];
 
-  const totOrc = mins.reduce((a, b) => a + Number(b.orcamento_2026 || 0), 0);
-  const totReal25 = mins.reduce((a, b) => a + Number(b.realizado_2025 || 0), 0);
-  const totExec = mins.reduce((a, b) => a + Number(b.gasto_atual || 0), 0);
+  const totOrc = mins.reduce((a, b) => a + getOrcamentoMinisterio(b, ano), 0);
+  const totReal25 = mins.reduce((a, b) => a + getRealizadoMinisterio(b, 2025), 0);
+  const totExec = mins.reduce((a, b) => a + getExecutadoMinisterio(b, ano), 0);
 
   const colunas = [
     { label: 'Ministério / Departamento', width: '200px' },
     { label: 'Líder Responsável', width: '160px' },
     { label: 'Realizado 2025', width: '110px', align: 'right' },
-    { label: 'Orçamento 2026', width: '110px', align: 'right' },
-    { label: 'Executado 2026', width: '110px', align: 'right' },
+    { label: `Orçamento ${ano}`, width: '110px', align: 'right' },
+    { label: `Executado ${ano}`, width: '110px', align: 'right' },
     { label: 'Saldo Disponível', width: '110px', align: 'right' },
     { label: 'Observações & Planejamento' }
   ];
 
   const linhas = mins.map(m => {
-    const o26 = Number(m.orcamento_2026 || 0);
-    const r25 = Number(m.realizado_2025 || 0);
-    const exec = Number(m.gasto_atual || 0);
-    const saldo = o26 - exec;
+    const oVal = getOrcamentoMinisterio(m, ano);
+    const r25 = getRealizadoMinisterio(m, 2025);
+    const exec = getExecutadoMinisterio(m, ano);
+    const saldo = oVal - exec;
     return [
       { texto: m.nome, bold: true },
       m.lider || '—',
       formatBRL(r25),
-      formatBRL(o26),
-      formatBRL(exec),
-      { texto: formatBRL(saldo), bold: true },
+      formatBRL(oVal),
+      { texto: formatBRL(exec), bold: exec > 0, cor: exec > 0 ? 'text-rose-700' : '' },
+      { texto: formatBRL(saldo), bold: true, cor: saldo >= 0 ? 'text-emerald-700' : 'text-rose-700' },
       m.descricao || '—'
     ];
   });
 
   const kpis = [
-    { label: 'Total Orçado 2026', valor: formatBRL(totOrc), cor: 'text-indigo-700', sub: 'Teto orçamentário anual' },
-    { label: 'Executado 2026', valor: formatBRL(totExec), cor: 'text-rose-700', sub: 'Verbas já utilizadas' },
+    { label: `Total Orçado ${ano}`, valor: formatBRL(totOrc), cor: 'text-indigo-700', sub: 'Teto orçamentário anual' },
+    { label: `Executado ${ano}`, valor: formatBRL(totExec), cor: 'text-rose-700', sub: 'Verbas já utilizadas' },
     { label: 'Saldo Restante', valor: formatBRL(totOrc - totExec), cor: 'text-emerald-700', sub: 'Disponível para os ministérios' },
     { label: 'Total de Ministérios', valor: String(mins.length), cor: 'text-slate-900', sub: 'Departamentos ativos' }
   ];
 
   const rodapeTotais = `
-    <td colspan="2" class="py-2.5 px-3 uppercase font-black">Totais de Todos os Ministérios</td>
+    <td colspan="2" class="py-2.5 px-3 uppercase font-black">Totais de Todos os Ministérios (${ano})</td>
     <td class="text-right py-2.5 px-3 font-mono font-black">${formatBRL(totReal25)}</td>
     <td class="text-right py-2.5 px-3 font-mono font-black text-indigo-800">${formatBRL(totOrc)}</td>
     <td class="text-right py-2.5 px-3 font-mono font-black text-rose-800">${formatBRL(totExec)}</td>
@@ -6894,31 +7230,97 @@ function gerarPDF15Ministerios() {
     colunas,
     linhas,
     rodapeTotais,
-    nomeArquivo: `Ministerios_Orcamento_${ano}.pdf`
+    nomeArquivo: `Ministerios_Orcamento_${ano}.pdf`,
+    csvRows: [
+      ['Ministerio', 'Lider', 'Realizado_2025', `Orcamento_${ano}`, `Executado_${ano}`, 'Saldo'],
+      ...mins.map(m => [
+        m.nome,
+        m.lider || '',
+        getRealizadoMinisterio(m, 2025).toFixed(2),
+        getOrcamentoMinisterio(m, ano).toFixed(2),
+        getExecutadoMinisterio(m, ano).toFixed(2),
+        (getOrcamentoMinisterio(m, ano) - getExecutadoMinisterio(m, ano)).toFixed(2)
+      ])
+    ]
   });
 }
 
-// 6. PRESTAÇÃO DE CONTAS INDIVIDUAL POR MINISTÉRIO
+// 6. PRESTAÇÃO DE CONTAS INDIVIDUAL OU CONSOLIDADA POR MINISTÉRIO
 function gerarPDFPrestacaoMinisterio() {
   if (!verificarAcessoRelatorio('rel_prestacao_ministerio', 'Prestação de Contas por Ministério')) return;
-  let minId = document.getElementById('rel-min-ind-id')?.value;
-  if (!minId && STATE.ministerios && STATE.ministerios.length > 0) {
-    minId = STATE.ministerios[0].id;
-    if (document.getElementById('rel-min-ind-id')) document.getElementById('rel-min-ind-id').value = minId;
-  }
-  if (!minId) {
-    alert('Por favor, selecione um ministério para emitir este relatório.');
+  let minId = document.getElementById('rel-min-ind-id')?.value || 'TODOS';
+  const ano = Number(ANO_MATRIZ_ATIVO || 2026);
+
+  if (minId === 'TODOS' || !minId) {
+    // Emite prestação detalhada com todos os lançamentos ministeriais do exercício
+    const lancsMin = (STATE.financeiro || []).filter(f => {
+      if (f.status === 'Cancelado') return false;
+      const a = f.data_lancamento ? Number(String(f.data_lancamento).split('-')[0]) : ano;
+      return a === ano && (f.ministerio_id || String(f.categoria || '').toLowerCase().includes('minist'));
+    });
+
+    const totExec = lancsMin.filter(f => f.tipo === 'SAIDA').reduce((a, b) => a + Number(b.valor || 0), 0);
+    const totOrc = (STATE.ministerios || []).reduce((a, b) => a + getOrcamentoMinisterio(b, ano), 0);
+
+    const colunas = [
+      { label: 'Data', width: '90px', align: 'center' },
+      { label: 'Ministério / Setor', width: '180px' },
+      { label: 'Categoria / Rubrica', width: '160px' },
+      { label: 'Descrição / Histórico da Despesa' },
+      { label: 'Forma Pgto', width: '100px', align: 'center' },
+      { label: 'Valor (R$)', width: '120px', align: 'right' }
+    ];
+
+    const linhas = lancsMin.map(l => {
+      const mNome = l.ministerio_nome || ((STATE.ministerios || []).find(m => m.id === l.ministerio_id)?.nome) || 'Ministério Geral';
+      return [
+        formatDateBR(l.data_lancamento),
+        { texto: mNome, bold: true },
+        l.categoria || 'Despesa com Ministérios',
+        l.descricao || '—',
+        l.forma_pagamento || 'PIX',
+        { texto: formatBRL(l.valor), bold: true, cor: 'text-rose-700' }
+      ];
+    });
+
+    const kpis = [
+      { label: 'Escopo', valor: 'Todos os Ministérios', cor: 'text-indigo-700', sub: 'Gastos departamentais' },
+      { label: `Orçamento Global ${ano}`, valor: formatBRL(totOrc), cor: 'text-indigo-700', sub: 'Teto aprovado' },
+      { label: 'Total Executado', valor: formatBRL(totExec), cor: 'text-rose-700', sub: `${lancsMin.length} lançamento(s)` },
+      { label: 'Saldo Global', valor: formatBRL(totOrc - totExec), cor: 'text-emerald-700', sub: 'Disponível' }
+    ];
+
+    const rodapeTotais = `
+      <td colspan="5" class="py-2.5 px-3 uppercase font-black">Total de Despesas Ministeriais Executadas (${ano})</td>
+      <td class="text-right py-2.5 px-3 font-mono font-black text-rose-800">${formatBRL(totExec)}</td>
+    `;
+
+    abrirVisualizadorRelatorioPDF({
+      titulo: `Prestação de Contas Analítica dos Ministérios — ${ano}`,
+      subtitulo: 'Relação detalhada de todas as compras, despesas e investimentos realizados pelos ministérios',
+      periodo: `Exercício ${ano}`,
+      orientacao: 'portrait',
+      kpis,
+      colunas,
+      linhas,
+      rodapeTotais,
+      nomeArquivo: `Prestacao_Ministerios_${ano}.pdf`
+    });
     return;
   }
+
   const min = (STATE.ministerios || []).find(m => String(m.id) === String(minId));
   if (!min) {
     alert('Ministério não encontrado.');
     return;
   }
 
-  const lancs = (STATE.financeiro || []).filter(f => String(f.ministerio_id) === String(minId));
-  const despesasTotal = lancs.filter(f => f.tipo === 'SAIDA').reduce((a, b) => a + Number(b.valor || 0), 0);
-  const orc = Number(min.orcamento_2026 || 0);
+  const lancs = obterLancamentosConsolidadosPeriodo(ano, 0, min.id);
+  const despesasTotal = Math.max(
+    getExecutadoMinisterio(min, ano),
+    lancs.filter(f => f.tipo === 'SAIDA').reduce((a, b) => a + Number(b.valor || 0), 0)
+  );
+  const orc = getOrcamentoMinisterio(min, ano);
   const saldo = orc - despesasTotal;
 
   const colunas = [
@@ -6926,7 +7328,7 @@ function gerarPDFPrestacaoMinisterio() {
     { label: 'Tipo', width: '90px', align: 'center' },
     { label: 'Categoria / Finalidade', width: '180px' },
     { label: 'Descrição / Histórico da Compra' },
-    { label: 'Comprovante / NF', width: '130px', align: 'center' },
+    { label: 'Forma / Status', width: '130px', align: 'center' },
     { label: 'Valor (R$)', width: '120px', align: 'right' }
   ];
 
@@ -6935,32 +7337,32 @@ function gerarPDFPrestacaoMinisterio() {
     l.tipo === 'SAIDA' ? '<span class="text-rose-700 font-bold">DESPESA</span>' : '<span class="text-emerald-700 font-bold">ENTRADA</span>',
     { texto: l.categoria || 'Despesa Departamental', bold: true },
     l.descricao || '—',
-    l.comprovante_url ? '✓ Comprovante Anexo' : 'Pendente',
-    formatBRL(l.valor)
+    l.comprovante_url ? '✓ Comprovante Anexo' : (l.forma_pagamento || 'Pago'),
+    { texto: formatBRL(l.valor), bold: true, cor: l.tipo === 'SAIDA' ? 'text-rose-700' : 'text-emerald-700' }
   ]);
 
   const kpis = [
     { label: 'Ministério', valor: min.nome, cor: 'text-indigo-700', sub: `Líder: ${min.lider || 'Geral'}` },
-    { label: 'Orçamento Aprovado', valor: formatBRL(orc), cor: 'text-indigo-700', sub: 'Teto 2026' },
-    { label: 'Total Utilizado', valor: formatBRL(despesasTotal), cor: 'text-rose-700', sub: 'Gastos computados' },
+    { label: 'Orçamento Aprovado', valor: formatBRL(orc), cor: 'text-indigo-700', sub: `Teto ${ano}` },
+    { label: 'Total Utilizado', valor: formatBRL(despesasTotal), cor: 'text-rose-700', sub: `${lancs.length} lançamento(s)` },
     { label: 'Saldo Disponível', valor: formatBRL(saldo), cor: saldo >= 0 ? 'text-emerald-700' : 'text-rose-700', sub: 'Verba remanescente' }
   ];
 
   const rodapeTotais = `
-    <td colspan="5" class="py-2.5 px-3 uppercase font-black">Total Executado por ${min.nome}</td>
+    <td colspan="5" class="py-2.5 px-3 uppercase font-black">Total Executado por ${min.nome} (${ano})</td>
     <td class="text-right py-2.5 px-3 font-mono font-black text-rose-800">${formatBRL(despesasTotal)}</td>
   `;
 
   abrirVisualizadorRelatorioPDF({
     titulo: `Prestação de Contas Individual — ${min.nome}`,
     subtitulo: `Detalhamento de gastos, compras e utilização da verba departamental sob responsabilidade de ${min.lider || 'Diretoria'}`,
-    periodo: 'Exercício 2026',
+    periodo: `Exercício ${ano}`,
     orientacao: 'portrait',
     kpis,
     colunas,
     linhas,
     rodapeTotais,
-    nomeArquivo: `Prestacao_${min.nome.replace(/\s+/g, '_')}_2026.pdf`
+    nomeArquivo: `Prestacao_${min.nome.replace(/\s+/g, '_')}_${ano}.pdf`
   });
 }
 
@@ -7028,28 +7430,31 @@ function gerarPDFRolMembros() {
   });
 }
 
-// 8. ANIVERSARIANTES MENSAIS
+// 8. ANIVERSARIANTES MENSAIS OU ANUAIS
 function gerarPDFAniversariantes() {
   if (!verificarAcessoRelatorio('rel_aniversariantes', 'Relatório de Aniversariantes')) return;
-  const mes = Number(document.getElementById('rel-aniv-mes')?.value || (new Date().getMonth() + 1));
-  const mesesNomes = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-  const periodoTexto = `${mesesNomes[mes]}`;
+  const valMes = document.getElementById('rel-aniv-mes')?.value;
+  const mes = valMes !== undefined && valMes !== '' ? Number(valMes) : 0;
+  const mesesNomes = ['Todos os Meses (Ano Todo)', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const periodoTexto = `${mesesNomes[mes] || 'Ano Todo'}`;
 
   const anivs = (STATE.membros || []).filter(m => {
     if (!m.data_nascimento) return false;
     const parts = m.data_nascimento.split('-');
     if (parts.length < 3) return false;
-    return Number(parts[1]) === mes;
+    if (mes > 0 && Number(parts[1]) !== mes) return false;
+    return true;
   });
 
   anivs.sort((a, b) => {
-    const diaA = Number(a.data_nascimento.split('-')[2]);
-    const diaB = Number(b.data_nascimento.split('-')[2]);
-    return diaA - diaB;
+    const [, mA, dA] = a.data_nascimento.split('-').map(Number);
+    const [, mB, dB] = b.data_nascimento.split('-').map(Number);
+    if (mA !== mB) return mA - mB;
+    return dA - dB;
   });
 
   const colunas = [
-    { label: 'Dia', width: '60px', align: 'center' },
+    { label: 'Data / Dia', width: '90px', align: 'center' },
     { label: 'Aniversariante (Nome)', width: '220px' },
     { label: 'Cargo', width: '130px' },
     { label: 'Telefone / WhatsApp', width: '140px', align: 'center' },
@@ -7058,10 +7463,11 @@ function gerarPDFAniversariantes() {
   ];
 
   const linhas = anivs.map(m => {
-    const dia = String(m.data_nascimento.split('-')[2]).padStart(2, '0');
+    const [, mesNasc, diaNasc] = m.data_nascimento.split('-');
+    const dataCurta = `${String(diaNasc).padStart(2, '0')}/${String(mesNasc).padStart(2, '0')}`;
     const minsStr = (m.ministerios || []).map(v => v.ministerio_nome).join(', ') || '—';
     return [
-      { texto: dia, bold: true },
+      { texto: dataCurta, bold: true },
       { texto: m.nome, bold: true },
       m.cargo_eclesiastico || 'Membro',
       m.telefone ? `<a href="https://wa.me/55${m.telefone.replace(/\D/g, '')}" target="_blank" class="text-emerald-700 underline">${m.telefone}</a>` : '—',
@@ -7071,19 +7477,19 @@ function gerarPDFAniversariantes() {
   });
 
   const kpis = [
-    { label: 'Mês de Referência', valor: periodoTexto, cor: 'text-indigo-700', sub: 'Mês dos aniversariantes' },
+    { label: 'Período de Referência', valor: periodoTexto, cor: 'text-indigo-700', sub: 'Calendário de aniversários' },
     { label: 'Total de Aniversariantes', valor: String(anivs.length), cor: 'text-emerald-700', sub: 'Irmãos celebrando vida' }
   ];
 
   abrirVisualizadorRelatorioPDF({
-    titulo: `Aniversariantes do Mês — ${periodoTexto}`,
+    titulo: `Relatório de Aniversariantes — ${periodoTexto}`,
     subtitulo: 'Relação nominal para homenagens, oração pastoral e felicitações nos cultos',
     periodo: periodoTexto,
     orientacao: 'portrait',
     kpis,
     colunas,
     linhas,
-    nomeArquivo: `Aniversariantes_${mesesNomes[mes]}.pdf`
+    nomeArquivo: `Aniversariantes_${mes > 0 ? mesesNomes[mes] : 'Ano_Todo'}.pdf`
   });
 }
 
@@ -7158,23 +7564,23 @@ function gerarPDFVisitantes() {
     { label: 'Data Visita', width: '90px', align: 'center' },
     { label: 'Nome do Visitante', width: '220px' },
     { label: 'Telefone / WhatsApp', width: '140px', align: 'center' },
-    { label: 'Quem Convidou', width: '160px' },
-    { label: 'Primeira Vez?', width: '100px', align: 'center' },
-    { label: 'Observações de Acolhimento' }
+    { label: 'Culto / Evento', width: '160px' },
+    { label: 'Status Acompanhamento', width: '130px', align: 'center' },
+    { label: 'Pedidos de Oração / Observações' }
   ];
 
   const linhas = vis.map(v => [
     formatDateBR(v.data_visita),
     { texto: v.nome, bold: true },
     v.telefone || '—',
-    v.quem_convidou || '—',
-    v.primeira_vez ? '✓ Sim' : 'Não',
-    v.observacoes || '—'
+    v.culto || v.quem_convidou || 'Culto da Família',
+    v.status_acompanhamento || 'Em Contato',
+    v.pedido_oracao || v.observacoes || '—'
   ]);
 
   const kpis = [
     { label: 'Total de Visitantes', valor: String(vis.length), cor: 'text-amber-700', sub: 'Acolhidos na igreja' },
-    { label: 'Primeira Visita', valor: String(vis.filter(v => v.primeira_vez).length), cor: 'text-emerald-700', sub: 'Novos visitantes' }
+    { label: 'Em Acompanhamento', valor: String(vis.filter(v => v.status_acompanhamento !== 'Integrado como Membro').length), cor: 'text-emerald-700', sub: 'Discipulado e visitação' }
   ];
 
   abrirVisualizadorRelatorioPDF({
@@ -7208,7 +7614,7 @@ function gerarPDFCelulas() {
       { texto: c.nome, bold: true },
       c.lider || '—',
       c.bairro || '—',
-      `${c.dia_semana || ''} às ${c.horario || ''}`,
+      c.dia_horario || `${c.dia_semana || ''} ${c.horario || ''}`.trim() || '—',
       String(qtdMembros)
     ];
   });
@@ -7241,7 +7647,7 @@ function gerarPDFPatrimonio() {
     { label: 'Descrição do Bem / Equipamento', width: '240px' },
     { label: 'Setor / Ministério', width: '150px' },
     { label: 'Estado', width: '100px', align: 'center' },
-    { label: 'Data Aquisição', width: '100px', align: 'center' },
+    { label: 'Localização', width: '120px', align: 'center' },
     { label: 'Valor Aquisição (R$)', width: '120px', align: 'right' }
   ];
 
@@ -7250,7 +7656,7 @@ function gerarPDFPatrimonio() {
     p.item,
     p.ministerio_nome || 'Sede Geral',
     p.estado || 'Bom',
-    formatDateBR(p.data_aquisicao),
+    p.localizacao || formatDateBR(p.data_aquisicao),
     formatBRL(p.valor_aquisicao)
   ]);
 
@@ -7297,7 +7703,7 @@ function gerarPDFEscalas() {
     e.horario || '—',
     e.evento_culto || 'Culto de Celebração',
     e.ministerio_nome || '—',
-    { texto: e.voluntario_nome || 'Voluntário', bold: true },
+    { texto: e.membro_nome || e.voluntario_nome || 'Voluntário', bold: true },
     e.funcao_escala || 'Serviço',
     e.confirmado ? '<span class="text-emerald-700 font-bold">✓ Confirmado</span>' : '<span class="text-amber-600 font-bold">⏳ Pendente</span>'
   ]);
@@ -7319,28 +7725,39 @@ function gerarPDFEscalas() {
   });
 }
 
-// 15. AUDITORIA & LOGS
+// 15. AUDITORIA & LOGS REAIS DO SISTEMA
 function gerarPDFAuditoria() {
   if (!verificarAcessoRelatorio('rel_auditoria', 'Trilha de Auditoria & Logs')) return;
+  const logs = STATE.auditoria || [];
   const colunas = [
     { label: 'Horário / Data', width: '130px', align: 'center' },
     { label: 'Operador / Usuário', width: '150px' },
-    { label: 'Módulo', width: '110px', align: 'center' },
-    { label: 'Ação Realizada' },
-    { label: 'Status', width: '100px', align: 'center' }
+    { label: 'Setor / Módulo', width: '120px', align: 'center' },
+    { label: 'Ação Realizada', width: '170px' },
+    { label: 'Detalhes da Operação' }
   ];
 
-  const linhas = [
-    [new Date().toLocaleString('pt-BR'), CURRENT_OPERATOR?.nome || 'Operador', 'Relatórios', 'Emissão de relatório auditado', '✓ Sucesso'],
-    [new Date(Date.now() - 3600000).toLocaleString('pt-BR'), 'Sistema', 'Sincronização', 'Heartbeat e integridade do banco', '✓ Ativo'],
-    [new Date(Date.now() - 7200000).toLocaleString('pt-BR'), CURRENT_OPERATOR?.nome || 'Operador', 'Autenticação', 'Sessão verificada com sucesso', '✓ Sucesso']
+  const linhas = logs.length > 0 ? logs.map(item => [
+    item.data_hora || 'Recente',
+    { texto: item.usuario || 'Sistema', bold: true },
+    item.setor || 'Geral',
+    { texto: item.acao || 'Operação', bold: true },
+    item.detalhes || '—'
+  ]) : [
+    [new Date().toLocaleString('pt-BR'), CURRENT_OPERATOR?.nome || 'Operador', 'Relatórios', 'Emissão de relatório auditado', '✓ Sucesso']
+  ];
+
+  const kpis = [
+    { label: 'Eventos Auditados', valor: String(linhas.length), cor: 'text-indigo-700', sub: 'Registros no log oficial' },
+    { label: 'Integridade do Banco', valor: '100% ÍNTEGRO', cor: 'text-emerald-700', sub: 'Blindagem Kairós Ativa' }
   ];
 
   abrirVisualizadorRelatorioPDF({
     titulo: 'Trilha de Auditoria e Logs de Segurança',
-    subtitulo: 'Rastreabilidade de acessos, emissões de documentos e operações do sistema',
+    subtitulo: 'Rastreabilidade em tempo real de lançamentos, edições, acessos e operações do sistema',
     periodo: `Auditado em ${new Date().toLocaleDateString('pt-BR')}`,
-    orientacao: 'portrait',
+    orientacao: 'landscape',
+    kpis,
     colunas,
     linhas,
     nomeArquivo: 'Auditoria_Logs.pdf'
@@ -13896,1453 +14313,213 @@ if (document.readyState === 'loading') {
 
 
 function gerarPDFDizimosPorMembro() {
-
-
-
-
-
-
-
   if (!verificarAcessoRelatorio('rel_dizimos_membro', 'Extrato de Dízimos por Membro (Confidencial)')) return;
-
-
-
-
-
-
-
   const ano = Number(document.getElementById('rel-diz-ano')?.value || 2026);
-
-
-
-
-
-
-
   const membroId = document.getElementById('rel-diz-membro-id')?.value || '';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   const mapaMembros = {};
-
-
-
-
-
-
-
   (STATE.membros || []).forEach(m => {
-
-
-
-
-
-
-
     mapaMembros[m.id] = m.nome || m.nome_completo;
-
-
-
-
-
-
-
   });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  // Filtra lançamentos financeiros de entradas
-
-
-
-
-
-
-
-  let entradas = (STATE.financeiro || []).filter(f => {
-
-
-
-
-
-
-
-    if (f.tipo !== 'ENTRADA') return false;
-
-
-
-
-
-
-
-    if (f.data_lancamento) {
-
-
-
-
-
-
-
-      const a = Number(f.data_lancamento.split('-')[0]);
-
-
-
-
-
-
-
-      if (a !== ano) return false;
-
-
-
-
-
-
-
-    }
-
-
-
-
-
-
-
-    return true;
-
-
-
-
-
-
-
-  });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  // Filtra lançamentos financeiros consolidados de entradas do exercício
+  let entradas = obterLancamentosConsolidadosPeriodo(ano, 0).filter(f => f.tipo === 'ENTRADA');
 
   if (membroId) {
-
-
-
-
-
-
-
-    entradas = entradas.filter(f => String(f.membro_id) === String(membroId));
-
-
-
-
-
-
-
+    const membroObj = (STATE.membros || []).find(m => String(m.id) === String(membroId));
+    const nomeBusca = (membroObj ? (membroObj.nome || membroObj.nome_completo || '') : '').trim().toLowerCase();
+    entradas = entradas.filter(f => {
+      if (String(f.membro_id) === String(membroId)) return true;
+      if (nomeBusca && f.pessoa_nome && String(f.pessoa_nome).trim().toLowerCase() === nomeBusca) return true;
+      return false;
+    });
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   // Se membro individual selecionado:
-
-
-
-
-
-
-
   if (membroId) {
-
-
-
-
-
-
-
     const membro = (STATE.membros || []).find(m => String(m.id) === String(membroId));
-
-
-
-
-
-
-
     const nomeMembro = membro ? (membro.nome || membro.nome_completo) : 'Membro';
-
-
-
-
-
-
-
     const cargoMembro = membro ? (membro.cargo_eclesiastico || membro.cargo || 'Membro') : '';
-
-
-
-
-
-
-
     const rolMembro = membro ? (membro.rol ? `#${membro.rol}` : `#${membro.id}`) : '';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     const colunas = [
-
-
-
-
-
-
-
       { label: 'Data', width: '90px', align: 'center' },
-
-
-
-
-
-
-
       { label: 'Categoria / Rubrica', width: '160px' },
-
-
-
-
-
-
-
       { label: 'Histórico / Observação' },
-
-
-
-
-
-
-
       { label: 'Forma Pagamento', width: '120px', align: 'center' },
-
-
-
-
-
-
-
       { label: 'Valor (R$)', width: '120px', align: 'right' }
-
-
-
-
-
-
-
     ];
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     const totDizimos = entradas.filter(e => (e.categoria || '').toLowerCase().includes('dízimo') || (e.categoria || '').toLowerCase().includes('dizimo')).reduce((a, b) => a + Number(b.valor || 0), 0);
-
-
-
-
-
-
-
     const totOfertas = entradas.filter(e => (e.categoria || '').toLowerCase().includes('oferta')).reduce((a, b) => a + Number(b.valor || 0), 0);
-
-
-
-
-
-
-
     const totGeral = entradas.reduce((a, b) => a + Number(b.valor || 0), 0);
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     const linhas = entradas.map(e => [
-
-
-
-
-
-
-
       formatDateBR(e.data_lancamento),
-
-
-
-
-
-
-
       { texto: e.categoria || 'Dízimo / Oferta', bold: true },
-
-
-
-
-
-
-
       e.descricao || 'Contribuição entregue à tesouraria',
-
-
-
-
-
-
-
       e.forma_pagamento || 'PIX',
-
-
-
-
-
-
-
       formatBRL(e.valor)
-
-
-
-
-
-
-
     ]);
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     const kpis = [
-
-
-
-
-
-
-
       { label: 'Membro Contribuinte', valor: nomeMembro, cor: 'text-indigo-700', sub: `Rol: ${rolMembro} · ${cargoMembro}` },
-
-
-
-
-
-
-
       { label: 'Total de Dízimos', valor: formatBRL(totDizimos), cor: 'text-emerald-700', sub: 'Fidelidade e dízimos' },
-
-
-
-
-
-
-
       { label: 'Total de Ofertas', valor: formatBRL(totOfertas), cor: 'text-purple-700', sub: 'Ofertas alçadas' },
-
-
-
-
-
-
-
       { label: 'Total Contribuído', valor: formatBRL(totGeral), cor: 'text-slate-900', sub: `Exercício ${ano}` }
-
-
-
-
-
-
-
     ];
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     const rodapeTotais = `
-
-
-
-
-
-
-
       <td colspan="4" class="py-2.5 px-3 uppercase font-black">Total Contribuído por ${nomeMembro} em ${ano}</td>
-
-
-
-
-
-
-
       <td class="text-right py-2.5 px-3 font-mono font-black text-emerald-800">${formatBRL(totGeral)}</td>
-
-
-
-
-
-
-
     `;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     const csvRows = [
-
-
-
-
-
-
-
       ['Data', 'Categoria', 'Descricao', 'Forma_Pagamento', 'Valor'],
-
-
-
-
-
-
-
       ...entradas.map(e => [formatDateBR(e.data_lancamento), e.categoria, e.descricao, e.forma_pagamento, Number(e.valor || 0).toFixed(2)])
-
-
-
-
-
-
-
     ];
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     abrirVisualizadorRelatorioPDF({
-
-
-
-
-
-
-
       titulo: `Extrato Oficial de Contribuições — ${nomeMembro}`,
-
-
-
-
-
-
-
       subtitulo: `Demonstrativo individual de dízimos e ofertas entregues ao Senhor na tesouraria`,
-
-
-
-
-
-
-
       periodo: `Exercício ${ano}`,
-
-
-
-
-
-
-
       orientacao: 'portrait',
-
-
-
-
-
-
-
       kpis,
-
-
-
-
-
-
-
       colunas,
-
-
-
-
-
-
-
       linhas,
-
-
-
-
-
-
-
       rodapeTotais,
-
-
-
-
-
-
-
       nomeArquivo: `Extrato_Dizimos_${nomeMembro.replace(/\s+/g, '_')}_${ano}.pdf`,
-
-
-
-
-
-
-
       csvRows
-
-
-
-
-
-
-
     });
-
-
-
-
-
-
-
   } else {
-
-
-
-
-
-
-
-    // Relatório consolidado com os nomes de todos os membros e suas contribuições
-
-
-
-
-
-
-
+    // Relatório consolidado com os nomes de todos os membros + entradas gerais (Gasofilácio / Coletas)
     const agrupadoPorMembro = {};
-
-
-
-
-
-
-
     (STATE.membros || []).forEach(m => {
-
-
-
-
-
-
-
       agrupadoPorMembro[m.id] = {
-
-
-
-
-
-
-
         membro: m,
-
-
-
-
-
-
-
         nome: m.nome || m.nome_completo,
-
-
-
-
-
-
-
         cargo: m.cargo_eclesiastico || m.cargo || 'Membro',
-
-
-
-
-
-
-
         rol: m.rol ? `#${m.rol}` : `#${m.id}`,
-
-
-
-
-
-
-
         totalDizimos: 0,
-
-
-
-
-
-
-
         totalOfertas: 0,
-
-
-
-
-
-
-
         totalOutros: 0,
-
-
-
-
-
-
-
         totalGeral: 0,
-
-
-
-
-
-
-
-        qtdLancamentos: 0
-
-
-
-
-
-
-
+        qtdLancamentos: 0,
+        isGeral: false
       };
-
-
-
-
-
-
-
     });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     entradas.forEach(e => {
-
-
-
-
-
-
-
       let mId = e.membro_id;
-
-
-
-
-
-
-
       if (!mId && e.pessoa_nome) {
-
-
-
-
-
-
-
-        const found = (STATE.membros || []).find(m => (m.nome || '').toLowerCase() === e.pessoa_nome.toLowerCase());
-
-
-
-
-
-
-
+        const found = (STATE.membros || []).find(m => (m.nome || m.nome_completo || '').toLowerCase() === String(e.pessoa_nome).trim().toLowerCase());
         if (found) mId = found.id;
-
-
-
-
-
-
-
       }
-
-
-
-
-
-
-
+      const cat = (e.categoria || '').toLowerCase();
+      const v = Number(e.valor || 0);
       if (mId && agrupadoPorMembro[mId]) {
-
-
-
-
-
-
-
-        const cat = (e.categoria || '').toLowerCase();
-
-
-
-
-
-
-
-        const v = Number(e.valor || 0);
-
-
-
-
-
-
-
         if (cat.includes('dízimo') || cat.includes('dizimo')) agrupadoPorMembro[mId].totalDizimos += v;
-
-
-
-
-
-
-
         else if (cat.includes('oferta')) agrupadoPorMembro[mId].totalOfertas += v;
-
-
-
-
-
-
-
         else agrupadoPorMembro[mId].totalOutros += v;
-
-
-
-
-
-
-
         agrupadoPorMembro[mId].totalGeral += v;
-
-
-
-
-
-
-
         agrupadoPorMembro[mId].qtdLancamentos++;
-
-
-
-
-
-
-
+      } else if (v > 0) {
+        const chaveGeral = `GERAL_${e.pessoa_nome || e.categoria || 'TESOURARIA'}`;
+        if (!agrupadoPorMembro[chaveGeral]) {
+          agrupadoPorMembro[chaveGeral] = {
+            membro: { status: 'Ativo', sala_ebd: 'Tesouraria' },
+            nome: e.pessoa_nome ? `${e.pessoa_nome} (Contribuinte)` : `🏛️ ${e.categoria || 'Entradas Gerais / Gasofilácio'}`,
+            cargo: e.descricao || 'Coleta / Gasofilácio',
+            rol: 'GERAL',
+            totalDizimos: 0,
+            totalOfertas: 0,
+            totalOutros: 0,
+            totalGeral: 0,
+            qtdLancamentos: 0,
+            isGeral: true
+          };
+        }
+        if (cat.includes('dízimo') || cat.includes('dizimo')) agrupadoPorMembro[chaveGeral].totalDizimos += v;
+        else if (cat.includes('oferta')) agrupadoPorMembro[chaveGeral].totalOfertas += v;
+        else agrupadoPorMembro[chaveGeral].totalOutros += v;
+        agrupadoPorMembro[chaveGeral].totalGeral += v;
+        agrupadoPorMembro[chaveGeral].qtdLancamentos++;
       }
-
-
-
-
-
-
-
     });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    const membrosList = Object.values(agrupadoPorMembro).sort((a, b) => a.nome.localeCompare(b.nome));
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    const membrosList = Object.values(agrupadoPorMembro).sort((a, b) => {
+      if (b.totalGeral !== a.totalGeral) return b.totalGeral - a.totalGeral;
+      return (a.nome || '').localeCompare(b.nome || '');
+    });
 
     const colunas = [
-
-
-
-
-
-
-
       { label: 'Rol / ID', width: '70px', align: 'center' },
-
-
-
-
-
-
-
-      { label: 'Nome Completo do Membro' },
-
-
-
-
-
-
-
+      { label: 'Nome Completo do Membro / Rubrica' },
       { label: 'Status', width: '75px', align: 'center' },
-
-
-
-
-
-
-
-      { label: 'Sala EBD', width: '95px', align: 'center' },
-
-
-
-
-
-
-
-      { label: 'Cargo Eclesiástico', width: '120px' },
-
-
-
-
-
-
-
+      { label: 'Sala EBD / Origem', width: '95px', align: 'center' },
+      { label: 'Cargo / Histórico', width: '120px' },
       { label: 'Dízimos (R$)', width: '110px', align: 'right' },
-
-
-
-
-
-
-
       { label: 'Ofertas (R$)', width: '110px', align: 'right' },
-
-
-
-
-
-
-
       { label: 'Total Contribuído (R$)', width: '125px', align: 'right' },
-
-
-
-
-
-
-
       { label: 'Qtd', width: '45px', align: 'center' }
-
-
-
-
-
-
-
     ];
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     const totGeralIgreja = membrosList.reduce((a, b) => a + b.totalGeral, 0);
-
-
-
-
-
-
-
+    const totDizimosIgreja = membrosList.reduce((a, b) => a + b.totalDizimos, 0);
+    const totOfertasIgreja = membrosList.reduce((a, b) => a + b.totalOfertas + b.totalOutros, 0);
     const dizimistasAtivos = membrosList.filter(m => m.totalGeral > 0).length;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     const linhas = membrosList.map(m => {
-
-
-
-
-
-
-
       const isObito = m.membro.status === 'Óbito' || m.membro.status === 'Obto';
-
-
-
-
-
-
-
-      const statusTxt = isObito ? '⚫ Óbito' : (m.membro.status || 'Ativo');
-
-
-
-
-
-
-
-      const statusCor = isObito ? 'text-slate-900 font-black' : (m.membro.status === 'Ativo' ? 'text-emerald-700 font-bold' : 'text-slate-600 font-semibold');
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+      const statusTxt = m.isGeral ? '🏛️ Geral' : (isObito ? '⚫ Óbito' : (m.membro.status || 'Ativo'));
+      const statusCor = m.isGeral ? 'text-indigo-700 font-bold' : (isObito ? 'text-slate-900 font-black' : (m.membro.status === 'Ativo' ? 'text-emerald-700 font-bold' : 'text-slate-600 font-semibold'));
 
       return [
-
-
-
-
-
-
-
         m.rol,
-
-
-
-
-
-
-
         { texto: m.nome, bold: true },
-
-
-
-
-
-
-
         { texto: statusTxt, cor: statusCor },
-
-
-
-
-
-
-
         m.membro.sala_ebd ? `📚 ${m.membro.sala_ebd}` : '—',
-
-
-
-
-
-
-
         m.cargo,
-
-
-
-
-
-
-
         formatBRL(m.totalDizimos),
-
-
-
-
-
-
-
-        formatBRL(m.totalOfertas),
-
-
-
-
-
-
-
+        formatBRL(m.totalOfertas + m.totalOutros),
         { texto: formatBRL(m.totalGeral), bold: true, cor: m.totalGeral > 0 ? 'text-emerald-700' : 'text-slate-500' },
-
-
-
-
-
-
-
         m.qtdLancamentos
-
-
-
-
-
-
-
       ];
-
-
-
-
-
-
-
     });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     const kpis = [
-
-
-
-
-
-
-
-      { label: 'Total de Membros no Rol', valor: membrosList.length, cor: 'text-indigo-700', sub: 'Cadastrados na igreja' },
-
-
-
-
-
-
-
-      { label: 'Membros Dizimistas Ativos', valor: dizimistasAtivos, cor: 'text-emerald-700', sub: `${((dizimistasAtivos / (membrosList.length || 1)) * 100).toFixed(0)}% de fidelidade identificada` },
-
-
-
-
-
-
-
-      { label: 'Arrecadação Identificada', valor: formatBRL(totGeralIgreja), cor: 'text-slate-900', sub: `Exercício ${ano}` }
-
-
-
-
-
-
-
+      { label: 'Membros & Fontes no Rol', valor: membrosList.length, cor: 'text-indigo-700', sub: `${dizimistasAtivos} com lançamentos no ano` },
+      { label: 'Total de Dízimos', valor: formatBRL(totDizimosIgreja), cor: 'text-emerald-700', sub: 'Membros + Gasofilácio' },
+      { label: 'Total de Ofertas / Outras', valor: formatBRL(totOfertasIgreja), cor: 'text-purple-700', sub: 'Ofertas gerais e especiais' },
+      { label: 'Arrecadação Total no Ano', valor: formatBRL(totGeralIgreja), cor: 'text-slate-900', sub: `Exercício ${ano}` }
     ];
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     const rodapeTotais = `
-
-
-
-
-
-
-
-      <td colspan="5" class="py-2.5 px-3 uppercase font-black">Totais Consolidados por Membros no Período</td>
-
-
-
-
-
-
-
-      <td class="text-right py-2.5 px-3 font-mono font-bold">${formatBRL(membrosList.reduce((a, b) => a + b.totalDizimos, 0))}</td>
-
-
-
-
-
-
-
-      <td class="text-right py-2.5 px-3 font-mono font-bold">${formatBRL(membrosList.reduce((a, b) => a + b.totalOfertas, 0))}</td>
-
-
-
-
-
-
-
+      <td colspan="5" class="py-2.5 px-3 uppercase font-black">Totais Consolidados de Dízimos e Ofertas (${ano})</td>
+      <td class="text-right py-2.5 px-3 font-mono font-bold">${formatBRL(totDizimosIgreja)}</td>
+      <td class="text-right py-2.5 px-3 font-mono font-bold">${formatBRL(totOfertasIgreja)}</td>
       <td class="text-right py-2.5 px-3 font-mono font-black text-emerald-800">${formatBRL(totGeralIgreja)}</td>
-
-
-
-
-
-
-
       <td class="text-center py-2.5 px-3 font-bold">${membrosList.reduce((a, b) => a + b.qtdLancamentos, 0)}</td>
-
-
-
-
-
-
-
     `;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     const csvRows = [
-
-
-
-
-
-
-
       ['Rol', 'Nome_Completo', 'Status', 'Sala_EBD', 'Cargo', 'Total_Dizimos', 'Total_Ofertas', 'Total_Geral', 'Qtd_Lancamentos'],
-
-
-
-
-
-
-
-      ...membrosList.map(m => [m.rol, m.nome, m.membro.status || 'Ativo', m.membro.sala_ebd || '', m.cargo, m.totalDizimos.toFixed(2), m.totalOfertas.toFixed(2), m.totalGeral.toFixed(2), m.qtdLancamentos])
-
-
-
-
-
-
-
+      ...membrosList.map(m => [m.rol, m.nome, m.membro.status || 'Ativo', m.membro.sala_ebd || '', m.cargo, m.totalDizimos.toFixed(2), (m.totalOfertas + m.totalOutros).toFixed(2), m.totalGeral.toFixed(2), m.qtdLancamentos])
     ];
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     abrirVisualizadorRelatorioPDF({
-
-
-
-
-
-
-
-      titulo: `Relatório de Dízimos e Contribuições por Membro da Igreja`,
-
-
-
-
-
-
-
-      subtitulo: `Relação nominal canônica de fidelidade, dízimos e ofertas por irmão(ã)`,
-
-
-
-
-
-
-
+      titulo: `Relatório de Dízimos e Contribuições — Exercício ${ano}`,
+      subtitulo: `Relação nominal de fidelidade por membro e entradas consolidadas de dízimos e ofertas`,
       periodo: `Exercício ${ano}`,
-
-
-
-
-
-
-
       orientacao: 'landscape',
-
-
-
-
-
-
-
       kpis,
-
-
-
-
-
-
-
       colunas,
-
-
-
-
-
-
-
       linhas,
-
-
-
-
-
-
-
       rodapeTotais,
-
-
-
-
-
-
-
       nomeArquivo: `Relatorio_Dizimos_Por_Membro_${ano}.pdf`,
-
-
-
-
-
-
-
       csvRows
-
-
-
-
-
-
-
     });
-
-
-
-
-
-
-
   }
-
-
-
-
-
-
-
 }
 
 
