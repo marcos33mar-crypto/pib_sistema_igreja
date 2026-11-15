@@ -4185,6 +4185,8 @@ function populateSelects() {
   ['rel-dre-ano', 'rel-min-ano'].forEach(id => setHTML(id, relAnoOptionsExercicio));
   setHTML('filtro-atas-ano', `<option value="">Todos os Anos</option>` + anos.map(a => `<option value="${a}">${a}</option>`).join(''));
   setHTML('filtro-fin-ano', `<option value="">📆 Todos os Anos</option>` + anos.map(a => `<option value="${a}">${a}</option>`).join(''));
+  setHTML('orc-calc-ano-base', anos.map(a => `<option value="${a}" ${Number(a) === 2026 ? 'selected' : ''}>Orçamento ${a}</option>`).join(''));
+  setHTML('orc-calc-ano-destino', anos.map(a => `<option value="${a}" ${Number(a) === 2027 ? 'selected' : ''}>Orçamento ${a}</option>`).join(''));
 
   if (typeof popularCamposLancamentoManual === 'function') {
     popularCamposLancamentoManual();
@@ -4675,6 +4677,8 @@ function renderOrcamento15Ministerios() {
   const anoReal = ANO_MIN_REALIZADO || 2025;
   const anoOrc = ANO_MIN_ORCAMENTO || 2026;
   const anoExec = ANO_MIN_EXECUTADO || 2026;
+  const anoBaseCalc = Number(document.getElementById('orc-calc-ano-base')?.value || anoOrc || 2026);
+  const anoDestCalc = Number(document.getElementById('orc-calc-ano-destino')?.value || (anoOrc + 1) || 2027);
 
   // Atualiza rótulos nas tabelas e cards
   const elThReal = document.getElementById('th-ano-real');
@@ -4700,6 +4704,7 @@ function renderOrcamento15Ministerios() {
   let html = (STATE.ministerios || []).map(m => {
     const rVal = getRealizadoMinisterio(m, anoReal);
     const oVal = getOrcamentoMinisterio(m, anoOrc);
+    const baseCalcVal = getOrcamentoMinisterio(m, anoBaseCalc);
     const exVal = getExecutadoMinisterio(m, anoExec);
     const saldo = oVal - exVal;
     const aum = rVal > 0 ? (((oVal - rVal) / rVal) * 100).toFixed(1) : '0.0';
@@ -4716,17 +4721,42 @@ function renderOrcamento15Ministerios() {
         </td>
         <td class="py-3 px-3 text-right font-mono text-slate-600">${formatBRL(rVal)}</td>
         <td class="py-3 px-3 text-right font-mono font-extrabold text-indigo-900">${formatBRL(oVal)}</td>
-        <td class="py-3 px-3 text-center">
-          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${Number(aum) > 0 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}">
-            ${Number(aum) > 0 ? '+' : ''}${aum}%
-          </span>
+        <td class="py-2.5 px-3 text-center">
+          <div class="flex flex-col items-center gap-1">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${Number(aum) > 0 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}" title="Variação entre Realizado ${anoReal} e Orçamento ${anoOrc}">
+              ${Number(aum) > 0 ? '+' : ''}${aum}%
+            </span>
+            <div class="inline-flex items-center gap-1 bg-indigo-50/80 border border-indigo-200 rounded-lg px-1.5 py-0.5 no-print" title="Digite o % de acréscimo sobre o Orçamento ${anoBaseCalc} (${formatBRL(baseCalcVal)}) para ${anoDestCalc}">
+              <span class="text-[9px] font-bold text-indigo-700">+%</span>
+              <input
+                type="number"
+                step="0.1"
+                id="inp-perc-min-${m.id}"
+                data-min-id="${m.id}"
+                data-base-val="${baseCalcVal}"
+                placeholder="0%"
+                oninput="aoDigitarPercentualMinisterio(${m.id}, ${baseCalcVal})"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();aplicarPercentualIndividualMinisterio(${m.id});}"
+                class="inp-perc-ministerio w-14 text-right font-extrabold text-indigo-900 text-[11px] bg-white border border-indigo-200 rounded px-1 py-0.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+              />
+              <button
+                type="button"
+                onclick="aplicarPercentualIndividualMinisterio(${m.id})"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] px-1.5 py-0.5 rounded transition cursor-pointer"
+                title="Aplicar este % ao ministério para o exercício ${anoDestCalc}"
+              >
+                ✓
+              </button>
+            </div>
+            <span id="prev-orc-min-${m.id}" class="hidden text-[10px] font-mono font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded"></span>
+          </div>
         </td>
         <td class="py-3 px-3 text-right font-mono font-bold text-rose-600">${formatBRL(exVal)}</td>
         <td class="py-3 px-3 text-right font-mono font-bold ${saldo >= 0 ? 'text-emerald-600' : 'text-rose-600'}">${formatBRL(saldo)}</td>
         <td class="py-3 px-3 text-slate-600 italic">${m.descricao || '—'}</td>
         <td class="py-3 px-3 text-right">
-          <button onclick="editarMinisterioModal(${m.id})" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-2.5 py-1 rounded-lg transition">
-            ✏️ Editar Orçamento / Obs
+          <button onclick="editarMinisterioModal(${m.id})" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-2.5 py-1 rounded-lg transition cursor-pointer">
+            ✏️ Editar Orçamento / %
           </button>
         </td>
       </tr>
@@ -4757,6 +4787,120 @@ function renderOrcamento15Ministerios() {
   if (elTotReal) elTotReal.textContent = formatBRL(totReal);
   if (elTotOrc) elTotOrc.textContent = formatBRL(totOrc);
   if (elTotExec) elTotExec.textContent = formatBRL(totExec);
+}
+
+function aoMudarAnoDestinoCalculoOrcamento(val) {
+  const anoDest = Number(val);
+  if (anoDest >= 2020 && anoDest <= 2035) {
+    mudarAnosMinisterios('orcamento', anoDest);
+  }
+}
+
+function aoDigitarPercentualMinisterio(minId, valorBase) {
+  const inp = document.getElementById(`inp-perc-min-${minId}`);
+  const prev = document.getElementById(`prev-orc-min-${minId}`);
+  if (!inp || !prev) return;
+  const valStr = String(inp.value || '').trim();
+  if (valStr === '' || isNaN(parseFloat(valStr))) {
+    prev.classList.add('hidden');
+    prev.textContent = '';
+    return;
+  }
+  const perc = parseFloat(valStr);
+  const base = Number(valorBase || inp.getAttribute('data-base-val') || 0);
+  const novoVal = Math.max(0, Math.round(base * (1 + perc / 100) * 100) / 100);
+  const anoDest = Number(document.getElementById('orc-calc-ano-destino')?.value || ANO_MIN_ORCAMENTO || 2027);
+  prev.textContent = `➔ ${anoDest}: ${formatBRL(novoVal)}`;
+  prev.classList.remove('hidden');
+}
+
+function preencherPercentualGeralMinisterios(val) {
+  document.querySelectorAll('.inp-perc-ministerio').forEach(inp => {
+    inp.value = val;
+    const minId = Number(inp.getAttribute('data-min-id'));
+    const baseVal = Number(inp.getAttribute('data-base-val') || 0);
+    aoDigitarPercentualMinisterio(minId, baseVal);
+  });
+}
+
+async function aplicarPercentualIndividualMinisterio(minId) {
+  const inp = document.getElementById(`inp-perc-min-${minId}`);
+  if (!inp) return;
+  const perc = parseFloat(inp.value);
+  if (isNaN(perc)) {
+    alert('Digite um percentual válido (ex: 10 para +10%) antes de aplicar.');
+    inp.focus();
+    return;
+  }
+  const anoBase = Number(document.getElementById('orc-calc-ano-base')?.value || ANO_MIN_ORCAMENTO || 2026);
+  const anoDest = Number(document.getElementById('orc-calc-ano-destino')?.value || (anoBase + 1) || 2027);
+  const m = (STATE.ministerios || []).find(x => Number(x.id) === Number(minId));
+  if (!m) return;
+
+  const baseVal = getOrcamentoMinisterio(m, anoBase);
+  const novoOrcamento = Math.max(0, Math.round(baseVal * (1 + perc / 100) * 100) / 100);
+
+  await apiPost('/api/ministerios/orcamento', {
+    id: minId,
+    ano_orcamento: anoDest,
+    orcamento: novoOrcamento
+  });
+
+  if (Number(ANO_MIN_ORCAMENTO) !== anoDest) {
+    ANO_MIN_ORCAMENTO = anoDest;
+    ['sel-ano-orcamento', 'sel-ano-orcamento-tab'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = String(anoDest);
+    });
+  }
+
+  await fetchBootstrap();
+  showLiveToast(`✅ ${m.nome}: acréscimo de ${perc >= 0 ? '+' : ''}${perc}% aplicado para ${anoDest} (${formatBRL(novoOrcamento)})!`);
+}
+
+async function salvarTodosReajustesPercentuaisMinisterios() {
+  const anoBase = Number(document.getElementById('orc-calc-ano-base')?.value || ANO_MIN_ORCAMENTO || 2026);
+  const anoDest = Number(document.getElementById('orc-calc-ano-destino')?.value || (anoBase + 1) || 2027);
+  const percGeralStr = String(document.getElementById('orc-calc-perc-geral')?.value || '').trim();
+
+  const itensLote = [];
+  (STATE.ministerios || []).forEach(m => {
+    const inp = document.getElementById(`inp-perc-min-${m.id}`);
+    const valStr = inp && String(inp.value || '').trim() !== '' ? String(inp.value).trim() : percGeralStr;
+    if (valStr !== '' && !isNaN(parseFloat(valStr))) {
+      const perc = parseFloat(valStr);
+      const baseVal = getOrcamentoMinisterio(m, anoBase);
+      const novoOrc = Math.max(0, Math.round(baseVal * (1 + perc / 100) * 100) / 100);
+      itensLote.push({
+        id: m.id,
+        ano_orcamento: anoDest,
+        orcamento: novoOrc,
+        percentual: perc
+      });
+    }
+  });
+
+  if (itensLote.length === 0) {
+    alert('Informe o percentual de acréscimo (%) em pelo menos um ministério na tabela ou no campo "+ % Geral" no topo.');
+    return;
+  }
+
+  await apiPost('/api/ministerios/orcamento', {
+    ano_orcamento: anoDest,
+    percentual: percGeralStr || 'individual',
+    itens_lote: itensLote
+  });
+
+  if (Number(ANO_MIN_ORCAMENTO) !== anoDest) {
+    ANO_MIN_ORCAMENTO = anoDest;
+    ['sel-ano-orcamento', 'sel-ano-orcamento-tab'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = String(anoDest);
+    });
+  }
+
+  await fetchBootstrap();
+  showLiveToast(`✅ Orçamento ${anoDest} atualizado com sucesso para ${itensLote.length} ministério(s)!`);
 }
 
 function renderGraficosBI(resAno) {
@@ -6276,40 +6420,165 @@ function editarMinisterioModal(minId) {
   const m = STATE.ministerios.find(x => x.id === minId);
   if (!m) return;
 
+  const anoReal = Number(ANO_MIN_REALIZADO || 2025);
+  const anoOrc = Number(ANO_MIN_ORCAMENTO || 2026);
+  const valReal = getRealizadoMinisterio(m, anoReal);
+  const valOrc = getOrcamentoMinisterio(m, anoOrc);
+  const valBase2026 = getOrcamentoMinisterio(m, 2026);
+  const anosOptsOrc = getAnosDisponiveis().map(a => `<option value="${a}" ${Number(a) === anoOrc ? 'selected' : ''}>${a}</option>`).join('');
+  const anosOptsReal = getAnosDisponiveis().map(a => `<option value="${a}" ${Number(a) === anoReal ? 'selected' : ''}>${a}</option>`).join('');
+
   const html = `
-    <form onsubmit="confirmarEdicaoMinisterio(event, ${m.id})" class="space-y-3 text-xs">
-      <span class="text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full">Orçamento Anual do Ministério</span>
-      <h3 class="text-base font-bold text-slate-900">${m.nome}</h3>
+    <form onsubmit="confirmarEdicaoMinisterio(event, ${m.id})" class="space-y-3.5 text-xs">
+      <div class="flex items-center justify-between">
+        <span class="text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full">Orçamento Anual e Reajuste (%)</span>
+        <span class="text-[11px] font-bold text-slate-500">Base 2026: <strong>${formatBRL(valBase2026)}</strong></span>
+      </div>
+      <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+        <span class="w-3.5 h-3.5 rounded-full inline-block" style="background:${m.cor || '#4f46e5'}"></span>
+        ${m.nome}
+      </h3>
+
+      <!-- CALCULADORA DE ACRÉSCIMO PERCENTUAL (%) NO MODAL -->
+      <div class="p-3 rounded-2xl bg-indigo-50/80 border border-indigo-200 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="font-extrabold text-indigo-950 uppercase text-[11px]">📈 Calcular Acréscimo em Porcentagem (%)</span>
+          <div class="flex items-center gap-1">
+            ${[5, 10, 15, 20].map(p => `
+              <button type="button" onclick="aplicarAtalhoPercentualModal(${m.id}, ${p})" class="px-2 py-0.5 rounded-md bg-white hover:bg-indigo-600 hover:text-white text-indigo-700 border border-indigo-200 font-bold text-[10px] transition cursor-pointer">+${p}%</button>
+            `).join('')}
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
+          <div>
+            <label class="text-[10px] font-bold text-slate-600 block mb-0.5">Sobre Orçamento Base:</label>
+            <select id="modal-min-ano-base" onchange="recalcularOrcamentoPercentualModal(${m.id})" class="w-full border border-slate-300 rounded-xl px-2.5 py-1.5 bg-white font-bold text-slate-800">
+              ${getAnosDisponiveis().map(a => `<option value="${a}" ${Number(a) === 2026 ? 'selected' : ''}>Orçamento ${a} (${formatBRL(getOrcamentoMinisterio(m, a))})</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-indigo-800 block mb-0.5">Acréscimo (%):</label>
+            <div class="flex items-center gap-1">
+              <input type="number" step="0.1" id="modal-min-perc" placeholder="Ex: 10" oninput="recalcularOrcamentoPercentualModal(${m.id})" class="w-full border border-indigo-300 rounded-xl px-2.5 py-1.5 bg-white font-extrabold text-indigo-900 text-right" />
+              <span class="font-extrabold text-indigo-800">%</span>
+            </div>
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-emerald-800 block mb-0.5">Para o Ano Destino:</label>
+            <select id="edit-min-ano-orc" onchange="aoMudarAnoOrcamentoNoModal(${m.id}, this.value)" class="w-full border border-emerald-400 rounded-xl px-2.5 py-1.5 bg-emerald-50 font-extrabold text-emerald-900">
+              ${anosOptsOrc}
+            </select>
+          </div>
+        </div>
+        <div id="modal-min-resumo-calc" class="hidden text-[11px] font-bold text-emerald-800 bg-emerald-100/80 border border-emerald-300 rounded-xl px-3 py-1.5"></div>
+      </div>
+
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="font-semibold text-slate-700 block mb-1">Realizado em 2025 (R$)</label>
-          <input type="number" step="0.01" id="edit-min-2025" required value="${m.realizado_2025 || 0}" class="w-full border border-slate-300 rounded-xl px-3 py-2 font-bold" />
+          <label class="font-semibold text-slate-700 flex items-center justify-between mb-1">
+            <span>Realizado (R$)</span>
+            <select id="edit-min-ano-real" onchange="aoMudarAnoRealizadoNoModal(${m.id}, this.value)" class="text-[11px] font-extrabold text-slate-800 bg-slate-100 border border-slate-300 rounded px-1.5 py-0.5">
+              ${anosOptsReal}
+            </select>
+          </label>
+          <input type="number" step="0.01" id="edit-min-2025" required value="${valReal.toFixed(2)}" class="w-full border border-slate-300 rounded-xl px-3 py-2 font-bold" />
         </div>
         <div>
-          <label class="font-semibold text-slate-700 block mb-1">Orçamento Anual 2026 (R$)</label>
-          <input type="number" step="0.01" id="edit-min-2026" required value="${m.orcamento_2026 || 0}" class="w-full border border-slate-300 rounded-xl px-3 py-2 font-extrabold text-indigo-900" />
+          <label class="font-semibold text-slate-700 flex items-center justify-between mb-1">
+            <span>Orçamento Anual <strong id="lbl-modal-ano-orc" class="text-indigo-700">${anoOrc}</strong> (R$)</span>
+          </label>
+          <input type="number" step="0.01" id="edit-min-2026" required value="${valOrc.toFixed(2)}" class="w-full border border-indigo-400 bg-indigo-50/40 rounded-xl px-3 py-2 font-extrabold text-indigo-900" />
         </div>
       </div>
       <div>
         <label class="font-semibold text-slate-700 block mb-1">Observações (Isadora / Tesouraria)</label>
         <textarea id="edit-min-obs" rows="2" class="w-full border border-slate-300 rounded-xl px-3 py-2">${m.descricao || ''}</textarea>
       </div>
-      <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl">
+      <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl cursor-pointer shadow-xs">
         💾 Salvar e Sincronizar Orçamento
       </button>
     </form>
   `;
-  abrirModalCustom(html, false);
+  abrirModalCustom(html, false, 'normal');
+}
+
+function aplicarAtalhoPercentualModal(minId, perc) {
+  const inp = document.getElementById('modal-min-perc');
+  const selAnoOrc = document.getElementById('edit-min-ano-orc');
+  const selAnoBase = document.getElementById('modal-min-ano-base');
+  if (selAnoOrc && selAnoBase && Number(selAnoOrc.value) === Number(selAnoBase.value) && Number(selAnoBase.value) === 2026) {
+    selAnoOrc.value = '2027';
+    const lbl = document.getElementById('lbl-modal-ano-orc');
+    if (lbl) lbl.textContent = '2027';
+  }
+  if (inp) {
+    inp.value = String(perc);
+    recalcularOrcamentoPercentualModal(minId);
+  }
+}
+
+function aoMudarAnoOrcamentoNoModal(minId, novoAno) {
+  const m = (STATE.ministerios || []).find(x => Number(x.id) === Number(minId));
+  const lbl = document.getElementById('lbl-modal-ano-orc');
+  if (lbl) lbl.textContent = String(novoAno);
+  const inpPerc = document.getElementById('modal-min-perc');
+  if (inpPerc && String(inpPerc.value || '').trim() !== '') {
+    recalcularOrcamentoPercentualModal(minId);
+  } else if (m) {
+    const inpOrc = document.getElementById('edit-min-2026');
+    if (inpOrc) inpOrc.value = getOrcamentoMinisterio(m, Number(novoAno)).toFixed(2);
+  }
+}
+
+function aoMudarAnoRealizadoNoModal(minId, novoAno) {
+  const m = (STATE.ministerios || []).find(x => Number(x.id) === Number(minId));
+  if (!m) return;
+  const inpReal = document.getElementById('edit-min-2025');
+  if (inpReal) inpReal.value = getRealizadoMinisterio(m, Number(novoAno)).toFixed(2);
+}
+
+function recalcularOrcamentoPercentualModal(minId) {
+  const m = (STATE.ministerios || []).find(x => Number(x.id) === Number(minId));
+  if (!m) return;
+  const anoBase = Number(document.getElementById('modal-min-ano-base')?.value || 2026);
+  const anoDest = Number(document.getElementById('edit-min-ano-orc')?.value || 2027);
+  const percStr = String(document.getElementById('modal-min-perc')?.value || '').trim();
+  const boxResumo = document.getElementById('modal-min-resumo-calc');
+  const inpOrc = document.getElementById('edit-min-2026');
+  if (!percStr || isNaN(parseFloat(percStr))) {
+    if (boxResumo) boxResumo.classList.add('hidden');
+    return;
+  }
+  const perc = parseFloat(percStr);
+  const baseVal = getOrcamentoMinisterio(m, anoBase);
+  const acrescimoVal = Math.round(baseVal * (perc / 100) * 100) / 100;
+  const novoVal = Math.max(0, Math.round((baseVal + acrescimoVal) * 100) / 100);
+  if (inpOrc) inpOrc.value = novoVal.toFixed(2);
+  if (boxResumo) {
+    boxResumo.innerHTML = `Base ${anoBase} (${formatBRL(baseVal)}) <strong>${perc >= 0 ? '+' : ''}${perc}% (${formatBRL(acrescimoVal)})</strong> = Novo Orçamento ${anoDest}: <strong>${formatBRL(novoVal)}</strong>`;
+    boxResumo.classList.remove('hidden');
+  }
 }
 
 async function confirmarEdicaoMinisterio(e, id) {
   e.preventDefault();
+  const anoOrc = Number(document.getElementById('edit-min-ano-orc')?.value || ANO_MIN_ORCAMENTO || 2026);
+  const anoReal = Number(document.getElementById('edit-min-ano-real')?.value || ANO_MIN_REALIZADO || 2025);
   await apiPost('/api/ministerios/orcamento', {
     id,
-    realizado_2025: document.getElementById('edit-min-2025').value,
-    orcamento_2026: document.getElementById('edit-min-2026').value,
+    ano_orcamento: anoOrc,
+    ano_realizado: anoReal,
+    realizado: document.getElementById('edit-min-2025').value,
+    orcamento: document.getElementById('edit-min-2026').value,
     descricao: document.getElementById('edit-min-obs').value
   });
+  if (Number(ANO_MIN_ORCAMENTO) !== anoOrc) {
+    ANO_MIN_ORCAMENTO = anoOrc;
+    ['sel-ano-orcamento', 'sel-ano-orcamento-tab'].forEach(selId => {
+      const el = document.getElementById(selId);
+      if (el) el.value = String(anoOrc);
+    });
+  }
   closeModal();
   fetchBootstrap();
 }

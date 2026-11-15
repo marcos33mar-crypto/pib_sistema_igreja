@@ -5254,6 +5254,48 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
                 elif path == "/api/ministerios/orcamento":
+                    if isinstance(body.get("itens_lote"), list) and len(body["itens_lote"]) > 0:
+                        ano_orc_lote = int(body.get("ano_orcamento", 2027))
+                        perc_ref = body.get("percentual", "")
+                        qtd_atualizados = 0
+                        for item in body["itens_lote"]:
+                            mid = int(item["id"])
+                            a_orc = int(item.get("ano_orcamento", ano_orc_lote))
+                            v_orc = parse_moeda(item.get("orcamento", 0))
+                            cur.execute(
+                                """
+                                INSERT INTO ministerios_orcamentos (ministerio_id, ano, orcamento)
+                                VALUES (?, ?, ?)
+                                ON CONFLICT(ministerio_id, ano) DO UPDATE SET orcamento=excluded.orcamento
+                                """,
+                                (mid, a_orc, v_orc),
+                            )
+                            if a_orc == 2026:
+                                cur.execute(
+                                    "UPDATE ministerios SET orcamento_2026=?, orcamento_mensal=? WHERE id=?",
+                                    (v_orc, round(v_orc / 12.0, 2), mid),
+                                )
+                            qtd_atualizados += 1
+
+                        log_auditoria(
+                            conn,
+                            operador,
+                            "Tesouraria",
+                            f"Reajuste Percentual Orçamento ({ano_orc_lote})",
+                            f"Aplicou reajuste de {perc_ref}% para o exercício {ano_orc_lote} em {qtd_atualizados} ministérios.",
+                        )
+                        conn.commit()
+                        conn.close()
+                        agendar_auto_backup_nuvem()
+                        broadcast_event(
+                            "sync",
+                            {
+                                "setor": "Tesouraria",
+                                "operador": operador,
+                                "mensagem": f"{operador} aplicou reajuste orçamentário ({perc_ref}%) para {ano_orc_lote} nos ministérios.",
+                            },
+                        )
+                        return self.send_json({"ok": True, "atualizados": qtd_atualizados})
 
                     min_id = int(body["id"])
 
@@ -5263,83 +5305,60 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                     orc_val = parse_moeda(body.get("orcamento") if body.get("orcamento") is not None else body.get("orcamento_2026", 0))
 
+                    tem_realizado = (body.get("realizado") is not None) or (body.get("realizado_2025") is not None)
+
                     real_val = parse_moeda(body.get("realizado") if body.get("realizado") is not None else body.get("realizado_2025", 0))
 
-                    obs = body.get("descricao", "")
+                    obs = body.get("descricao")
 
                     lider = body.get("lider")
 
                     orc_mensal = round(orc_val / 12.0, 2)
 
-
-
                     # Registra na tabela ministerios_orcamentos por ano
-
                     cur.execute(
-
                         """
-
                         INSERT INTO ministerios_orcamentos (ministerio_id, ano, orcamento)
-
                         VALUES (?, ?, ?)
-
                         ON CONFLICT(ministerio_id, ano) DO UPDATE SET orcamento=excluded.orcamento
-
                         """,
-
                         (min_id, ano_orc, orc_val)
-
                     )
 
-                    cur.execute(
-
-                        """
-
-                        INSERT INTO ministerios_orcamentos (ministerio_id, ano, realizado)
-
-                        VALUES (?, ?, ?)
-
-                        ON CONFLICT(ministerio_id, ano) DO UPDATE SET realizado=excluded.realizado
-
-                        """,
-
-                        (min_id, ano_real, real_val)
-
-                    )
-
-
+                    if tem_realizado:
+                        cur.execute(
+                            """
+                            INSERT INTO ministerios_orcamentos (ministerio_id, ano, realizado)
+                            VALUES (?, ?, ?)
+                            ON CONFLICT(ministerio_id, ano) DO UPDATE SET realizado=excluded.realizado
+                            """,
+                            (min_id, ano_real, real_val)
+                        )
 
                     # Compatibilidade retroativa com campos legados de 2025/2026
-
                     if ano_orc == 2026:
-
                         cur.execute("UPDATE ministerios SET orcamento_2026=?, orcamento_mensal=? WHERE id=?", (orc_val, orc_mensal, min_id))
 
-                    if ano_real == 2025:
-
+                    if tem_realizado and ano_real == 2025:
                         cur.execute("UPDATE ministerios SET realizado_2025=? WHERE id=?", (real_val, min_id))
 
                     if obs is not None:
-
                         cur.execute("UPDATE ministerios SET descricao=? WHERE id=?", (obs, min_id))
 
                     if lider is not None and lider.strip():
-
                         cur.execute("UPDATE ministerios SET lider=? WHERE id=?", (lider.strip(), min_id))
-
-
 
                     min_nome = cur.execute("SELECT nome FROM ministerios WHERE id=?", (min_id,)).fetchone()["nome"]
 
-                    log_auditoria(conn, operador, "Tesouraria", f"Ajuste Orçamento/Realizado ({ano_orc}/{ano_real})", f"Atualizou {min_nome}: Orçamento {ano_orc} = R$ {orc_val:,.2f}, Realizado {ano_real} = R$ {real_val:,.2f}")
+                    log_auditoria(conn, operador, "Tesouraria", f"Ajuste Orçamento/Realizado ({ano_orc}/{ano_real})", f"Atualizou {min_nome}: Orçamento {ano_orc} = R$ {orc_val:,.2f}")
 
                     conn.commit()
 
                     conn.close()
 
+                    agendar_auto_backup_nuvem()
 
-
-                    broadcast_event("sync", {"setor": "Tesouraria", "operador": operador, "mensagem": f"{operador} atualizou o Orçamento ({ano_orc}) / Realizado ({ano_real}) de {min_nome}."})
+                    broadcast_event("sync", {"setor": "Tesouraria", "operador": operador, "mensagem": f"{operador} atualizou o Orçamento ({ano_orc}) de {min_nome}."})
 
                     return self.send_json({"ok": True})
 
