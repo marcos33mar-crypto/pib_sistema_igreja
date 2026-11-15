@@ -1486,30 +1486,32 @@
 
 
 
-      #modal-footer-buttons {
-
-
-
-
-
-
-
+      #modal-footer-buttons,
+      #modal-box-wrapper > button {
         display: none !important;
-
-
-
-
-
-
-
       }
 
+      body.modal-aberto-print,
+      html:has(body.modal-aberto-print) {
+        height: auto !important;
+        min-height: 0 !important;
+        overflow: visible !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
 
+      body.modal-aberto-print #main-content-wrapper {
+        display: none !important;
+      }
 
-
-
-
-
+      #modal-content,
+      #recibo-lancamento-unico {
+        overflow: visible !important;
+        max-height: none !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        page-break-after: avoid !important;
+      }
     }
 
 
@@ -2516,7 +2518,7 @@
          🛡️ Blindagem Cloud • Auto-Backup Ativo
       </div>
       <div class="text-[10px] text-slate-500 font-medium mt-1 tracking-wider" id="versao-sistema-tag">
-        KAIRÓS • Versão 2.46 • Build 20261115
+        KAIRÓS • Versão 2.47 • Build 20261115
       </div>
 
 
@@ -22156,7 +22158,7 @@
 
 
 
-        <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow flex items-center gap-1.5">
+        <button onclick="imprimirModalAtual()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow flex items-center gap-1.5">
 
 
 
@@ -22829,7 +22831,7 @@
   </div>
 
   <script src="/qrcode.min.js"></script>
-  <script src="/app.js?v=20261115_v246_planilha_celulas"></script>
+  <script src="/app.js?v=20261115_v247_recibo_unica_pagina"></script>
 
 
 

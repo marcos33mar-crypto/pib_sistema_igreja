@@ -11651,27 +11651,11 @@ function abrirModalCustom(html, mostrarBotaoPrint = true, largura = 'largo') {
 
     overlay.classList.remove('hidden');
 
-
-
-
-
-
-
     overlay.style.display = 'flex';
-
-
-
-
-
-
 
     overlay.scrollTop = 0;
 
-
-
-
-
-
+    document.body.classList.add('modal-aberto-print');
 
   }
 
@@ -12462,11 +12446,12 @@ function emitirRecibo(finId) {
     ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
     : 'text-rose-700 bg-rose-50 border-rose-200';
   const textoCorpo = isEntrada
-    ? `Recebemos de <strong>${nomePessoa}</strong> a importância de <strong>${formatBRL(f.valor)}</strong> referente a <strong>${f.categoria} (${f.descricao || '-'})</strong>.`
-    : `Certificamos o pagamento a <strong>${nomePessoa}</strong> da importância de <strong>${formatBRL(f.valor)}</strong> referente a <strong>${f.categoria} (${f.descricao || '-'})</strong>.`;
+    ? `Recebemos de <strong>${escapeHtml(nomePessoa)}</strong> a importância de <strong>${formatBRL(f.valor)}</strong> referente a <strong>${escapeHtml(f.categoria || '')} (${escapeHtml(f.descricao || '-')})</strong>.`
+    : `Certificamos o pagamento a <strong>${escapeHtml(nomePessoa)}</strong> da importância de <strong>${formatBRL(f.valor)}</strong> referente a <strong>${escapeHtml(f.categoria || '')} (${escapeHtml(f.descricao || '-')})</strong>.`;
+  const setorMin = f.ministerio_nome || f.departamento || '';
 
   const html = `
-    <div class="border-2 border-slate-800 rounded-2xl p-5 space-y-3 text-xs bg-white">
+    <div id="recibo-lancamento-unico" data-fin-id="${f.id}" class="border-2 border-slate-800 rounded-2xl p-5 space-y-3 text-xs bg-white">
       <div class="flex items-center justify-between border-b border-slate-200 pb-3">
         <div class="flex items-center gap-3">
           <img src="/logo.png" alt="Logo PIB" class="w-12 h-12 rounded-full object-contain shrink-0 border border-slate-200 p-0.5 bg-white shadow-xs" />
@@ -12481,10 +12466,10 @@ function emitirRecibo(finId) {
       <p class="leading-relaxed text-slate-700 pt-1">${textoCorpo}</p>
       <div class="grid grid-cols-2 gap-2 text-slate-600 pt-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
         <p>Data do Lançamento: <strong>${formatDateBR(f.data_lancamento)}</strong></p>
-        <p>Meio de Pagamento: <strong>${f.forma_pagamento || '-'}</strong></p>
-        ${f.departamento ? `<p class="col-span-2">Setor / Ministério: <strong>${f.departamento}</strong></p>` : ''}
+        <p>Meio de Pagamento: <strong>${escapeHtml(f.forma_pagamento || '-')}</strong></p>
+        ${setorMin ? `<p class="col-span-2">Setor / Ministério: <strong>${escapeHtml(setorMin)}</strong></p>` : ''}
       </div>
-      <div class="pt-8 text-center border-t border-slate-200 mt-4">
+      <div class="pt-6 text-center border-t border-slate-200 mt-3">
         <div class="w-56 mx-auto border-t border-slate-400 pt-1.5">
           <p class="font-bold text-slate-800">Tesouraria & Finanças</p>
           <p class="text-[10px] text-slate-500">Primeira Igreja Batista no Parque São Paulo</p>
@@ -12492,7 +12477,185 @@ function emitirRecibo(finId) {
       </div>
     </div>
   `;
-  abrirModalCustom(html, true);
+  abrirModalCustom(html, true, 'normal');
+}
+
+function imprimirReciboEmPaginaUnica(finId) {
+  const f = (STATE.financeiro || []).find(x => Number(x.id) === Number(finId));
+  if (!f) {
+    document.body.classList.add('modal-aberto-print');
+    window.print();
+    return;
+  }
+
+  const isEntrada = f.tipo === 'ENTRADA';
+  const nomePessoa = f.membro_nome || f.pessoa_nome || (isEntrada ? 'Contribuinte / Oferta Geral' : 'Fornecedor / Favorecido Geral');
+  const tituloRecibo = isEntrada ? 'RECIBO DE CONTRIBUIÇÃO / ENTRADA' : 'COMPROVANTE DE PAGAMENTO / SAÍDA';
+  const corTextoValor = isEntrada ? '#047857' : '#be123c';
+  const corFundoValor = isEntrada ? '#ecfdf5' : '#fff1f2';
+  const corBordaValor = isEntrada ? '#a7f3d0' : '#fecdd3';
+  const textoCorpo = isEntrada
+    ? `Recebemos de <strong>${escapeHtml(nomePessoa)}</strong> a importância de <strong>${formatBRL(f.valor)}</strong> referente a <strong>${escapeHtml(f.categoria || '')} (${escapeHtml(f.descricao || '-')})</strong>.`
+    : `Certificamos o pagamento a <strong>${escapeHtml(nomePessoa)}</strong> da importância de <strong>${formatBRL(f.valor)}</strong> referente a <strong>${escapeHtml(f.categoria || '')} (${escapeHtml(f.descricao || '-')})</strong>.`;
+  const setorMin = f.ministerio_nome || f.departamento || '';
+
+  const win = window.open('', '_blank', 'width=850,height=620');
+  if (!win) {
+    document.body.classList.add('modal-aberto-print');
+    window.print();
+    return;
+  }
+
+  win.document.write(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>${tituloRecibo} #${String(f.id).padStart(5, '0')}</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 12mm;
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: auto;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      color: #0f172a;
+      background: #ffffff;
+      page-break-before: avoid;
+      page-break-after: avoid;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .recibo-box {
+      border: 2px solid #1e293b;
+      border-radius: 14px;
+      padding: 20px 24px;
+      max-width: 186mm;
+      margin: 0 auto;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .recibo-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 14px;
+      margin-bottom: 14px;
+      gap: 12px;
+    }
+    .recibo-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .recibo-brand img {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      object-fit: contain;
+      border: 1px solid #cbd5e1;
+      padding: 2px;
+    }
+    .recibo-valor {
+      font-size: 18px;
+      font-weight: 800;
+      padding: 6px 14px;
+      border-radius: 10px;
+      color: ${corTextoValor};
+      background: ${corFundoValor};
+      border: 1px solid ${corBordaValor};
+      white-space: nowrap;
+    }
+    .recibo-corpo {
+      font-size: 13px;
+      line-height: 1.6;
+      color: #334155;
+      margin: 12px 0;
+    }
+    .recibo-meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 16px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: #475569;
+    }
+    .recibo-assinatura {
+      margin-top: 28px;
+      padding-top: 16px;
+      border-top: 1px solid #e2e8f0;
+      text-align: center;
+    }
+    .recibo-assinatura-linha {
+      width: 240px;
+      margin: 18px auto 0 auto;
+      border-top: 1px solid #64748b;
+      padding-top: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="recibo-box">
+    <div class="recibo-header">
+      <div class="recibo-brand">
+        <img src="${window.location.origin}/logo.png" alt="Logo PIB" />
+        <div>
+          <div style="font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:1.2px; color:#0f766e;">KAIRÓS — Sistema de Gestão Integrada</div>
+          <div style="font-size:15px; font-weight:800; color:#0f172a; margin-top:2px;">${tituloRecibo} #${String(f.id).padStart(5, '0')}</div>
+          <div style="font-size:12px; font-weight:700; color:#3d7e71; margin-top:1px;">Primeira Igreja Batista no Parque São Paulo</div>
+        </div>
+      </div>
+      <div class="recibo-valor">${formatBRL(f.valor)}</div>
+    </div>
+    <div class="recibo-corpo">${textoCorpo}</div>
+    <div class="recibo-meta">
+      <div>Data do Lançamento: <strong style="color:#0f172a;">${formatDateBR(f.data_lancamento)}</strong></div>
+      <div>Meio de Pagamento: <strong style="color:#0f172a;">${escapeHtml(f.forma_pagamento || '-')}</strong></div>
+      ${setorMin ? `<div style="grid-column: span 2;">Setor / Ministério: <strong style="color:#0f172a;">${escapeHtml(setorMin)}</strong></div>` : ''}
+    </div>
+    <div class="recibo-assinatura">
+      <div class="recibo-assinatura-linha">
+        <div style="font-size:12px; font-weight:700; color:#1e293b;">Tesouraria &amp; Finanças</div>
+        <div style="font-size:10px; color:#64748b; margin-top:2px;">Primeira Igreja Batista no Parque São Paulo</div>
+      </div>
+    </div>
+  </div>
+  <script>
+    window.onload = function() {
+      setTimeout(function() {
+        window.focus();
+        window.print();
+      }, 250);
+    };
+  <\/script>
+</body>
+</html>`);
+  win.document.close();
+}
+
+function imprimirModalAtual() {
+  const reciboEl = document.getElementById('recibo-lancamento-unico');
+  if (reciboEl) {
+    const finId = reciboEl.getAttribute('data-fin-id');
+    if (finId) {
+      imprimirReciboEmPaginaUnica(finId);
+      return;
+    }
+  }
+  document.body.classList.add('modal-aberto-print');
+  window.print();
 }
 
 
@@ -14120,19 +14283,9 @@ function closeModal() {
 
     overlay.classList.add('hidden');
 
-
-
-
-
-
-
     overlay.style.display = 'none';
 
-
-
-
-
-
+    document.body.classList.remove('modal-aberto-print');
 
   }
 
