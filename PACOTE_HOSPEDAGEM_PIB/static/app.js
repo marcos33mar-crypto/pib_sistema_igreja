@@ -1826,7 +1826,7 @@ let ANO_MIN_EXECUTADO = 2026;
 
 
 
-const ANOS_MINISTERIOS_DISPONIVEIS = [2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030];
+const ANOS_MINISTERIOS_DISPONIVEIS = [2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030, 2031, 2032, 2033, 2034, 2035];
 
 
 
@@ -4177,6 +4177,15 @@ function populateSelects() {
   setHTML('sel-ano-executado', anoExecutadoOptions);
   setHTML('sel-ano-executado-tab', anoExecutadoOptions);
 
+  // 3. Seletores de Ano dos Relatórios & BI, Atas e Lançamentos Diários (2020 a 2035)
+  const anoAtivoRef = Number(ANO_MATRIZ_ATIVO) || 2026;
+  const relAnoOptionsSimples = anos.map(a => `<option value="${a}" ${Number(a) === anoAtivoRef ? 'selected' : ''}>${a}</option>`).join('');
+  const relAnoOptionsExercicio = anos.map(a => `<option value="${a}" ${Number(a) === anoAtivoRef ? 'selected' : ''}>Exercício ${a}</option>`).join('');
+  ['rel-lc-ano', 'rel-bal-ano', 'rel-ass-ano', 'rel-diz-ano'].forEach(id => setHTML(id, relAnoOptionsSimples));
+  ['rel-dre-ano', 'rel-min-ano'].forEach(id => setHTML(id, relAnoOptionsExercicio));
+  setHTML('filtro-atas-ano', `<option value="">Todos os Anos</option>` + anos.map(a => `<option value="${a}">${a}</option>`).join(''));
+  setHTML('filtro-fin-ano', `<option value="">📆 Todos os Anos</option>` + anos.map(a => `<option value="${a}">${a}</option>`).join(''));
+
   if (typeof popularCamposLancamentoManual === 'function') {
     popularCamposLancamentoManual();
   }
@@ -4224,6 +4233,11 @@ function navegarAnoExercicio(delta) {
 function selecionarAnoDashboard(ano) {
   const numAno = Number(ano) || 2026;
   ANO_MATRIZ_ATIVO = numAno;
+
+  ['rel-lc-ano', 'rel-bal-ano', 'rel-dre-ano', 'rel-ass-ano', 'rel-min-ano', 'rel-diz-ano'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = String(numAno);
+  });
 
   // Garante em memória e no backend que o ano selecionado tenha todas as contas padrão de 2026
   const rowsAnoAtual = (STATE.matriz_tesouraria || []).filter(r => Number(r.ano) === numAno);
@@ -8309,12 +8323,17 @@ function renderTesouraria() {
   }
 
   const todosFin = Array.isArray(STATE.financeiro) ? STATE.financeiro : [];
+  const filtroAno = document.getElementById('filtro-fin-ano')?.value || '';
   const filtroMes = document.getElementById('filtro-fin-mes')?.value || '';
   const filtroTipo = document.getElementById('filtro-fin-tipo')?.value || '';
   const termoBusca = (document.getElementById('busca-fin-diarios')?.value || '').trim().toLowerCase();
 
-  // Filtra por mês primeiro (para refletir os KPIs do período filtrado)
+  // Filtra por ano e mês primeiro (para refletir os KPIs do período filtrado)
   const listaPeriodo = todosFin.filter(f => {
+    if (filtroAno) {
+      const a = parseInt(String(f.data_lancamento || '').substring(0, 4), 10);
+      if (a !== parseInt(filtroAno, 10)) return false;
+    }
     if (filtroMes) {
       const m = parseInt(String(f.data_lancamento || '').substring(5, 7), 10);
       if (m !== parseInt(filtroMes, 10)) return false;
@@ -8440,11 +8459,16 @@ function imprimirLivroCaixaDiario() {
   const sld = document.getElementById('kpi-diarios-saldo')?.textContent || 'R$ 0,00';
   const tot = document.getElementById('kpi-diarios-total')?.textContent || '0 registro(s)';
   const todosFin = Array.isArray(STATE.financeiro) ? STATE.financeiro : [];
+  const filtroAno = document.getElementById('filtro-fin-ano')?.value || '';
   const filtroMes = document.getElementById('filtro-fin-mes')?.value || '';
   const filtroTipo = document.getElementById('filtro-fin-tipo')?.value || '';
   const termoBusca = (document.getElementById('busca-fin-diarios')?.value || '').trim().toLowerCase();
 
   const lista = todosFin.filter(f => {
+    if (filtroAno) {
+      const a = parseInt(String(f.data_lancamento || '').substring(0, 4), 10);
+      if (a !== parseInt(filtroAno, 10)) return false;
+    }
     if (filtroMes) {
       const m = parseInt(String(f.data_lancamento || '').substring(5, 7), 10);
       if (m !== parseInt(filtroMes, 10)) return false;
