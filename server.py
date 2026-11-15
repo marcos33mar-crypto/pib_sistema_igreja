@@ -35,6 +35,7 @@ import time
 import base64
 
 import urllib.parse
+import urllib.request
 
 from datetime import datetime
 
@@ -1004,35 +1005,38 @@ def init_db():
 
 
             CREATE TABLE IF NOT EXISTS requisicoes (
-
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-
                 data_solicitacao TEXT NOT NULL,
-
                 ministerio_id INTEGER NOT NULL,
-
                 solicitante TEXT NOT NULL,
-
+                solicitante_telefone TEXT DEFAULT '',
                 titulo TEXT NOT NULL,
-
                 justificativa TEXT,
-
                 valor_estimado REAL NOT NULL,
-
                 prioridade TEXT DEFAULT 'Normal',
-
                 status TEXT DEFAULT 'Pendente',
-
                 avaliado_por TEXT,
-
                 data_avaliacao TEXT,
-
                 anexo_pdf TEXT,
-
                 anexo_nome TEXT,
-
+                responsavel_tesouraria TEXT DEFAULT 'Tesouraria / Financeiro',
+                telefone_tesouraria TEXT DEFAULT '',
+                alerta_enviado INTEGER DEFAULT 0,
+                data_alerta TEXT DEFAULT '',
+                ultimo_aviso_alerta TEXT DEFAULT '',
                 FOREIGN KEY (ministerio_id) REFERENCES ministerios(id) ON DELETE CASCADE
+            );
 
+            CREATE TABLE IF NOT EXISTS config_alertas_verba (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                responsavel_padrao TEXT DEFAULT 'Tesouraria / Financeiro',
+                telefone_padrao TEXT DEFAULT '',
+                telefone_secundario TEXT DEFAULT '',
+                callmebot_apikey TEXT DEFAULT '',
+                ntfy_topico TEXT DEFAULT 'kairos-pib-parque-sp-verbas',
+                webhook_whatsapp_url TEXT DEFAULT '',
+                alerta_auto_ativo INTEGER DEFAULT 1,
+                atualizado_em TEXT DEFAULT ''
             );
 
 
@@ -1398,6 +1402,47 @@ def init_db():
                 cur.execute(f"ALTER TABLE patrimonio_emprestimos ADD COLUMN {c_nome} {c_tipo}")
             except Exception:
                 pass
+
+        # Garante migração das colunas de alerta por telefone no módulo de pedidos de verba (requisicoes)
+        for c_nome, c_tipo in [
+            ("solicitante_telefone", "TEXT DEFAULT ''"),
+            ("responsavel_tesouraria", "TEXT DEFAULT 'Tesouraria / Financeiro'"),
+            ("telefone_tesouraria", "TEXT DEFAULT ''"),
+            ("alerta_enviado", "INTEGER DEFAULT 0"),
+            ("data_alerta", "TEXT DEFAULT ''"),
+            ("ultimo_aviso_alerta", "TEXT DEFAULT ''"),
+        ]:
+            try:
+                cur.execute(f"ALTER TABLE requisicoes ADD COLUMN {c_nome} {c_tipo}")
+            except Exception:
+                pass
+
+        # Garante linha padrão de configuração de alertas de solicitação de verba
+        try:
+            row_cfg_v = cur.execute("SELECT id, telefone_padrao FROM config_alertas_verba WHERE id = 1").fetchone()
+            if not row_cfg_v:
+                fone_ini = ""
+                resp_ini = "Tesouraria / Financeiro"
+                try:
+                    m_tes = cur.execute(
+                        """SELECT nome, telefone FROM membros 
+                           WHERE telefone IS NOT NULL AND TRIM(telefone) != '' 
+                             AND (LOWER(cargo) LIKE '%tesour%' OR LOWER(nome) LIKE '%marcos%' OR LOWER(nome) LIKE '%isadora%')
+                           ORDER BY CASE WHEN LOWER(nome) LIKE '%marcos%' THEN 0 ELSE 1 END LIMIT 1"""
+                    ).fetchone()
+                    if m_tes:
+                        resp_ini = m_tes["nome"]
+                        fone_ini = m_tes["telefone"]
+                except Exception:
+                    pass
+                cur.execute(
+                    """INSERT INTO config_alertas_verba 
+                       (id, responsavel_padrao, telefone_padrao, ntfy_topico, alerta_auto_ativo, atualizado_em)
+                       VALUES (1, ?, ?, 'kairos-pib-parque-sp-verbas', 1, ?)""",
+                    (resp_ini, fone_ini, datetime.now().strftime("%d/%m/%Y %H:%M"))
+                )
+        except Exception:
+            pass
 
 
 
@@ -2924,33 +2969,25 @@ def build_bootstrap_data(req_handler=None):
 
 
         requisicoes = [
-
             dict(r)
-
             for r in cur.execute(
-
                 """
-
-                SELECT r.id, r.data_solicitacao, r.ministerio_id, r.solicitante, r.titulo,
-
-                       r.justificativa, r.valor_estimado, r.prioridade, r.status,
-
+                SELECT r.id, r.data_solicitacao, r.ministerio_id, r.solicitante,
+                       COALESCE(r.solicitante_telefone, '') as solicitante_telefone,
+                       r.titulo, r.justificativa, r.valor_estimado, r.prioridade, r.status,
                        r.avaliado_por, r.data_avaliacao, r.anexo_nome,
-
+                       COALESCE(r.responsavel_tesouraria, 'Tesouraria / Financeiro') as responsavel_tesouraria,
+                       COALESCE(r.telefone_tesouraria, '') as telefone_tesouraria,
+                       COALESCE(r.alerta_enviado, 0) as alerta_enviado,
+                       COALESCE(r.data_alerta, '') as data_alerta,
+                       COALESCE(r.ultimo_aviso_alerta, '') as ultimo_aviso_alerta,
                        CASE WHEN r.anexo_pdf IS NOT NULL AND r.anexo_pdf != '' THEN 1 ELSE 0 END as tem_anexo,
-
                        min.nome as ministerio_nome, min.cor as ministerio_cor
-
                 FROM requisicoes r
-
                 JOIN ministerios min ON r.ministerio_id = min.id
-
                 ORDER BY CASE WHEN r.status = 'Pendente' THEN 0 ELSE 1 END, r.id DESC
-
                 """
-
             ).fetchall()
-
         ]
 
 
@@ -3136,64 +3173,172 @@ def build_bootstrap_data(req_handler=None):
                 membros_por_celula[m["celula_id"]] = membros_por_celula.get(m["celula_id"], 0) + 1
 
         for c in celulas:
-
             c["total_membros"] = membros_por_celula.get(c["id"], 0)
 
-
+        cfg_alertas_verba = obter_config_alertas_verba(cur)
 
         conn.close()
 
-
-
         with sse_lock:
-
             clientes_ativos = max(1, len(sse_clients))
 
-
-
         return {
-
             "usuarios": usuarios,
-
             "ministerios": ministerios,
-
             "ministerios_orcamentos": ministerios_orcamentos,
-
             "matriz_tesouraria": matriz_rows,
-
             "celulas": celulas,
-
             "membros": membros,
-
             "vinculos": vinculos,
-
             "visitantes": visitantes,
-
             "escalas": escalas,
-
             "financeiro": financeiro,
-
             "requisicoes": requisicoes,
-
+            "config_alertas_verba": cfg_alertas_verba,
             "patrimonio": patrimonio,
-
             "patrimonio_emprestimos": patrimonio_emprestimos,
-
             "auditoria": auditoria,
-
             "atas": atas,
-
             "contas_pagar": contas_pagar,
-
             "clientes_conectados": clientes_ativos,
-
             "url_publica": (f"{req_handler.headers.get('X-Forwarded-Proto', 'https')}://{req_handler.headers.get('Host')}" if (req_handler and hasattr(req_handler, 'headers') and req_handler.headers.get('Host') and not req_handler.headers.get('Host', '').startswith(('localhost', '127.0.0.1', '10.', '192.168.'))) else PUBLIC_TUNNEL_URL),
-
             "url_rede_local": (f"{req_handler.headers.get('X-Forwarded-Proto', 'https')}://{req_handler.headers.get('Host')}" if (req_handler and hasattr(req_handler, 'headers') and req_handler.headers.get('Host') and not req_handler.headers.get('Host', '').startswith(('localhost', '127.0.0.1', '10.', '192.168.'))) else LOCAL_LAN_URL),
-
             "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-
         }
+
+
+def obter_config_alertas_verba(cur):
+    """Retorna a configuração de alertas por telefone das solicitações de verba."""
+    try:
+        row = cur.execute("SELECT * FROM config_alertas_verba WHERE id = 1").fetchone()
+        if row:
+            return dict(row)
+    except Exception:
+        pass
+    return {
+        "id": 1,
+        "responsavel_padrao": "Tesouraria / Financeiro",
+        "telefone_padrao": "",
+        "telefone_secundario": "",
+        "callmebot_apikey": "",
+        "ntfy_topico": "kairos-pib-parque-sp-verbas",
+        "webhook_whatsapp_url": "",
+        "alerta_auto_ativo": 1,
+        "atualizado_em": "",
+    }
+
+
+def disparar_alerta_automatico_verba(cfg, req_info, evento="NOVA_SOLICITACAO"):
+    """Dispara alertas automáticos em segundo plano (Push Celular ntfy + WhatsApp CallMeBot / Webhook)."""
+    if not cfg:
+        return
+
+    def _worker():
+        try:
+            req_id = req_info.get("id", "S/N")
+            titulo = req_info.get("titulo", "Solicitação de Verba")
+            min_nome = req_info.get("ministerio_nome", "Ministério")
+            solicitante = req_info.get("solicitante", "Membro")
+            valor = float(req_info.get("valor_estimado") or 0)
+            prioridade = req_info.get("prioridade", "Normal")
+            justificativa = req_info.get("justificativa") or "Sem observações adicionais."
+            status_atual = req_info.get("status", "Pendente")
+            valor_fmt = f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            url_sistema = "https://pib-parque-sp.onrender.com/"
+
+            if evento == "TESTE":
+                cabecalho = "🔔 TESTE DE ALERTA POR TELEFONE — KAIRÓS"
+                resumo_txt = (
+                    f"{cabecalho}\n"
+                    f"O sistema de alertas de Solicitação de Verba está ATIVO e conectado ao celular!\n"
+                    f"👤 Destinatário: {cfg.get('responsavel_padrao', 'Tesouraria')}\n"
+                    f"📱 Telefone: {cfg.get('telefone_padrao', 'Configurado')}\n"
+                    f"🔗 Acesso: {url_sistema}"
+                )
+            elif str(evento).startswith("AVALIACAO"):
+                cabecalho = f"✅ SOLICITAÇÃO DE VERBA #{req_id}: {status_atual.upper()}"
+                resumo_txt = (
+                    f"{cabecalho}\n"
+                    f"🏛️ Ministério: {min_nome}\n"
+                    f"📋 Item: {titulo}\n"
+                    f"💰 Valor: {valor_fmt}\n"
+                    f"👤 Solicitante: {solicitante}\n"
+                    f"🔗 Sistema Kairós: {url_sistema}"
+                )
+            else:
+                cabecalho = f"🚨 NOVA SOLICITAÇÃO DE VERBA #{req_id} ({valor_fmt})"
+                resumo_txt = (
+                    f"{cabecalho}\n"
+                    f"🏛️ Ministério: {min_nome}\n"
+                    f"📋 Pedido: {titulo}\n"
+                    f"👤 Solicitante: {solicitante}\n"
+                    f"💰 Valor: {valor_fmt} | ⚡ Prioridade: {prioridade}\n"
+                    f"📝 Justificativa: {justificativa}\n"
+                    f"🔗 Aprovar na Tesouraria: {url_sistema}"
+                )
+
+            # 1. Canal Push Instantâneo no Celular (ntfy.sh) - Gratuito e Imediato
+            topico = (cfg.get("ntfy_topico") or "").strip()
+            if topico:
+                try:
+                    req_ntfy = urllib.request.Request(
+                        f"https://ntfy.sh/{urllib.parse.quote(topico)}",
+                        data=resumo_txt.encode("utf-8"),
+                        headers={
+                            "Title": cabecalho.encode("ascii", "ignore").decode("ascii") or "Alerta Kairos - Solicitacao de Verba",
+                            "Priority": "urgent" if prioridade == "Urgente" else "high",
+                            "Tags": "moneybag,bell",
+                            "Click": url_sistema,
+                        },
+                        method="POST",
+                    )
+                    urllib.request.urlopen(req_ntfy, timeout=6).read()
+                except Exception:
+                    pass
+
+            # 2. Canal WhatsApp Automático via CallMeBot (se API Key configurada)
+            apikey = (cfg.get("callmebot_apikey") or "").strip()
+            fones_destino = []
+            for f_raw in [req_info.get("telefone_tesouraria"), cfg.get("telefone_padrao"), cfg.get("telefone_secundario")]:
+                limpo = re.sub(r"\D", "", str(f_raw or ""))
+                if len(limpo) >= 10:
+                    if not limpo.startswith("55"):
+                        limpo = "55" + limpo
+                    if limpo not in fones_destino:
+                        fones_destino.append(limpo)
+
+            if apikey and fones_destino:
+                for fone_w in fones_destino[:2]:
+                    try:
+                        qs = urllib.parse.urlencode({"phone": fone_w, "text": resumo_txt, "apikey": apikey})
+                        url_cmb = f"https://api.callmebot.com/whatsapp.php?{qs}"
+                        urllib.request.urlopen(url_cmb, timeout=8).read()
+                    except Exception:
+                        pass
+
+            # 3. Canal Webhook WhatsApp / SMS Gateway (Z-API, Evolution, Twilio, etc.)
+            webhook_url = (cfg.get("webhook_whatsapp_url") or "").strip()
+            if webhook_url:
+                try:
+                    payload_wh = json.dumps({
+                        "evento": evento,
+                        "telefones": fones_destino,
+                        "mensagem": resumo_txt,
+                        "requisicao": req_info,
+                    }).encode("utf-8")
+                    req_wh = urllib.request.Request(
+                        webhook_url,
+                        data=payload_wh,
+                        headers={"Content-Type": "application/json"},
+                        method="POST",
+                    )
+                    urllib.request.urlopen(req_wh, timeout=8).read()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    threading.Thread(target=_worker, daemon=True).start()
 
 
 
@@ -6121,248 +6266,273 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
                 elif path == "/api/requisicoes":
-
                     agora = datetime.now().strftime("%Y-%m-%d")
-
+                    agora_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
                     ministerio_id = int(body["ministerio_id"])
-
                     solicitante = (body.get("solicitante") or "").strip() or operador
-
+                    solicitante_telefone = (body.get("solicitante_telefone") or "").strip()
                     titulo = body["titulo"]
-
                     valor_estimado = parse_moeda(body.get("valor_estimado", 0))
-
                     prioridade = body.get("prioridade", "Normal")
-
                     justificativa = body.get("justificativa", "")
-
-
-
                     anexo_pdf = body.get("anexo_pdf", "")
-
                     anexo_nome = body.get("anexo_nome", "")
 
+                    cfg_alerta = obter_config_alertas_verba(cur)
+                    responsavel_tesouraria = (body.get("responsavel_tesouraria") or "").strip() or cfg_alerta.get("responsavel_padrao") or "Tesouraria / Financeiro"
+                    telefone_tesouraria = (body.get("telefone_tesouraria") or "").strip() or cfg_alerta.get("telefone_padrao") or ""
+                    enviar_alerta_agora = bool(body.get("enviar_alerta_agora", True))
+
+                    if not solicitante_telefone and solicitante:
+                        try:
+                            m_sol = cur.execute("SELECT telefone FROM membros WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?)) LIMIT 1", (solicitante,)).fetchone()
+                            if m_sol and m_sol["telefone"]:
+                                solicitante_telefone = m_sol["telefone"]
+                        except Exception:
+                            pass
+
+                    alerta_env = 1 if enviar_alerta_agora else 0
+                    data_alerta_str = agora_hora if enviar_alerta_agora else ""
+                    ult_aviso = f"Alerta disparado p/ {responsavel_tesouraria} ({telefone_tesouraria or 'Push Celular'}) em {agora_hora}" if enviar_alerta_agora else ""
+
                     cur.execute(
-
                         """INSERT INTO requisicoes
-
-                        (data_solicitacao, ministerio_id, solicitante, titulo, justificativa, valor_estimado, prioridade, status, anexo_pdf, anexo_nome)
-
-                        VALUES (?, ?, ?, ?, ?, ?, ?, 'Pendente', ?, ?)""",
-
-                        (agora, ministerio_id, solicitante, titulo, justificativa, valor_estimado, prioridade, anexo_pdf, anexo_nome),
-
+                        (data_solicitacao, ministerio_id, solicitante, solicitante_telefone, titulo, justificativa, valor_estimado, prioridade, status, anexo_pdf, anexo_nome, responsavel_tesouraria, telefone_tesouraria, alerta_enviado, data_alerta, ultimo_aviso_alerta)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pendente', ?, ?, ?, ?, ?, ?, ?)""",
+                        (agora, ministerio_id, solicitante, solicitante_telefone, titulo, justificativa, valor_estimado, prioridade, anexo_pdf, anexo_nome, responsavel_tesouraria, telefone_tesouraria, alerta_env, data_alerta_str, ult_aviso),
                     )
+                    req_id = cur.lastrowid
 
-                    min_nome = cur.execute("SELECT nome FROM ministerios WHERE id=?", (ministerio_id,)).fetchone()["nome"]
+                    # Se informou telefone da tesouraria e ainda não havia padrão salvo, atualiza o padrão automaticamente
+                    if telefone_tesouraria and not cfg_alerta.get("telefone_padrao"):
+                        try:
+                            cur.execute(
+                                "UPDATE config_alertas_verba SET responsavel_padrao=?, telefone_padrao=?, atualizado_em=? WHERE id=1",
+                                (responsavel_tesouraria, telefone_tesouraria, agora_hora),
+                            )
+                            cfg_alerta["responsavel_padrao"] = responsavel_tesouraria
+                            cfg_alerta["telefone_padrao"] = telefone_tesouraria
+                        except Exception:
+                            pass
+
+                    min_row = cur.execute("SELECT nome, cor FROM ministerios WHERE id=?", (ministerio_id,)).fetchone()
+                    min_nome = min_row["nome"] if min_row else "Ministério"
+                    min_cor = min_row["cor"] if min_row else "#6366f1"
+
+                    req_info = {
+                        "id": req_id,
+                        "data_solicitacao": agora,
+                        "ministerio_id": ministerio_id,
+                        "ministerio_nome": min_nome,
+                        "ministerio_cor": min_cor,
+                        "solicitante": solicitante,
+                        "solicitante_telefone": solicitante_telefone,
+                        "titulo": titulo,
+                        "justificativa": justificativa,
+                        "valor_estimado": valor_estimado,
+                        "prioridade": prioridade,
+                        "status": "Pendente",
+                        "responsavel_tesouraria": responsavel_tesouraria,
+                        "telefone_tesouraria": telefone_tesouraria,
+                        "alerta_enviado": alerta_env,
+                        "data_alerta": data_alerta_str,
+                        "ultimo_aviso_alerta": ult_aviso,
+                    }
 
                     log_auditoria(
-
                         conn,
-
                         operador,
-
                         "Ministérios -> Tesouraria",
-
                         "Nova Requisição",
-
                         f"Solicitou R$ {valor_estimado:,.2f} para {min_nome} (Solicitante: {solicitante}): {titulo}",
-
                     )
-
                     conn.commit()
-
                     conn.close()
 
+                    if enviar_alerta_agora or cfg_alerta.get("alerta_auto_ativo", 1):
+                        disparar_alerta_automatico_verba(cfg_alerta, req_info, "NOVA_SOLICITACAO")
 
+                    broadcast_event("sync", {"setor": "Tesouraria", "operador": operador, "mensagem": f"📲 Nova Solicitação de Verba #{req_id}: {solicitante} solicitou R$ {valor_estimado:,.2f} ({min_nome}) para a Tesouraria."})
+                    return self.send_json({"ok": True, "id": req_id, "requisicao": req_info})
 
-                    broadcast_event("sync", {"setor": "Tesouraria", "operador": operador, "mensagem": f"{operador} enviou solicitação de R$ {valor_estimado:,.2f} ({min_nome}) para a Tesouraria."})
+                elif path == "/api/requisicoes/registrar-alerta":
+                    req_id = int(body["id"])
+                    canal = (body.get("canal") or "WhatsApp/SMS").strip()
+                    destino_nome = (body.get("responsavel_tesouraria") or "Tesouraria").strip()
+                    telefone = (body.get("telefone_tesouraria") or "").strip()
+                    agora_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
+                    resumo_aviso = f"Alerta via {canal} p/ {destino_nome} ({telefone or 'Celular'}) em {agora_hora}"
 
-                    return self.send_json({"ok": True})
+                    cur.execute(
+                        """UPDATE requisicoes
+                           SET responsavel_tesouraria = COALESCE(NULLIF(?, ''), responsavel_tesouraria),
+                               telefone_tesouraria = COALESCE(NULLIF(?, ''), telefone_tesouraria),
+                               alerta_enviado = 1,
+                               data_alerta = ?,
+                               ultimo_aviso_alerta = ?
+                           WHERE id = ?""",
+                        (destino_nome, telefone, agora_hora, resumo_aviso, req_id),
+                    )
+                    row_r = cur.execute(
+                        """SELECT r.*, m.nome as ministerio_nome
+                           FROM requisicoes r
+                           LEFT JOIN ministerios m ON r.ministerio_id = m.id
+                           WHERE r.id = ?""",
+                        (req_id,),
+                    ).fetchone()
+                    cfg_alerta = obter_config_alertas_verba(cur)
+                    log_auditoria(conn, operador, "Tesouraria / Requisições", "Disparo de Alerta por Telefone", f"Enviou alerta da solicitação #{req_id} via {canal} para {destino_nome} ({telefone})")
+                    conn.commit()
+                    conn.close()
 
+                    if row_r and body.get("disparar_push_servidor"):
+                        disparar_alerta_automatico_verba(cfg_alerta, dict(row_r), "NOVA_SOLICITACAO")
 
+                    broadcast_event("sync", {"setor": "Tesouraria", "operador": operador, "mensagem": f"{operador} enviou alerta por telefone da solicitação #{req_id}."})
+                    return self.send_json({"ok": True, "data_alerta": agora_hora, "ultimo_aviso_alerta": resumo_aviso})
+
+                elif path == "/api/requisicoes/config-alertas":
+                    agora_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
+                    responsavel_padrao = (body.get("responsavel_padrao") or "Tesouraria / Financeiro").strip()
+                    telefone_padrao = (body.get("telefone_padrao") or "").strip()
+                    telefone_secundario = (body.get("telefone_secundario") or "").strip()
+                    callmebot_apikey = (body.get("callmebot_apikey") or "").strip()
+                    ntfy_topico = (body.get("ntfy_topico") or "kairos-pib-parque-sp-verbas").strip()
+                    webhook_whatsapp_url = (body.get("webhook_whatsapp_url") or "").strip()
+                    alerta_auto_ativo = 1 if body.get("alerta_auto_ativo", True) else 0
+
+                    cur.execute(
+                        """INSERT INTO config_alertas_verba
+                           (id, responsavel_padrao, telefone_padrao, telefone_secundario, callmebot_apikey, ntfy_topico, webhook_whatsapp_url, alerta_auto_ativo, atualizado_em)
+                           VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
+                           ON CONFLICT(id) DO UPDATE SET
+                               responsavel_padrao=excluded.responsavel_padrao,
+                               telefone_padrao=excluded.telefone_padrao,
+                               telefone_secundario=excluded.telefone_secundario,
+                               callmebot_apikey=excluded.callmebot_apikey,
+                               ntfy_topico=excluded.ntfy_topico,
+                               webhook_whatsapp_url=excluded.webhook_whatsapp_url,
+                               alerta_auto_ativo=excluded.alerta_auto_ativo,
+                               atualizado_em=excluded.atualizado_em""",
+                        (responsavel_padrao, telefone_padrao, telefone_secundario, callmebot_apikey, ntfy_topico, webhook_whatsapp_url, alerta_auto_ativo, agora_hora),
+                    )
+                    cfg_salva = obter_config_alertas_verba(cur)
+                    log_auditoria(conn, operador, "Tesouraria / Alertas", "Configuração de Alertas por Telefone", f"Atualizou destinatário padrão de alertas de verba para {responsavel_padrao} ({telefone_padrao})")
+                    conn.commit()
+                    conn.close()
+
+                    if body.get("testar_agora"):
+                        disparar_alerta_automatico_verba(cfg_salva, {"id": "TESTE", "titulo": "Teste de Alerta de Verba", "valor_estimado": 100.0, "telefone_tesouraria": telefone_padrao}, "TESTE")
+
+                    broadcast_event("sync", {"setor": "Tesouraria", "operador": operador, "mensagem": f"{operador} atualizou a configuração de alertas por telefone das solicitações de verba."})
+                    return self.send_json({"ok": True, "config": cfg_salva})
 
                 # 6. APROVAR / RECUSAR REQUISIÇÃO NA TESOURARIA
-
                 elif path == "/api/requisicoes/anexo":
-
                     req_id = int(body["id"])
-
                     anexo_pdf = body.get("anexo_pdf", "")
-
                     anexo_nome = body.get("anexo_nome", "")
-
                     if not anexo_pdf:
-
                         cur.execute("UPDATE requisicoes SET anexo_pdf=NULL, anexo_nome=NULL WHERE id=?", (req_id,))
-
                         acao_auditoria = "Exclusão de Comprovante"
-
                         msg_auditoria = f"Excluiu o arquivo PDF anexado à requisição #{req_id}."
-
                         msg_broadcast = f"{operador} excluiu o arquivo PDF da requisição #{req_id}."
-
                     else:
-
                         cur.execute("UPDATE requisicoes SET anexo_pdf=?, anexo_nome=? WHERE id=?", (anexo_pdf, anexo_nome, req_id))
-
                         acao_auditoria = "Anexo de Comprovante"
-
                         msg_auditoria = f"Anexou nota fiscal/recibo PDF '{anexo_nome}' na requisição #{req_id}."
-
                         msg_broadcast = f"{operador} anexou nota/recibo PDF na requisição #{req_id}."
 
-
-
                     log_auditoria(
-
                         conn,
-
                         operador,
-
                         "Tesouraria / Requisições",
-
                         acao_auditoria,
-
                         msg_auditoria
-
                     )
-
                     conn.commit()
-
                     conn.close()
-
                     broadcast_event("sync", {"setor": "Tesouraria", "operador": operador, "mensagem": msg_broadcast})
-
                     return self.send_json({"ok": True})
-
-
 
                 elif path == "/api/requisicoes/avaliar":
-
                     req_id = int(body["id"])
-
                     decisao = body["decisao"]
-
                     agora = datetime.now().strftime("%Y-%m-%d")
 
-
-
-                    req = cur.execute("SELECT * FROM requisicoes WHERE id=?", (req_id,)).fetchone()
-
+                    req = cur.execute(
+                        """SELECT r.*, m.nome as ministerio_nome
+                           FROM requisicoes r
+                           LEFT JOIN ministerios m ON r.ministerio_id = m.id
+                           WHERE r.id=?""",
+                        (req_id,),
+                    ).fetchone()
                     if not req:
-
                         conn.close()
-
                         return self.send_json({"erro": "Requisição não encontrada."}, 404)
 
-
-
                     status_antigo = req["status"]
-
                     cur.execute(
-
                         "UPDATE requisicoes SET status=?, avaliado_por=?, data_avaliacao=? WHERE id=?",
-
                         (decisao, operador, agora, req_id),
-
                     )
-
-
 
                     if decisao == "Aprovado e Pago" and status_antigo != "Aprovado e Pago":
-
                         cur.execute(
-
                             """INSERT INTO financeiro
-
                             (data_lancamento, tipo, categoria, descricao, valor, forma_pagamento, status, ministerio_id, requisicao_id, lancado_por)
-
                             VALUES (?, 'SAIDA', 'Ministério/Setor', ?, ?, 'PIX', 'Pago', ?, ?, ?)""",
-
                             (
-
                                 agora,
-
                                 f"Req #{req_id}: {req['titulo']}",
-
                                 req["valor_estimado"],
-
                                 req["ministerio_id"],
-
                                 req_id,
-
                                 operador,
-
                             ),
-
                         )
-
                         sincronizar_lancamento_na_matriz(
-
                             cur,
-
                             agora,
-
                             "SAIDA",
-
                             "Ministério/Setor",
-
                             f"Req #{req_id}: {req['titulo']}",
-
                             float(req["valor_estimado"]),
-
                             req["ministerio_id"],
-
                         )
-
                     elif status_antigo == "Aprovado e Pago" and decisao != "Aprovado e Pago":
-
                         cur.execute("DELETE FROM financeiro WHERE requisicao_id=?", (req_id,))
-
                         sincronizar_lancamento_na_matriz(
-
                             cur,
-
                             req["data_avaliacao"] or agora,
-
                             "SAIDA",
-
                             "Ministério/Setor",
-
                             f"Req #{req_id}: {req['titulo']}",
-
                             -float(req["valor_estimado"]),
-
                             req["ministerio_id"],
-
                         )
 
-
+                    cfg_alerta = obter_config_alertas_verba(cur)
+                    req_dict = dict(req)
+                    req_dict["status"] = decisao
+                    req_dict["avaliado_por"] = operador
+                    req_dict["data_avaliacao"] = agora
 
                     log_auditoria(
-
                         conn,
-
                         operador,
-
                         "Tesouraria",
-
                         f"Requisição {decisao}",
-
                         f"Req #{req_id} ({req['titulo']}) avaliada como '{decisao}'",
-
                     )
-
                     conn.commit()
-
                     conn.close()
 
-
+                    if cfg_alerta.get("alerta_auto_ativo", 1):
+                        disparar_alerta_automatico_verba(cfg_alerta, req_dict, f"AVALIACAO_{decisao}")
 
                     broadcast_event("sync", {"setor": "Tesouraria", "operador": operador, "mensagem": f"{operador} marcou a requisição '{req['titulo']}' como {decisao}."})
-
-                    return self.send_json({"ok": True})
+                    return self.send_json({"ok": True, "requisicao": req_dict})
 
 
 

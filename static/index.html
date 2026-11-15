@@ -2516,7 +2516,7 @@
          🛡️ Blindagem Cloud • Auto-Backup Ativo
       </div>
       <div class="text-[10px] text-slate-500 font-medium mt-1 tracking-wider" id="versao-sistema-tag">
-        KAIRÓS • Versão 2.43 • Build 20261115
+        KAIRÓS • Versão 2.44 • Build 20261115
       </div>
 
 
@@ -8713,284 +8713,67 @@
 
 
 
-          <!-- Menu de Visualização (Alternância entre Novo Pedido e Consulta de Solicitações) -->
-
-
-
-
-
-
-
-          <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0">
-
-
-
-
-
-
-
+          <!-- Menu de Visualização (Alternância entre Novo Pedido, Consulta e Configuração de Alerta) -->
+          <div class="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0">
             <button
-
-
-
-
-
-
-
               type="button"
-
-
-
-
-
-
-
               id="menu-btn-pedidos-novo"
-
-
-
-
-
-
-
               onclick="alternarMenuPedidos('novo')"
-
-
-
-
-
-
-
               class="px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-white text-slate-900 shadow-xs cursor-pointer"
-
-
-
-
-
-
-
             >
-
-
-
-
-
-
-
               <span>📝 Nova Solicitação</span>
-
-
-
-
-
-
-
             </button>
-
-
-
-
-
-
-
             <button
-
-
-
-
-
-
-
               type="button"
-
-
-
-
-
-
-
               id="menu-btn-pedidos-lista"
-
-
-
-
-
-
-
               onclick="alternarMenuPedidos('lista')"
-
-
-
-
-
-
-
               class="px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900 cursor-pointer"
-
-
-
-
-
-
-
             >
-
-
-
-
-
-
-
               <span>📋 Visualizar Solicitações</span>
-
-
-
-
-
-
-
               <span id="badge-menu-pedidos-count" class="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.2 rounded-full hidden">0</span>
-
-
-
-
-
-
-
             </button>
-
-
-
-
-
-
-
+            <button
+              type="button"
+              onclick="abrirModalConfigAlertasVerba()"
+              class="px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer"
+              title="Configurar telefone e alerta imediato para solicitações de verba"
+            >
+              <span>📲 Alerta por Telefone</span>
+            </button>
           </div>
-
-
-
-
-
-
-
         </div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         <!-- PAINEL 1: FORMULÁRIO DE NOVA SOLICITAÇÃO (ATIVO POR PADRÃO, SOLICITAÇÕES OCULTAS) -->
         <div id="painel-pedidos-novo" class="max-w-3xl mx-auto bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-          <div class="border-b border-slate-100 pb-3 mb-4">
-            <span class="text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full">Fluxo de Requisição</span>
-            <h3 class="font-bold text-slate-800 text-base mt-1.5">Solicitar Verba / Compra para Ministério</h3>
-            <p class="text-xs text-slate-500">Preencha os dados e anexe a nota fiscal ou recibo em PDF para avaliação da Tesouraria.</p>
+          <div class="border-b border-slate-100 pb-3 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <span class="text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full">Fluxo de Requisição</span>
+              <h3 class="font-bold text-slate-800 text-base mt-1.5">Solicitar Verba / Compra para Ministério</h3>
+              <p class="text-xs text-slate-500">Preencha os dados e envie o alerta imediato para o telefone da Tesouraria / Aprovador.</p>
+            </div>
+            <button
+              type="button"
+              onclick="abrirModalConfigAlertasVerba()"
+              class="self-start sm:self-center inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition cursor-pointer"
+            >
+              <span>📲 Configurar Telefone de Alerta</span>
+            </button>
           </div>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
           <form onsubmit="salvarRequisicao(event)" class="space-y-4 text-xs">
-
-
-
-
-
-
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-
-
-
-
-
-
-
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-
-
-
-
-
-
-
                 <label class="font-semibold text-slate-700 block mb-1">Ministério Solicitante *</label>
-
-
-
-
-
-
-
                 <select id="req-ministerio" required class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white font-medium focus:ring-2 focus:ring-indigo-500"></select>
-
-
-
-
-
-
-
               </div>
-
-
-
-
-
-
-
               <div>
-
-
-
-
-
-
-
                 <label class="font-semibold text-slate-700 block mb-1">Membro Solicitante / Responsável</label>
-
-
-
-
-
-
-
-                <input type="text" id="req-solicitante" list="lista-membros-datalist" placeholder="Digite ou selecione o membro solicitante..." class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white font-medium focus:ring-2 focus:ring-indigo-500" autocomplete="off" />
-
-
-
-
-
-
-
+                <input type="text" id="req-solicitante" list="lista-membros-datalist" oninput="autoPreencherTelefoneSolicitanteVerba(this.value)" onchange="autoPreencherTelefoneSolicitanteVerba(this.value)" placeholder="Digite ou selecione o membro..." class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white font-medium focus:ring-2 focus:ring-indigo-500" autocomplete="off" />
               </div>
-
-
-
-
-
-
-
+              <div>
+                <label class="font-semibold text-slate-700 block mb-1">Celular do Solicitante (p/ Retorno)</label>
+                <input type="text" id="req-solicitante-telefone" placeholder="(11) 99999-9999" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white font-medium focus:ring-2 focus:ring-indigo-500" />
+              </div>
             </div>
 
 
@@ -9615,9 +9398,53 @@
 
 
 
+            <!-- BLOCO DE ALERTA RÁPIDO POR TELEFONE (TESOURARIA / APROVADOR) -->
+            <div class="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 space-y-3">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-base">📲</span>
+                  <div>
+                    <p class="font-extrabold text-emerald-900 text-xs">Alerta Imediato por Telefone (Tesouraria / Aprovador)</p>
+                    <p class="text-[11px] text-emerald-700">Envia mensagem de alerta para o celular do responsável financeiro assim que o pedido for salvo.</p>
+                  </div>
+                </div>
+                <span class="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">WhatsApp • SMS • Push</span>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="font-semibold text-emerald-900 block mb-1">Responsável Financeiro / Aprovador</label>
+                  <input
+                    type="text"
+                    id="req-responsavel-tesouraria"
+                    list="lista-membros-datalist"
+                    oninput="autoPreencherTelefoneResponsavelVerba(this.value)"
+                    onchange="autoPreencherTelefoneResponsavelVerba(this.value)"
+                    placeholder="Ex: Marcos Silva / Tesouraria"
+                    class="w-full border border-emerald-300 rounded-xl px-3 py-2 bg-white font-semibold text-slate-800 focus:ring-2 focus:ring-emerald-500"
+                    autocomplete="off"
+                  />
+                </div>
+                <div>
+                  <label class="font-semibold text-emerald-900 block mb-1">Celular / WhatsApp p/ Receber Alerta *</label>
+                  <input
+                    type="text"
+                    id="req-telefone-tesouraria"
+                    placeholder="(11) 99999-9999"
+                    class="w-full border border-emerald-300 rounded-xl px-3 py-2 bg-white font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <label class="flex items-center gap-2 cursor-pointer select-none pt-0.5">
+                <input type="checkbox" id="req-enviar-alerta-agora" checked class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500" />
+                <span class="text-xs font-bold text-emerald-900">Disparar alerta por telefone imediatamente ao enviar esta solicitação</span>
+              </label>
+            </div>
+
             <div class="pt-2">
               <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer">
-                <span>📤 Enviar Pedido para a Tesouraria</span>
+                <span>📤 Enviar Pedido para a Tesouraria & Disparar Alerta</span>
               </button>
             </div>
 
@@ -23034,7 +22861,7 @@
   </div>
 
   <script src="/qrcode.min.js"></script>
-  <script src="/app.js?v=20261115_v243_relatorios_sincronizados"></script>
+  <script src="/app.js?v=20261115_v244_alerta_verba"></script>
 
 
 

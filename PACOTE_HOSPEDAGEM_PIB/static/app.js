@@ -4180,6 +4180,9 @@ function populateSelects() {
   if (typeof popularCamposLancamentoManual === 'function') {
     popularCamposLancamentoManual();
   }
+  if (typeof inicializarCamposAlertaVerba === 'function') {
+    inicializarCamposAlertaVerba();
+  }
 }
 
 function atualizarDisplayAnoExercicio() {
@@ -8172,44 +8175,8 @@ function renderTesouraria() {
     inpDataFin.value = new Date().toISOString().split('T')[0];
   }
 
-  if (reqCont && Array.isArray(STATE.requisicoes)) {
-    reqCont.innerHTML = STATE.requisicoes.map(r => {
-      const pendente = r.status === 'Pendente';
-      const badgeColor = r.status === 'Aprovado e Pago'
-        ? 'bg-emerald-100 text-emerald-800'
-        : r.status === 'Recusado'
-          ? 'bg-rose-100 text-rose-800'
-          : 'bg-amber-100 text-amber-800';
-
-      return `
-        <div class="p-3.5 rounded-xl border ${pendente ? 'border-amber-300 bg-amber-50/40' : 'border-slate-200 bg-white'} flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div class="space-y-1">
-            <div class="flex items-center gap-2">
-              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold text-white" style="background:${r.ministerio_cor}">${r.ministerio_nome}</span>
-              <span class="font-bold text-slate-800 text-sm">${r.titulo}</span>
-              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeColor}">${r.status}</span>
-            </div>
-            <p class="text-slate-600">${r.justificativa || 'Sem justificativa detalhada.'}</p>
-            <p class="text-[11px] text-slate-400">Solicitado por: <strong>${r.solicitante}</strong> em ${formatDateBR(r.data_solicitacao)} • Prioridade: <strong>${r.prioridade}</strong> ${r.avaliado_por ? `• Avaliado por: ${r.avaliado_por}` : ''}</p>
-          </div>
-          <div class="flex items-center gap-3">
-            <span class="text-base font-extrabold text-slate-900">${formatBRL(r.valor_estimado)}</span>
-            ${pendente && podeAprovar ? `
-              <div class="flex gap-1.5">
-                <button onclick="avaliarRequisicao(${r.id}, 'Aprovado e Pago')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-1.5 rounded-lg shadow transition cursor-pointer">
-                  ✓ Aprovar e Lançar Saída
-                </button>
-                <button onclick="avaliarRequisicao(${r.id}, 'Recusado')" class="bg-rose-100 hover:bg-rose-200 text-rose-700 font-semibold px-2.5 py-1.5 rounded-lg transition cursor-pointer">
-                  Recusar
-                </button>
-              </div>
-            ` : pendente ? `
-              <span class="text-[11px] text-amber-700 font-semibold bg-amber-100 px-2.5 py-1 rounded-lg">Aguardando Tesouraria</span>
-            ` : ''}
-          </div>
-        </div>
-      `;
-    }).join('');
+  if (typeof renderRequisicoesFiltradas === 'function') {
+    renderRequisicoesFiltradas();
   }
 
   const todosFin = Array.isArray(STATE.financeiro) ? STATE.financeiro : [];
@@ -10541,20 +10508,46 @@ async function vincularVoluntario(e) {
 
 async function salvarRequisicao(e) {
   e.preventDefault();
-  await apiPost('/api/requisicoes', {
-    ministerio_id: document.getElementById('req-ministerio').value,
-    titulo: document.getElementById('req-titulo').value,
-    valor_estimado: document.getElementById('req-valor').value,
-    prioridade: document.getElementById('req-prioridade').value,
-    justificativa: document.getElementById('req-justificativa').value
+  const enviarAlertaAgora = Boolean(document.getElementById('req-enviar-alerta-agora')?.checked);
+  const respTesouraria = (document.getElementById('req-responsavel-tesouraria')?.value || '').trim();
+  const foneTesouraria = (document.getElementById('req-telefone-tesouraria')?.value || '').trim();
+
+  const res = await apiPost('/api/requisicoes', {
+    ministerio_id: document.getElementById('req-ministerio')?.value,
+    solicitante: (document.getElementById('req-solicitante')?.value || '').trim(),
+    solicitante_telefone: (document.getElementById('req-solicitante-telefone')?.value || '').trim(),
+    titulo: document.getElementById('req-titulo')?.value,
+    valor_estimado: document.getElementById('req-valor')?.value,
+    prioridade: document.getElementById('req-prioridade')?.value || 'Normal',
+    justificativa: document.getElementById('req-justificativa')?.value || '',
+    anexo_pdf: typeof REQ_ANEXO_PDF_BASE64 !== 'undefined' ? REQ_ANEXO_PDF_BASE64 : '',
+    anexo_nome: typeof REQ_ANEXO_PDF_NOME !== 'undefined' ? REQ_ANEXO_PDF_NOME : '',
+    responsavel_tesouraria: respTesouraria,
+    telefone_tesouraria: foneTesouraria,
+    enviar_alerta_agora: enviarAlertaAgora
   });
+
+  if (typeof removerPDFRequisicao === 'function') removerPDFRequisicao();
   e.target.reset();
-  fetchBootstrap();
+  await fetchBootstrap();
+  if (typeof inicializarCamposAlertaVerba === 'function') inicializarCamposAlertaVerba();
+
+  const novoId = res && (res.id || (res.requisicao && res.requisicao.id));
+  if (enviarAlertaAgora && novoId && typeof abrirModalDisparoAlertaVerba === 'function') {
+    abrirModalDisparoAlertaVerba(novoId, 'TESOURARIA', true);
+  } else {
+    showLiveToast('📤 Solicitação de verba enviada com sucesso para a Tesouraria!');
+  }
 }
 
 async function avaliarRequisicao(id, decisao) {
   await apiPost('/api/requisicoes/avaliar', { id, decisao });
-  fetchBootstrap();
+  await fetchBootstrap();
+  showLiveToast(`✓ Solicitação #${id} marcada como "${decisao}"!`);
+  const r = (STATE.requisicoes || []).find(x => Number(x.id) === Number(id));
+  if (r && r.solicitante_telefone && typeof abrirModalDisparoAlertaVerba === 'function') {
+    abrirModalDisparoAlertaVerba(id, 'SOLICITANTE', false);
+  }
 }
 
 async function salvarCelula(e) {
@@ -16872,670 +16865,553 @@ function renderRequisicoesFiltradas() {
 
 
 
-        <div class="text-xs text-slate-600 space-y-1">
-
-
-
-
-
-
-
+        <div class="text-xs text-slate-600 space-y-1.5">
           ${r.justificativa ? `<p class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">📝 <strong>Justificativa:</strong> ${r.justificativa}</p>` : '<p class="text-slate-400 italic">Sem justificativa detalhada.</p>'}
-
-
-
-
-
-
-
-          <p class="text-[11px] text-slate-500 pt-1">
-
-
-
-
-
-
-
-            👤 Solicitado por: <strong>${r.solicitante}</strong> em ${formatDateBR(r.data_solicitacao)} • Prioridade: <strong>${r.prioridade}</strong> ${r.avaliado_por ? `• Avaliado por: <strong>${r.avaliado_por}</strong> em ${formatDateBR(r.data_avaliacao)}` : ''}
-
-
-
-
-
-
-
+          <p class="text-[11px] text-slate-500 pt-0.5">
+            👤 Solicitado por: <strong>${r.solicitante}</strong> ${r.solicitante_telefone ? `<span class="text-slate-400">(${r.solicitante_telefone})</span>` : ''} em ${formatDateBR(r.data_solicitacao)} • Prioridade: <strong>${r.prioridade}</strong> ${r.avaliado_por ? `• Avaliado por: <strong>${r.avaliado_por}</strong> em ${formatDateBR(r.data_avaliacao)}` : ''}
           </p>
-
-
-
-
-
-
-
+          <div class="flex flex-wrap items-center gap-2 pt-0.5">
+            ${r.alerta_enviado || r.ultimo_aviso_alerta ? `
+              <span class="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-lg">
+                📲 ${r.ultimo_aviso_alerta || `Alerta enviado em ${r.data_alerta || 'tempo real'}`}
+              </span>
+            ` : `
+              <span class="inline-flex items-center gap-1 text-[10px] font-semibold bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-lg">
+                📲 Destinatário: ${r.responsavel_tesouraria || 'Tesouraria'} ${r.telefone_tesouraria ? `(${r.telefone_tesouraria})` : ''}
+              </span>
+            `}
+          </div>
         </div>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        <!-- BARRA INFERIOR: ANEXO DE NOTA/RECIBO PDF E AÇÕES DE APROVAÇÃO -->
-
-
-
-
-
-
-
+        <!-- BARRA INFERIOR: ANEXO DE NOTA/RECIBO PDF, ALERTA POR TELEFONE E AÇÕES DE APROVAÇÃO -->
         <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
-
-
-
-
-
-
-
-          
-
-
-
-
-
-
-
-          <!-- ANEXO EM PDF -->
-
-
-
-
-
-
-
-          <div class="flex items-center gap-2">
-
-
-
-
-
-
-
+          <!-- ANEXO EM PDF & BOTÕES DE ALERTA POR TELEFONE -->
+          <div class="flex flex-wrap items-center gap-2">
             ${temAnexo ? `
-
-
-
-
-
-
-
               <a
-
-
-
-
-
-
-
                 href="/api/requisicoes/anexo-pdf?id=${r.id}"
-
-
-
-
-
-
-
                 target="_blank"
-
-
-
-
-
-
-
                 class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition shadow-2xs cursor-pointer"
-
-
-
-
-
-
-
                 title="Abrir nota fiscal ou recibo em PDF"
-
-
-
-
-
-
-
               >
-
-
-
-
-
-
-
                 <span>📄 Ver Nota/Recibo PDF</span>
-
-
-
-
-
-
-
                 <span class="text-[10px] text-rose-500 font-normal truncate max-w-[140px]">(${r.anexo_nome || 'recibo.pdf'})</span>
-
-
-
-
-
-
-
                 <span class="text-[10px]">↗</span>
-
-
-
-
-
-
-
               </a>
-
-
-
-
-
-
-
               <button
-
-
-
-
-
-
-
                 type="button"
-
-
-
-
-
-
-
                 onclick="abrirModalAnexoPDF(${r.id})"
-
-
-
-
-
-
-
                 class="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-slate-800 p-1 rounded-lg transition cursor-pointer"
-
-
-
-
-
-
-
                 title="Substituir comprovante PDF"
-
-
-
-
-
-
-
               >
-
-
-
-
-
-
-
                 🔄 Alterar
-
-
-
-
-
-
-
               </button>
-
-
-
-
-
-
-
               <button
-
-
-
-
-
-
-
                 type="button"
-
-
-
-
-
-
-
                 onclick="excluirAnexoPDF(${r.id})"
-
-
-
-
-
-
-
                 class="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 hover:text-rose-800 hover:bg-rose-50 px-2 py-1 rounded-lg border border-transparent hover:border-rose-200 transition cursor-pointer"
-
-
-
-
-
-
-
                 title="Excluir arquivo PDF anexado"
-
-
-
-
-
-
-
               >
-
-
-
-
-
-
-
                 🗑️ Excluir PDF
-
-
-
-
-
-
-
               </button>
-
-
-
-
-
-
-
             ` : `
-
-
-
-
-
-
-
               <button
-
-
-
-
-
-
-
                 type="button"
-
-
-
-
-
-
-
                 onclick="abrirModalAnexoPDF(${r.id})"
-
-
-
-
-
-
-
                 class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition cursor-pointer"
-
-
-
-
-
-
-
               >
-
-
-
-
-
-
-
                 <span>📎 Anexar Nota/Recibo (PDF)</span>
-
-
-
-
-
-
-
               </button>
-
-
-
-
-
-
-
             `}
 
-
-
-
-
-
-
-          </div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-          <!-- AÇÕES DE APROVAÇÃO FINANCEIRA & EXCLUSÃO -->
-
-
-
-
-
-
-
-          <div class="flex items-center gap-2">
-
-
-
-
-
-
-
-            ${pendente && podeAprovar ? `
-
-
-
-
-
-
-
-              <button
-
-
-
-
-
-
-
-                type="button"
-
-
-
-
-
-
-
-                onclick="avaliarRequisicao(${r.id}, 'Aprovado e Pago')"
-
-
-
-
-
-
-
-                class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1"
-
-
-
-
-
-
-
-              >
-
-
-
-
-
-
-
-                <span>✓ Aprovar e Lançar Saída</span>
-
-
-
-
-
-
-
-              </button>
-
-
-
-
-
-
-
-              <button
-
-
-
-
-
-
-
-                type="button"
-
-
-
-
-
-
-
-                onclick="avaliarRequisicao(${r.id}, 'Recusado')"
-
-
-
-
-
-
-
-                class="bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold px-2.5 py-1.5 rounded-xl transition cursor-pointer"
-
-
-
-
-
-
-
-              >
-
-
-
-
-
-
-
-                Recusar
-
-
-
-
-
-
-
-              </button>
-
-
-
-
-
-
-
-            ` : pendente ? `
-
-
-
-
-
-
-
-              <span class="text-[11px] text-amber-800 font-bold bg-amber-100/80 px-2.5 py-1 rounded-lg">Aguardando Tesouraria</span>
-
-
-
-
-
-
-
-            ` : ''}
-
-
-
-
-
-
-
             <button
-
-
-
-
-
-
-
               type="button"
-
-
-
-
-
-
-
-              onclick="excluirRequisicao(${r.id})"
-
-
-
-
-
-
-
-              class="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 px-2.5 py-1.5 rounded-xl shadow-2xs transition cursor-pointer"
-
-
-
-
-
-
-
-              title="Excluir esta solicitação"
-
-
-
-
-
-
-
+              onclick="abrirModalDisparoAlertaVerba(${r.id}, 'TESOURARIA', false)"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 transition shadow-2xs cursor-pointer"
+              title="Enviar ou reenviar alerta por telefone (WhatsApp / SMS / Push) para a Tesouraria"
             >
-
-
-
-
-
-
-
-              <span>🗑️ Excluir Solicitação</span>
-
-
-
-
-
-
-
+              <span>📲 ${r.alerta_enviado ? 'Reenviar Alerta Telefone' : 'Enviar Alerta Telefone'}</span>
             </button>
 
-
-
-
-
-
-
+            ${!pendente ? `
+              <button
+                type="button"
+                onclick="abrirModalDisparoAlertaVerba(${r.id}, 'SOLICITANTE', false)"
+                class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition cursor-pointer"
+                title="Avisar o solicitante por telefone sobre a decisão da Tesouraria"
+              >
+                <span>💬 Avisar Solicitante</span>
+              </button>
+            ` : ''}
           </div>
 
-
-
-
-
-
-
+          <!-- AÇÕES DE APROVAÇÃO FINANCEIRA & EXCLUSÃO -->
+          <div class="flex items-center gap-2">
+            ${pendente && podeAprovar ? `
+              <button
+                type="button"
+                onclick="avaliarRequisicao(${r.id}, 'Aprovado e Pago')"
+                class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1"
+              >
+                <span>✓ Aprovar e Lançar Saída</span>
+              </button>
+              <button
+                type="button"
+                onclick="avaliarRequisicao(${r.id}, 'Recusado')"
+                class="bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold px-2.5 py-1.5 rounded-xl transition cursor-pointer"
+              >
+                Recusar
+              </button>
+            ` : pendente ? `
+              <span class="text-[11px] text-amber-800 font-bold bg-amber-100/80 px-2.5 py-1 rounded-lg">Aguardando Tesouraria</span>
+            ` : ''}
+            <button
+              type="button"
+              onclick="excluirRequisicao(${r.id})"
+              class="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 px-2.5 py-1.5 rounded-xl shadow-2xs transition cursor-pointer"
+              title="Excluir esta solicitação"
+            >
+              <span>🗑️ Excluir Solicitação</span>
+            </button>
+          </div>
         </div>
+      </div>
+    `;
+  }).join('');
+}
 
+// ============================================================================
+// SISTEMA DE ALERTA RÁPIDO POR TELEFONE PARA SOLICITAÇÃO DE VERBA
+// ============================================================================
 
+function buscarTelefoneMembroPorNome(nomeBusca) {
+  const n = (nomeBusca || '').trim().toLowerCase();
+  if (!n) return '';
+  const m = (STATE.membros || []).find(x => (x.nome || '').trim().toLowerCase() === n)
+         || (STATE.membros || []).find(x => (x.nome || '').trim().toLowerCase().includes(n));
+  return (m && m.telefone) ? m.telefone : '';
+}
 
+function inicializarCamposAlertaVerba() {
+  const cfg = STATE.config_alertas_verba || {};
+  const elResp = document.getElementById('req-responsavel-tesouraria');
+  const elFone = document.getElementById('req-telefone-tesouraria');
+  if (elResp && !elResp.value) {
+    elResp.value = cfg.responsavel_padrao || 'Tesouraria / Financeiro';
+  }
+  if (elFone && !elFone.value) {
+    if (cfg.telefone_padrao) {
+      elFone.value = cfg.telefone_padrao;
+    } else if (elResp && elResp.value) {
+      const f = buscarTelefoneMembroPorNome(elResp.value);
+      if (f) elFone.value = f;
+    }
+  }
+}
 
+function autoPreencherTelefoneSolicitanteVerba(nome) {
+  const fone = buscarTelefoneMembroPorNome(nome);
+  const el = document.getElementById('req-solicitante-telefone');
+  if (el && fone) {
+    el.value = fone;
+  }
+}
 
+function autoPreencherTelefoneResponsavelVerba(nome) {
+  const fone = buscarTelefoneMembroPorNome(nome);
+  const el = document.getElementById('req-telefone-tesouraria');
+  if (el && fone) {
+    el.value = fone;
+  }
+}
 
+function montarMensagemAlertaVerba(r, modo = 'TESOURARIA') {
+  const urlSistema = (STATE.url_publica && !STATE.url_publica.includes('localhost'))
+    ? STATE.url_publica
+    : 'https://pib-parque-sp.onrender.com/';
+  const valorFmt = formatBRL(r.valor_estimado || 0);
 
+  if (modo === 'SOLICITANTE') {
+    const aprovada = r.status === 'Aprovado e Pago';
+    return (
+      `${aprovada ? '✅' : 'ℹ️'} *AVISO DA TESOURARIA — PIB PARQUE SÃO PAULO*\n\n` +
+      `Olá, *${r.solicitante || 'Irmão(ã)'}*! Sua solicitação de verba foi avaliada:\n` +
+      `📋 *Pedido:* #${r.id} - ${r.titulo}\n` +
+      `🏛️ *Ministério:* ${r.ministerio_nome || 'Ministério'}\n` +
+      `💰 *Valor:* ${valorFmt}\n` +
+      `📌 *Status:* *${r.status}*\n` +
+      `${r.avaliado_por ? `👤 *Avaliado por:* ${r.avaliado_por}\n` : ''}` +
+      `\n🔗 *Acesse o Sistema Kairós:* ${urlSistema}`
+    );
+  }
+
+  return (
+    `🔔 *ALERTA KAIRÓS — NOVA SOLICITAÇÃO DE VERBA*\n\n` +
+    `📋 *Pedido:* #${r.id} - ${r.titulo}\n` +
+    `🏛️ *Ministério:* ${r.ministerio_nome || 'Ministério'}\n` +
+    `👤 *Solicitante:* ${r.solicitante || 'Não informado'}${r.solicitante_telefone ? ` (${r.solicitante_telefone})` : ''}\n` +
+    `💰 *Valor Estimado:* *${valorFmt}*\n` +
+    `⚡ *Prioridade:* ${r.prioridade || 'Normal'}\n` +
+    `📝 *Justificativa:* ${r.justificativa || 'Sem observações adicionais.'}\n\n` +
+    `🔗 *Avaliar e Aprovar no Sistema:* ${urlSistema}`
+  );
+}
+
+function abrirModalDisparoAlertaVerba(reqId, modo = 'TESOURARIA', isRecemCriada = false) {
+  const r = (STATE.requisicoes || []).find(x => Number(x.id) === Number(reqId));
+  if (!r) return;
+
+  const cfg = STATE.config_alertas_verba || {};
+  const isSolicitante = modo === 'SOLICITANTE';
+  const nomeDestPadrao = isSolicitante
+    ? (r.solicitante || 'Solicitante')
+    : (r.responsavel_tesouraria || cfg.responsavel_padrao || 'Tesouraria / Financeiro');
+  const foneDestPadrao = isSolicitante
+    ? (r.solicitante_telefone || buscarTelefoneMembroPorNome(r.solicitante) || '')
+    : (r.telefone_tesouraria || cfg.telefone_padrao || buscarTelefoneMembroPorNome(nomeDestPadrao) || '');
+
+  const msgPadrao = montarMensagemAlertaVerba(r, modo);
+
+  const existente = document.getElementById('modal-alerta-telefone-verba');
+  if (existente) existente.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'modal-alerta-telefone-verba';
+  modal.className = 'fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto';
+  modal.innerHTML = `
+    <div class="bg-white rounded-2xl border border-slate-200 max-w-lg w-full p-5 shadow-2xl space-y-4 my-auto">
+      <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2.5">
+          <span class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-xl shadow-xs">📲</span>
+          <div>
+            <span class="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+              ${isRecemCriada ? '✓ Solicitação Salva + Alerta Automático Ativado' : 'Central de Alerta por Telefone'}
+            </span>
+            <h3 class="font-black text-slate-900 text-sm mt-1">
+              ${isSolicitante ? `Avisar Solicitante (${escapeHtml(r.solicitante)})` : `Enviar Alerta de Verba #${r.id} para Tesouraria`}
+            </h3>
+          </div>
+        </div>
+        <button type="button" onclick="document.getElementById('modal-alerta-telefone-verba')?.remove()" class="text-slate-400 hover:text-slate-700 text-lg font-bold px-2 cursor-pointer">✕</button>
       </div>
 
+      ${isRecemCriada ? `
+        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-900 flex items-start gap-2">
+          <span class="text-base">🔔</span>
+          <div>
+            <strong>Alerta em segundo plano disparado pelo servidor!</strong>
+            <p class="text-[11px] text-emerald-700 mt-0.5">Para confirmação imediata no celular do responsável, escolha abaixo <strong>WhatsApp Direto</strong> ou <strong>Torpedo SMS</strong> com 1 clique:</p>
+          </div>
+        </div>
+      ` : ''}
 
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Destinatário do Alerta</label>
+          <input
+            type="text"
+            id="alerta-verba-dest-nome"
+            list="lista-membros-datalist"
+            value="${escapeHtml(nomeDestPadrao)}"
+            oninput="const f = buscarTelefoneMembroPorNome(this.value); if(f) document.getElementById('alerta-verba-dest-fone').value = f;"
+            class="w-full border border-slate-300 rounded-xl px-3 py-2 font-semibold text-slate-800"
+          />
+        </div>
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Celular / WhatsApp / SMS *</label>
+          <input
+            type="text"
+            id="alerta-verba-dest-fone"
+            value="${escapeHtml(foneDestPadrao)}"
+            placeholder="(11) 99999-9999"
+            class="w-full border border-emerald-400 rounded-xl px-3 py-2 font-black text-slate-900 bg-emerald-50/40"
+          />
+        </div>
+      </div>
 
+      <div class="text-xs">
+        <label class="font-bold text-slate-700 block mb-1">Mensagem de Alerta (Editável)</label>
+        <textarea id="alerta-verba-msg-texto" rows="6" class="w-full border border-slate-300 rounded-xl p-3 text-xs font-mono text-slate-800 bg-slate-50">${escapeHtml(msgPadrao)}</textarea>
+      </div>
 
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+        <button
+          type="button"
+          onclick="dispararCanalAlertaVerba(${r.id}, 'WHATSAPP')"
+          class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-2 text-xs cursor-pointer"
+        >
+          <span>🟢 Enviar via WhatsApp</span>
+        </button>
+        <button
+          type="button"
+          onclick="dispararCanalAlertaVerba(${r.id}, 'SMS')"
+          class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2.5 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-2 text-xs cursor-pointer"
+        >
+          <span>💬 Disparar Torpedo SMS</span>
+        </button>
+      </div>
 
+      <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            onclick="dispararCanalAlertaVerba(${r.id}, 'PUSH')"
+            class="px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold transition cursor-pointer"
+          >
+            🔔 Reenviar Push Servidor
+          </button>
+          <button
+            type="button"
+            onclick="dispararCanalAlertaVerba(${r.id}, 'COPIAR')"
+            class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition cursor-pointer"
+          >
+            📋 Copiar Texto
+          </button>
+        </div>
+        <button
+          type="button"
+          onclick="document.getElementById('modal-alerta-telefone-verba')?.remove()"
+          class="px-3.5 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold transition cursor-pointer"
+        >
+          Fechar
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
 
+async function dispararCanalAlertaVerba(reqId, canal) {
+  const nome = (document.getElementById('alerta-verba-dest-nome')?.value || 'Tesouraria').trim();
+  const foneRaw = (document.getElementById('alerta-verba-dest-fone')?.value || '').trim();
+  const msg = (document.getElementById('alerta-verba-msg-texto')?.value || '').trim();
+  const foneLimpo = foneRaw.replace(/\D/g, '');
 
-    `;
+  if ((canal === 'WHATSAPP' || canal === 'SMS') && foneLimpo.length < 10) {
+    alert('Por favor, informe o número de celular com DDD (ex: 11999999999) para enviar o alerta.');
+    document.getElementById('alerta-verba-dest-fone')?.focus();
+    return;
+  }
 
+  const foneComDDI = foneLimpo.startsWith('55') ? foneLimpo : `55${foneLimpo}`;
 
+  if (canal === 'COPIAR') {
+    try {
+      await navigator.clipboard.writeText(msg);
+      showLiveToast('📋 Mensagem de alerta copiada para a área de transferência!');
+    } catch (_) {
+      alert('Mensagem copiada:\n\n' + msg);
+    }
+    return;
+  }
 
+  if (canal === 'WHATSAPP') {
+    const urlWhats = `https://api.whatsapp.com/send?phone=${foneComDDI}&text=${encodeURIComponent(msg)}`;
+    window.open(urlWhats, '_blank');
+  } else if (canal === 'SMS') {
+    const sep = /iPad|iPhone|iPod/.test(navigator.userAgent || '') ? '&' : '?';
+    const urlSms = `sms:+${foneComDDI}${sep}body=${encodeURIComponent(msg.replace(/\*/g, ''))}`;
+    window.location.href = urlSms;
+  }
 
+  await apiPost('/api/requisicoes/registrar-alerta', {
+    id: reqId,
+    canal,
+    responsavel_tesouraria: nome,
+    telefone_tesouraria: foneRaw,
+    disparar_push_servidor: canal === 'PUSH'
+  });
 
+  await fetchBootstrap();
+  showLiveToast(`📲 Alerta (${canal}) registrado com sucesso para ${nome}!`);
+}
 
+function abrirModalConfigAlertasVerba() {
+  const cfg = STATE.config_alertas_verba || {};
+  const topico = cfg.ntfy_topico || 'kairos-pib-parque-sp-verbas';
 
-  }).join('');
+  const existente = document.getElementById('modal-config-alertas-verba');
+  if (existente) existente.remove();
 
+  const modal = document.createElement('div');
+  modal.id = 'modal-config-alertas-verba';
+  modal.className = 'fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto';
+  modal.innerHTML = `
+    <div class="bg-white rounded-2xl border border-slate-200 max-w-xl w-full p-6 shadow-2xl space-y-4 my-auto">
+      <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2.5">
+          <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white flex items-center justify-center text-xl shadow-xs">📲</span>
+          <div>
+            <span class="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">Alertas em Tempo Real</span>
+            <h3 class="font-black text-slate-900 text-base mt-1">Configurar Alerta por Telefone — Solicitação de Verba</h3>
+          </div>
+        </div>
+        <button type="button" onclick="document.getElementById('modal-config-alertas-verba')?.remove()" class="text-slate-400 hover:text-slate-700 text-lg font-bold px-2 cursor-pointer">✕</button>
+      </div>
 
+      <form onsubmit="salvarConfigAlertasVerba(event, false)" class="space-y-3.5 text-xs">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">Responsável Padrão (Tesouraria / Pastor)</label>
+            <input
+              type="text"
+              id="cfg-verba-responsavel"
+              list="lista-membros-datalist"
+              value="${escapeHtml(cfg.responsavel_padrao || 'Tesouraria / Financeiro')}"
+              oninput="const f = buscarTelefoneMembroPorNome(this.value); if(f) document.getElementById('cfg-verba-fone1').value = f;"
+              class="w-full border border-slate-300 rounded-xl px-3 py-2 font-semibold"
+            />
+          </div>
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">Celular Principal p/ Alerta (WhatsApp/SMS) *</label>
+            <input
+              type="text"
+              id="cfg-verba-fone1"
+              value="${escapeHtml(cfg.telefone_padrao || '')}"
+              placeholder="(11) 99999-9999"
+              class="w-full border border-emerald-400 rounded-xl px-3 py-2 font-black text-slate-900 bg-emerald-50/40"
+            />
+          </div>
+        </div>
 
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">2º Celular p/ Cópia de Alerta (Opcional)</label>
+            <input
+              type="text"
+              id="cfg-verba-fone2"
+              value="${escapeHtml(cfg.telefone_secundario || '')}"
+              placeholder="(11) 98888-8888"
+              class="w-full border border-slate-300 rounded-xl px-3 py-2 font-medium"
+            />
+          </div>
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">Canal de Alerta Push Instantâneo (ntfy.sh)</label>
+            <div class="flex items-center gap-1.5">
+              <input
+                type="text"
+                id="cfg-verba-ntfy"
+                value="${escapeHtml(topico)}"
+                placeholder="kairos-pib-parque-sp-verbas"
+                class="w-full border border-slate-300 rounded-xl px-3 py-2 font-mono text-[11px]"
+              />
+              <a
+                href="https://ntfy.sh/${encodeURIComponent(topico)}"
+                target="_blank"
+                class="shrink-0 px-2.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl font-bold text-[11px] border border-indigo-200"
+                title="Abrir painel de alertas em tempo real"
+              >Abrir ↗</a>
+            </div>
+          </div>
+        </div>
 
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+          <p class="font-bold text-slate-800 text-[11px] flex items-center justify-between">
+            <span>⚡ Disparo 100% Automático em Segundo Plano (Opcional)</span>
+            <span class="text-[10px] text-emerald-700 font-semibold">CallMeBot / Webhook API</span>
+          </p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div>
+              <label class="text-[11px] text-slate-600 block mb-1">Chave CallMeBot (WhatsApp Automático)</label>
+              <input
+                type="text"
+                id="cfg-verba-apikey"
+                value="${escapeHtml(cfg.callmebot_apikey || '')}"
+                placeholder="Ex: 123456"
+                class="w-full border border-slate-300 rounded-xl px-2.5 py-1.5 bg-white text-xs"
+              />
+            </div>
+            <div>
+              <label class="text-[11px] text-slate-600 block mb-1">Webhook URL (Z-API / Evolution / SMS)</label>
+              <input
+                type="text"
+                id="cfg-verba-webhook"
+                value="${escapeHtml(cfg.webhook_whatsapp_url || '')}"
+                placeholder="https://..."
+                class="w-full border border-slate-300 rounded-xl px-2.5 py-1.5 bg-white text-xs"
+              />
+            </div>
+          </div>
+          <p class="text-[10px] text-slate-500 leading-relaxed">
+            💡 <strong>Dica:</strong> Mesmo sem chave externa, o sistema já abre o disparo direto de <strong>WhatsApp + SMS Nativo</strong> ao enviar cada pedido e dispara o alerta no canal Push <strong>ntfy.sh/${escapeHtml(topico)}</strong>.
+          </p>
+        </div>
 
+        <label class="flex items-center gap-2 cursor-pointer select-none">
+          <input type="checkbox" id="cfg-verba-auto-ativo" ${cfg.alerta_auto_ativo !== 0 ? 'checked' : ''} class="w-4 h-4 rounded text-emerald-600" />
+          <span class="font-bold text-slate-800">Manter envio automático de alerta ativado para todas as novas solicitações de verba</span>
+        </label>
 
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-100">
+          <button
+            type="button"
+            onclick="salvarConfigAlertasVerba(event, true)"
+            class="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black transition cursor-pointer shadow-xs"
+          >
+            🔔 Salvar & Testar Alerta Agora
+          </button>
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              onclick="document.getElementById('modal-config-alertas-verba')?.remove()"
+              class="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black transition cursor-pointer shadow-md"
+            >
+              💾 Salvar Configuração
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
 
+async function salvarConfigAlertasVerba(e, testarAgora = false) {
+  if (e && e.preventDefault) e.preventDefault();
+  const responsavel_padrao = (document.getElementById('cfg-verba-responsavel')?.value || 'Tesouraria / Financeiro').trim();
+  const telefone_padrao = (document.getElementById('cfg-verba-fone1')?.value || '').trim();
+  const telefone_secundario = (document.getElementById('cfg-verba-fone2')?.value || '').trim();
+  const ntfy_topico = (document.getElementById('cfg-verba-ntfy')?.value || 'kairos-pib-parque-sp-verbas').trim();
+  const callmebot_apikey = (document.getElementById('cfg-verba-apikey')?.value || '').trim();
+  const webhook_whatsapp_url = (document.getElementById('cfg-verba-webhook')?.value || '').trim();
+  const alerta_auto_ativo = Boolean(document.getElementById('cfg-verba-auto-ativo')?.checked);
+
+  await apiPost('/api/requisicoes/config-alertas', {
+    responsavel_padrao,
+    telefone_padrao,
+    telefone_secundario,
+    ntfy_topico,
+    callmebot_apikey,
+    webhook_whatsapp_url,
+    alerta_auto_ativo,
+    testar_agora: testarAgora
+  });
+
+  await fetchBootstrap();
+  const elResp = document.getElementById('req-responsavel-tesouraria');
+  const elFone = document.getElementById('req-telefone-tesouraria');
+  if (elResp) elResp.value = responsavel_padrao;
+  if (elFone) elFone.value = telefone_padrao;
+
+  document.getElementById('modal-config-alertas-verba')?.remove();
+
+  if (testarAgora && telefone_padrao) {
+    const foneLimpo = telefone_padrao.replace(/\D/g, '');
+    if (foneLimpo.length >= 10) {
+      const foneDDI = foneLimpo.startsWith('55') ? foneLimpo : `55${foneLimpo}`;
+      const msgTeste = `🔔 *TESTE DE ALERTA POR TELEFONE — KAIRÓS*\n\nOlá, *${responsavel_padrao}*! Seu telefone (${telefone_padrao}) está configurado para receber os alertas imediatos de *Solicitação de Verba* da PIB Parque São Paulo.`;
+      window.open(`https://api.whatsapp.com/send?phone=${foneDDI}&text=${encodeURIComponent(msgTeste)}`, '_blank');
+    }
+    showLiveToast('🔔 Configuração salva e alerta de teste disparado!');
+  } else {
+    showLiveToast('✓ Configuração de alertas por telefone salva com sucesso!');
+  }
 }
 
 
