@@ -5823,6 +5823,11 @@ function initSSE() {
     try {
       const payload = JSON.parse(e.data);
       showLiveToast(`${payload.mensagem}`);
+      if (payload.tipo_alerta === 'NOVA_SOLICITACAO_VERBA' && payload.requisicao) {
+        if (typeof acionarAlertaAutomaticoReceptorVerba === 'function') {
+          acionarAlertaAutomaticoReceptorVerba(payload.requisicao);
+        }
+      }
       fetchBootstrap();
     } catch (err) {
       fetchBootstrap();
@@ -10508,11 +10513,11 @@ async function vincularVoluntario(e) {
 
 async function salvarRequisicao(e) {
   e.preventDefault();
-  const enviarAlertaAgora = Boolean(document.getElementById('req-enviar-alerta-agora')?.checked);
-  const respTesouraria = (document.getElementById('req-responsavel-tesouraria')?.value || '').trim();
-  const foneTesouraria = (document.getElementById('req-telefone-tesouraria')?.value || '').trim();
+  const cfg = STATE.config_alertas_verba || {};
+  const respTesouraria = (document.getElementById('req-responsavel-tesouraria')?.value || cfg.responsavel_padrao || 'Tesouraria / Financeiro').trim();
+  const foneTesouraria = (document.getElementById('req-telefone-tesouraria')?.value || cfg.telefone_padrao || '').trim();
 
-  const res = await apiPost('/api/requisicoes', {
+  await apiPost('/api/requisicoes', {
     ministerio_id: document.getElementById('req-ministerio')?.value,
     solicitante: (document.getElementById('req-solicitante')?.value || '').trim(),
     solicitante_telefone: (document.getElementById('req-solicitante-telefone')?.value || '').trim(),
@@ -10524,7 +10529,7 @@ async function salvarRequisicao(e) {
     anexo_nome: typeof REQ_ANEXO_PDF_NOME !== 'undefined' ? REQ_ANEXO_PDF_NOME : '',
     responsavel_tesouraria: respTesouraria,
     telefone_tesouraria: foneTesouraria,
-    enviar_alerta_agora: enviarAlertaAgora
+    enviar_alerta_agora: true
   });
 
   if (typeof removerPDFRequisicao === 'function') removerPDFRequisicao();
@@ -10532,22 +10537,13 @@ async function salvarRequisicao(e) {
   await fetchBootstrap();
   if (typeof inicializarCamposAlertaVerba === 'function') inicializarCamposAlertaVerba();
 
-  const novoId = res && (res.id || (res.requisicao && res.requisicao.id));
-  if (enviarAlertaAgora && novoId && typeof abrirModalDisparoAlertaVerba === 'function') {
-    abrirModalDisparoAlertaVerba(novoId, 'TESOURARIA', true);
-  } else {
-    showLiveToast('📤 Solicitação de verba enviada com sucesso para a Tesouraria!');
-  }
+  showLiveToast('✅ Pedido enviado! O alerta foi disparado automaticamente em segundo plano para a Tesouraria.');
 }
 
 async function avaliarRequisicao(id, decisao) {
   await apiPost('/api/requisicoes/avaliar', { id, decisao });
   await fetchBootstrap();
-  showLiveToast(`✓ Solicitação #${id} marcada como "${decisao}"!`);
-  const r = (STATE.requisicoes || []).find(x => Number(x.id) === Number(id));
-  if (r && r.solicitante_telefone && typeof abrirModalDisparoAlertaVerba === 'function') {
-    abrirModalDisparoAlertaVerba(id, 'SOLICITANTE', false);
-  }
+  showLiveToast(`✓ Solicitação #${id} marcada como "${decisao}" e alerta enviado em segundo plano!`);
 }
 
 async function salvarCelula(e) {
@@ -17226,6 +17222,102 @@ async function dispararCanalAlertaVerba(reqId, canal) {
   showLiveToast(`📲 Alerta (${canal}) registrado com sucesso para ${nome}!`);
 }
 
+function tocarSinalSonoroAlertaVerba() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const notas = [880, 1174.66, 1318.51];
+    notas.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.14);
+      gain.gain.setValueAtTime(0.18, ctx.currentTime + idx * 0.14);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.14 + 0.25);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + idx * 0.14);
+      osc.stop(ctx.currentTime + idx * 0.14 + 0.26);
+    });
+  } catch (_) {}
+}
+
+function acionarAlertaAutomaticoReceptorVerba(reqInfo) {
+  try {
+    const podeReceber = !CURRENT_OPERATOR || ['ADMIN', 'TESOURARIA', 'FINANCEIRO', 'PASTOR'].includes(CURRENT_OPERATOR.perfil) || temPermissaoSetor('tesouraria');
+    if (!podeReceber) return;
+
+    tocarSinalSonoroAlertaVerba();
+    if (navigator.vibrate) {
+      try { navigator.vibrate([300, 120, 300, 120, 450]); } catch (_) {}
+    }
+
+    const valorFmt = formatBRL(reqInfo.valor_estimado || 0);
+    const tituloNotif = `🚨 Nova Solicitação de Verba #${reqInfo.id}`;
+    const corpoNotif = `${reqInfo.ministerio_nome || 'Ministério'}: ${reqInfo.titulo} (${valorFmt}) — Solicitante: ${reqInfo.solicitante || 'Membro'}`;
+
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        const n = new Notification(tituloNotif, {
+          body: corpoNotif,
+          tag: `verba-${reqInfo.id}`
+        });
+        n.onclick = () => {
+          window.focus();
+          switchTab('pedidos');
+          alternarMenuPedidos('lista');
+        };
+      } catch (_) {}
+    }
+
+    const bannerExistente = document.getElementById('banner-alerta-tempo-real-verba');
+    if (bannerExistente) bannerExistente.remove();
+
+    const banner = document.createElement('div');
+    banner.id = 'banner-alerta-tempo-real-verba';
+    banner.className = 'fixed top-4 right-4 z-50 max-w-md w-full bg-slate-900 text-white rounded-2xl border-2 border-emerald-400 p-4 shadow-2xl space-y-2.5';
+    banner.innerHTML = `
+      <div class="flex items-start justify-between gap-2">
+        <div class="flex items-center gap-2.5">
+          <span class="w-9 h-9 rounded-xl bg-emerald-500 text-slate-950 font-black flex items-center justify-center text-lg shrink-0">🔔</span>
+          <div>
+            <span class="text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full">Alerta Automático Recebido</span>
+            <h4 class="font-black text-sm text-white mt-0.5">${escapeHtml(tituloNotif)}</h4>
+          </div>
+        </div>
+        <button type="button" onclick="document.getElementById('banner-alerta-tempo-real-verba')?.remove()" class="text-slate-400 hover:text-white font-bold px-1.5 cursor-pointer">✕</button>
+      </div>
+      <p class="text-xs text-slate-200 leading-relaxed">${escapeHtml(corpoNotif)}</p>
+      <div class="flex items-center justify-end gap-2 pt-1">
+        <button
+          type="button"
+          onclick="document.getElementById('banner-alerta-tempo-real-verba')?.remove(); switchTab('pedidos'); alternarMenuPedidos('lista');"
+          class="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs transition cursor-pointer"
+        >
+          📋 Ver Solicitação Agora
+        </button>
+      </div>
+    `;
+    document.body.appendChild(banner);
+    setTimeout(() => { banner.remove(); }, 18000);
+  } catch (_) {}
+}
+
+async function ativarNotificacaoNativaAparelho() {
+  if (!('Notification' in window)) {
+    alert('Este navegador não suporta notificações nativas. Utilize o canal Push ntfy no celular.');
+    return;
+  }
+  const perm = await Notification.requestPermission();
+  if (perm === 'granted') {
+    tocarSinalSonoroAlertaVerba();
+    showLiveToast('🔔 Notificações nativas e alerta sonoro ativados neste aparelho!');
+  } else {
+    alert('Permissão de notificação não concedida no navegador.');
+  }
+}
+
 function abrirModalConfigAlertasVerba() {
   const cfg = STATE.config_alertas_verba || {};
   const topico = cfg.ntfy_topico || 'kairos-pib-parque-sp-verbas';
@@ -17242,77 +17334,86 @@ function abrirModalConfigAlertasVerba() {
         <div class="flex items-center gap-2.5">
           <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white flex items-center justify-center text-xl shadow-xs">📲</span>
           <div>
-            <span class="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">Alertas em Tempo Real</span>
-            <h3 class="font-black text-slate-900 text-base mt-1">Configurar Alerta por Telefone — Solicitação de Verba</h3>
+            <span class="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">100% Automático • Sem Abrir WhatsApp de Quem Pede</span>
+            <h3 class="font-black text-slate-900 text-base mt-1">Configurar Alerta Automático em Segundo Plano</h3>
           </div>
         </div>
         <button type="button" onclick="document.getElementById('modal-config-alertas-verba')?.remove()" class="text-slate-400 hover:text-slate-700 text-lg font-bold px-2 cursor-pointer">✕</button>
       </div>
 
+      <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-900 space-y-1">
+        <p class="font-extrabold">✅ Quem cria o pedido NÃO precisa abrir o WhatsApp!</p>
+        <p class="text-[11px] text-emerald-800">Quando o membro clica em <strong>"Enviar Pedido para a Tesouraria"</strong>, o próprio servidor envia o alerta sozinho em segundo plano para o seu celular através dos canais abaixo:</p>
+      </div>
+
       <form onsubmit="salvarConfigAlertasVerba(event, false)" class="space-y-3.5 text-xs">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label class="font-bold text-slate-700 block mb-1">Responsável Padrão (Tesouraria / Pastor)</label>
-            <input
-              type="text"
-              id="cfg-verba-responsavel"
-              list="lista-membros-datalist"
-              value="${escapeHtml(cfg.responsavel_padrao || 'Tesouraria / Financeiro')}"
-              oninput="const f = buscarTelefoneMembroPorNome(this.value); if(f) document.getElementById('cfg-verba-fone1').value = f;"
-              class="w-full border border-slate-300 rounded-xl px-3 py-2 font-semibold"
-            />
+        <!-- CANAL 1: PUSH INSTANTÂNEO NO CELULAR (NTFY) -->
+        <div class="bg-indigo-50/70 border border-indigo-200 rounded-xl p-3.5 space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <span class="font-black text-indigo-950 text-xs">1️⃣ Alerta Push Direto no Celular (Recomendado • Já Ativo)</span>
+            <span class="text-[10px] bg-indigo-600 text-white font-bold px-2 py-0.5 rounded-full">Toca em 1 segundo</span>
           </div>
-          <div>
-            <label class="font-bold text-slate-700 block mb-1">Celular Principal p/ Alerta (WhatsApp/SMS) *</label>
-            <input
-              type="text"
-              id="cfg-verba-fone1"
-              value="${escapeHtml(cfg.telefone_padrao || '')}"
-              placeholder="(11) 99999-9999"
-              class="w-full border border-emerald-400 rounded-xl px-3 py-2 font-black text-slate-900 bg-emerald-50/40"
-            />
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label class="font-bold text-slate-700 block mb-1">2º Celular p/ Cópia de Alerta (Opcional)</label>
-            <input
-              type="text"
-              id="cfg-verba-fone2"
-              value="${escapeHtml(cfg.telefone_secundario || '')}"
-              placeholder="(11) 98888-8888"
-              class="w-full border border-slate-300 rounded-xl px-3 py-2 font-medium"
-            />
-          </div>
-          <div>
-            <label class="font-bold text-slate-700 block mb-1">Canal de Alerta Push Instantâneo (ntfy.sh)</label>
-            <div class="flex items-center gap-1.5">
-              <input
-                type="text"
-                id="cfg-verba-ntfy"
-                value="${escapeHtml(topico)}"
-                placeholder="kairos-pib-parque-sp-verbas"
-                class="w-full border border-slate-300 rounded-xl px-3 py-2 font-mono text-[11px]"
-              />
-              <a
-                href="https://ntfy.sh/${encodeURIComponent(topico)}"
-                target="_blank"
-                class="shrink-0 px-2.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl font-bold text-[11px] border border-indigo-200"
-                title="Abrir painel de alertas em tempo real"
-              >Abrir ↗</a>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
-          <p class="font-bold text-slate-800 text-[11px] flex items-center justify-between">
-            <span>⚡ Disparo 100% Automático em Segundo Plano (Opcional)</span>
-            <span class="text-[10px] text-emerald-700 font-semibold">CallMeBot / Webhook API</span>
+          <p class="text-[11px] text-indigo-900 leading-relaxed">
+            Instale o app gratuito <strong>ntfy</strong> no seu celular (Android ou iPhone) e inscreva-se no tópico abaixo, ou clique em <strong>Abrir Painel</strong> no celular:
           </p>
+          <div class="flex items-center gap-1.5">
+            <input
+              type="text"
+              id="cfg-verba-ntfy"
+              value="${escapeHtml(topico)}"
+              placeholder="kairos-pib-parque-sp-verbas"
+              class="w-full border border-indigo-300 bg-white rounded-xl px-3 py-2 font-mono font-bold text-slate-900 text-xs"
+            />
+            <a
+              href="https://ntfy.sh/${encodeURIComponent(topico)}"
+              target="_blank"
+              class="shrink-0 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-[11px] shadow-2xs"
+            >Abrir Painel ↗</a>
+          </div>
+        </div>
+
+        <!-- CANAL 2: WHATSAPP AUTOMÁTICO EM SEGUNDO PLANO (SERVIDOR) -->
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2.5">
+          <div class="flex items-center justify-between gap-2">
+            <span class="font-black text-slate-900 text-xs">2️⃣ WhatsApp Automático pelo Servidor (Sem abrir tela)</span>
+            <span class="text-[10px] text-emerald-700 font-bold">CallMeBot / Webhook</span>
+          </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div>
-              <label class="text-[11px] text-slate-600 block mb-1">Chave CallMeBot (WhatsApp Automático)</label>
+              <label class="font-bold text-slate-700 block mb-1">Responsável Padrão (Tesouraria)</label>
+              <input
+                type="text"
+                id="cfg-verba-responsavel"
+                list="lista-membros-datalist"
+                value="${escapeHtml(cfg.responsavel_padrao || 'Tesouraria / Financeiro')}"
+                oninput="const f = buscarTelefoneMembroPorNome(this.value); if(f) document.getElementById('cfg-verba-fone1').value = f;"
+                class="w-full border border-slate-300 rounded-xl px-2.5 py-1.5 bg-white font-semibold"
+              />
+            </div>
+            <div>
+              <label class="font-bold text-slate-700 block mb-1">Celular do Responsável (WhatsApp)</label>
+              <input
+                type="text"
+                id="cfg-verba-fone1"
+                value="${escapeHtml(cfg.telefone_padrao || '')}"
+                placeholder="(11) 99999-9999"
+                class="w-full border border-emerald-400 rounded-xl px-2.5 py-1.5 font-black text-slate-900 bg-white"
+              />
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <div>
+              <label class="text-[11px] text-slate-600 block mb-1">2º Celular (Opcional)</label>
+              <input
+                type="text"
+                id="cfg-verba-fone2"
+                value="${escapeHtml(cfg.telefone_secundario || '')}"
+                placeholder="(11) 98888-8888"
+                class="w-full border border-slate-300 rounded-xl px-2.5 py-1.5 bg-white text-xs"
+              />
+            </div>
+            <div>
+              <label class="text-[11px] text-slate-600 block mb-1">Chave CallMeBot (API Key)</label>
               <input
                 type="text"
                 id="cfg-verba-apikey"
@@ -17322,7 +17423,7 @@ function abrirModalConfigAlertasVerba() {
               />
             </div>
             <div>
-              <label class="text-[11px] text-slate-600 block mb-1">Webhook URL (Z-API / Evolution / SMS)</label>
+              <label class="text-[11px] text-slate-600 block mb-1">Webhook API (Z-API/SMS)</label>
               <input
                 type="text"
                 id="cfg-verba-webhook"
@@ -17332,23 +17433,38 @@ function abrirModalConfigAlertasVerba() {
               />
             </div>
           </div>
-          <p class="text-[10px] text-slate-500 leading-relaxed">
-            💡 <strong>Dica:</strong> Mesmo sem chave externa, o sistema já abre o disparo direto de <strong>WhatsApp + SMS Nativo</strong> ao enviar cada pedido e dispara o alerta no canal Push <strong>ntfy.sh/${escapeHtml(topico)}</strong>.
+          <p class="text-[10px] text-slate-500">
+            💡 Para receber no seu WhatsApp em segundo plano gratuitamente via CallMeBot, basta enviar uma única vez a frase <code>I allow callmebot to send me messages</code> para <strong>+34 644 51 95 23</strong> no WhatsApp e colar o código recebido no campo <strong>Chave CallMeBot</strong> acima.
           </p>
+        </div>
+
+        <!-- CANAL 3: ALERTA SONORO + NOTIFICAÇÃO NATIVA NESTE APARELHO -->
+        <div class="flex items-center justify-between gap-2 bg-amber-50/70 border border-amber-200 rounded-xl p-3">
+          <div>
+            <p class="font-bold text-amber-950 text-xs">3️⃣ Alerta Sonoro + Notificação Nativa no Aparelho Logado</p>
+            <p class="text-[10px] text-amber-800">Toca campainha e vibra seu celular/PC sempre que o Kairós estiver aberto.</p>
+          </div>
+          <button
+            type="button"
+            onclick="ativarNotificacaoNativaAparelho()"
+            class="shrink-0 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] cursor-pointer"
+          >
+            🔔 Ativar Som/Push Aqui
+          </button>
         </div>
 
         <label class="flex items-center gap-2 cursor-pointer select-none">
           <input type="checkbox" id="cfg-verba-auto-ativo" ${cfg.alerta_auto_ativo !== 0 ? 'checked' : ''} class="w-4 h-4 rounded text-emerald-600" />
-          <span class="font-bold text-slate-800">Manter envio automático de alerta ativado para todas as novas solicitações de verba</span>
+          <span class="font-bold text-slate-800">Disparar alerta automático em segundo plano em todas as solicitações de verba</span>
         </label>
 
         <div class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-100">
           <button
             type="button"
             onclick="salvarConfigAlertasVerba(event, true)"
-            class="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black transition cursor-pointer shadow-xs"
+            class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black transition cursor-pointer shadow-xs"
           >
-            🔔 Salvar & Testar Alerta Agora
+            🔔 Testar Disparo em Segundo Plano
           </button>
           <div class="flex items-center gap-2">
             <button
@@ -17394,23 +17510,19 @@ async function salvarConfigAlertasVerba(e, testarAgora = false) {
   });
 
   await fetchBootstrap();
-  const elResp = document.getElementById('req-responsavel-tesouraria');
-  const elFone = document.getElementById('req-telefone-tesouraria');
-  if (elResp) elResp.value = responsavel_padrao;
-  if (elFone) elFone.value = telefone_padrao;
-
   document.getElementById('modal-config-alertas-verba')?.remove();
 
-  if (testarAgora && telefone_padrao) {
-    const foneLimpo = telefone_padrao.replace(/\D/g, '');
-    if (foneLimpo.length >= 10) {
-      const foneDDI = foneLimpo.startsWith('55') ? foneLimpo : `55${foneLimpo}`;
-      const msgTeste = `🔔 *TESTE DE ALERTA POR TELEFONE — KAIRÓS*\n\nOlá, *${responsavel_padrao}*! Seu telefone (${telefone_padrao}) está configurado para receber os alertas imediatos de *Solicitação de Verba* da PIB Parque São Paulo.`;
-      window.open(`https://api.whatsapp.com/send?phone=${foneDDI}&text=${encodeURIComponent(msgTeste)}`, '_blank');
-    }
-    showLiveToast('🔔 Configuração salva e alerta de teste disparado!');
+  if (testarAgora) {
+    acionarAlertaAutomaticoReceptorVerba({
+      id: 'TESTE',
+      ministerio_nome: 'Tesouraria',
+      titulo: 'Teste de Alerta Automático em Segundo Plano',
+      valor_estimado: 100,
+      solicitante: responsavel_padrao
+    });
+    showLiveToast('🔔 Alerta de teste disparado em segundo plano pelo servidor (sem abrir o WhatsApp)!');
   } else {
-    showLiveToast('✓ Configuração de alertas por telefone salva com sucesso!');
+    showLiveToast('✓ Configuração de alertas automáticos em segundo plano salva com sucesso!');
   }
 }
 

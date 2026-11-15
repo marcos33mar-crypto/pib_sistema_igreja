@@ -6352,7 +6352,13 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     if enviar_alerta_agora or cfg_alerta.get("alerta_auto_ativo", 1):
                         disparar_alerta_automatico_verba(cfg_alerta, req_info, "NOVA_SOLICITACAO")
 
-                    broadcast_event("sync", {"setor": "Tesouraria", "operador": operador, "mensagem": f"📲 Nova Solicitação de Verba #{req_id}: {solicitante} solicitou R$ {valor_estimado:,.2f} ({min_nome}) para a Tesouraria."})
+                    broadcast_event("sync", {
+                        "setor": "Tesouraria",
+                        "operador": operador,
+                        "tipo_alerta": "NOVA_SOLICITACAO_VERBA",
+                        "requisicao": req_info,
+                        "mensagem": f"📲 Nova Solicitação de Verba #{req_id}: {solicitante} solicitou R$ {valor_estimado:,.2f} ({min_nome}) para a Tesouraria."
+                    })
                     return self.send_json({"ok": True, "id": req_id, "requisicao": req_info})
 
                 elif path == "/api/requisicoes/registrar-alerta":
