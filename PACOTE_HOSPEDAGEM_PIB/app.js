@@ -6106,18 +6106,22 @@ function localizarRubricaMatrizParaLancamentoJS(rowsAno, f) {
   }
 
   if (tipoClean === 'ENTRADA') {
-    if (textoBusca.includes('gasofil')) return rows.find(r => r.rubrica.toLowerCase().includes('gasofil')) || rows[0];
-    if (textoBusca.includes('itaú') || textoBusca.includes('itau')) return rows.find(r => r.rubrica.toLowerCase().includes('itaú') || r.rubrica.toLowerCase().includes('itau')) || rows[0];
-    if (textoBusca.includes('bradesco')) return rows.find(r => r.rubrica.toLowerCase().includes('bradesco')) || rows[0];
+    if (['gasofil', 'gazofil', 'caixinha moeda', 'dizimos caixa', 'dízimos caixa'].some(w => textoBusca.includes(w))) return rows.find(r => r.rubrica.toLowerCase().includes('gasofil')) || rows[0];
+    if (textoBusca.includes('saldo') && (textoBusca.includes('itaú') || textoBusca.includes('itau'))) return rows.find(r => r.rubrica.toLowerCase().includes('itaú') || r.rubrica.toLowerCase().includes('itau')) || rows[0];
+    if (textoBusca.includes('saldo') && textoBusca.includes('bradesco')) return rows.find(r => r.rubrica.toLowerCase().includes('bradesco')) || rows[0];
     if (textoBusca.includes('aplic') || textoBusca.includes('rendimento')) return rows.find(r => r.rubrica.toLowerCase().includes('aplic')) || rows[0];
     if (textoBusca.includes('saldo') && textoBusca.includes('anterior')) return rows.find(r => r.rubrica.toLowerCase().includes('saldo')) || rows[0];
-    if (['missõ', 'misso', 'missão', 'missao', 'jmm', 'jmn', 'jme'].some(w => textoBusca.includes(w))) return rows.find(r => r.rubrica.toLowerCase().includes('missõ') || r.rubrica.toLowerCase().includes('misso')) || rows[0];
-    if (['cantina', 'bazar'].some(w => textoBusca.includes(w))) return rows.find(r => r.rubrica.toLowerCase().includes('cantina')) || rows[0];
-    if (textoBusca.includes('acampamento') || textoBusca.includes('retiro')) return rows.find(r => r.rubrica.toLowerCase().includes('acampamento')) || rows[0];
-    if (textoBusca.includes('evento')) return rows.find(r => r.rubrica.toLowerCase().includes('evento')) || rows[0];
-    if (textoBusca.includes('promessa') || textoBusca.includes('campanha')) return rows.find(r => r.rubrica.toLowerCase().includes('promessa')) || rows[0];
+    if (textoBusca.includes('promessa')) return rows.find(r => r.rubrica.toLowerCase().includes('promessa')) || rows[0];
+    if (textoBusca.includes('viver')) return rows.find(r => r.rubrica.toLowerCase().includes('viver')) || rows[0];
+    if (textoBusca.includes('panetone')) return rows.find(r => r.rubrica.toLowerCase().includes('panetone')) || rows[0];
+    if (textoBusca.includes('educa') && textoBusca.includes('crist')) return rows.find(r => r.rubrica.toLowerCase().includes('educa')) || rows[0];
+    if (textoBusca.includes('bazar')) return rows.find(r => r.rubrica.toLowerCase().includes('bazar')) || rows.find(r => r.rubrica.toLowerCase().includes('cantina')) || rows[0];
+    if (textoBusca.includes('cantina')) return rows.find(r => r.rubrica.toLowerCase().includes('cantina')) || rows[0];
+    if (['missõ', 'misso', 'missão', 'missao', 'jmm', 'jmn', 'jme', 'campanha'].some(w => textoBusca.includes(w))) return rows.find(r => ['missõ', 'misso', 'campanha'].some(w => r.rubrica.toLowerCase().includes(w))) || rows[0];
+    if (['acampamento', 'retiro', 'piquenique', 'piquinique', 'camiseta', 'casais'].some(w => textoBusca.includes(w))) return rows.find(r => ['retiro', 'piquenique', 'acampamento'].some(w => r.rubrica.toLowerCase().includes(w))) || rows[0];
     if (['reembolso', 'estorno', 'devolu', 'ressarc'].some(w => textoBusca.includes(w))) return rows.find(r => ['reembolso', 'estorno', 'devolu'].some(w => r.rubrica.toLowerCase().includes(w))) || rows[0];
     if (textoBusca.includes('dízimo') || textoBusca.includes('dizimo')) return rows.find(r => r.rubrica.toLowerCase().includes('dízimo') || r.rubrica.toLowerCase().includes('dizimo')) || rows[0];
+    if (textoBusca.includes('evento')) return rows.find(r => r.rubrica.toLowerCase().includes('evento')) || rows[0];
     if (textoBusca.includes('oferta')) return rows.find(r => r.rubrica.toLowerCase().includes('oferta') && !r.rubrica.toLowerCase().includes('miss')) || rows[0];
     return rows.find(r => r.rubrica.toLowerCase().includes('outras entradas')) || rows[0];
   } else {
@@ -6151,14 +6155,18 @@ function localizarRubricaMatrizParaLancamentoJS(rowsAno, f) {
     const palavrasRubrica = [
       [['água', 'agua', 'sabesp'], 'Conta de Água (Sabesp)'],
       [['luz', 'energia', 'enel', 'eletric'], 'Conta de Energia (Enel)'],
+      [['telefone', 'internet', 'claro', 'vivo', 'fibra', 'wi-fi', 'net serv'], 'Conta de Internet Telefone'],
       [['telefone', 'internet', 'claro', 'vivo', 'fibra', 'wi-fi'], 'Telefone e Internet (Claro)'],
+      [['alarme', 'adt', 'monitoramento', 'segurança'], 'Monitoramento Sistema ADT'],
       [['alarme', 'adt', 'monitoramento', 'segurança'], 'Monitoramento Alarme (ADT)'],
       [['extintor', 'bombeiro'], 'Recarga de Extintores'],
       [['dedetiza'], 'Dedetização'],
       [["caixa d'água", 'caixa d agua', 'limpeza caixa'], "Limpeza Caixa D'água"],
       [['diarista', 'viviane', 'faxina'], 'Diarista (Viviane)'],
+      [['contabilidade', 'contador', 'cardoso', 'garisto', 'honorário'], 'Contador Cardoso & Garisto'],
       [['contabilidade', 'contador', 'honorário'], 'Contabilidade'],
       [['inss', 'gps', 'previdência'], 'INSS'],
+      [['renda eclesiástica', 'prebenda', 'pastor ivan', 'pr. ivan'], 'Renda Eclesiástica (IVAN)'],
       [['renda eclesiástica', 'prebenda', 'pastor ivan', 'pr. ivan'], 'Renda Eclesiástica (Pr. Ivan)'],
       [['13º', 'decimo terceiro', 'férias'], '13º Salário / Férias'],
       [['iptu'], 'IPTU'],
@@ -6199,22 +6207,24 @@ function calcularResumoAnoMatriz(ano) {
   const anoNum = Number(ano || 2026);
   const rows = (STATE.matriz_tesouraria || []).filter(r => Number(r.ano) === anoNum);
 
-  // Garante reconciliação em tempo real diretamente nas CÉLULAS e RUBRICAS da matriz caso haja lançamentos em STATE.financeiro
+  // Garante reconciliação em tempo real diretamente nas CÉLULAS e RUBRICAS da matriz a partir de 2026 (2025 é exercício já fechado)
   const somaLancsPorCelula = {};
-  (STATE.financeiro || []).forEach(f => {
-    if (!f.data_lancamento || f.status === 'Cancelado') return;
-    const [aStr, mStr] = String(f.data_lancamento).split('-');
-    if (Number(aStr) !== anoNum) return;
-    const idx = Number(mStr) - 1;
-    if (idx < 0 || idx >= 12) return;
-    const val = Number(f.valor || 0);
-    if (val <= 0) return;
-    const rowAlvo = localizarRubricaMatrizParaLancamentoJS(rows, f);
-    if (rowAlvo) {
-      const chave = `${rowAlvo.id}_${idx}`;
-      somaLancsPorCelula[chave] = Math.round(((somaLancsPorCelula[chave] || 0) + val) * 100) / 100;
-    }
-  });
+  if (anoNum >= 2026) {
+    (STATE.financeiro || []).forEach(f => {
+      if (!f.data_lancamento || f.status === 'Cancelado') return;
+      const [aStr, mStr] = String(f.data_lancamento).split('-');
+      if (Number(aStr) !== anoNum) return;
+      const idx = Number(mStr) - 1;
+      if (idx < 0 || idx >= 12) return;
+      const val = Number(f.valor || 0);
+      if (val <= 0) return;
+      const rowAlvo = localizarRubricaMatrizParaLancamentoJS(rows, f);
+      if (rowAlvo) {
+        const chave = `${rowAlvo.id}_${idx}`;
+        somaLancsPorCelula[chave] = Math.round(((somaLancsPorCelula[chave] || 0) + val) * 100) / 100;
+      }
+    });
+  }
 
   rows.forEach(r => {
     if (!Array.isArray(r.meses) || r.meses.length < 12) {
