@@ -7205,8 +7205,8 @@ function abrirVisualizadorRelatorioPDF(opts) {
       ${kpisHTML}
 
       <!-- Tabela de Dados Formatada -->
-      <div class="overflow-x-auto border border-slate-200 rounded-xl my-3">
-        <table class="w-full text-left border-collapse">
+      <div class="overflow-x-auto print:overflow-visible border border-slate-200 rounded-xl my-3">
+        <table class="w-full text-left border-collapse text-[11px]">
           ${theadHTML}
           ${tbodyHTML}
           ${tfootHTML}
@@ -7281,14 +7281,14 @@ function gerarPDFLivroCaixa() {
   const saldoPeriodo = totalEntradas - totalSaidas;
 
   const colunas = [
-    { label: 'Data', width: '85px', align: 'center' },
-    { label: 'Tipo', width: '80px', align: 'center' },
-    { label: 'Categoria / Rubrica', width: '160px' },
+    { label: 'Data', width: '74px', align: 'center' },
+    { label: 'Tipo', width: '68px', align: 'center' },
+    { label: 'Categoria / Rubrica', width: '130px' },
     { label: 'Histórico / Descrição' },
-    { label: 'Pessoa / Ministério', width: '140px' },
-    { label: 'Forma Pgto', width: '95px', align: 'center' },
-    { label: 'Entradas (R$)', width: '105px', align: 'right' },
-    { label: 'Saídas (R$)', width: '105px', align: 'right' }
+    { label: 'Pessoa / Ministério', width: '115px' },
+    { label: 'Forma Pgto', width: '82px', align: 'center' },
+    { label: 'Entradas (R$)', width: '96px', align: 'right' },
+    { label: 'Saídas (R$)', width: '96px', align: 'right' }
   ];
 
   const linhas = lancs.map(l => {
@@ -7298,14 +7298,14 @@ function gerarPDFLivroCaixa() {
     const memNome = l.membro_nome || l.pessoa_nome || (l.membro_id ? ((STATE.membros || []).find(m => m.id === l.membro_id)?.nome || '') : '');
     const pessoaOuMin = [memNome, minNome].filter(Boolean).join(' • ') || '—';
     return [
-      formatDateBR(l.data_lancamento),
+      { texto: formatDateBR(l.data_lancamento), cor: 'whitespace-nowrap font-mono' },
       isEnt ? '<span class="text-emerald-700 font-bold">ENTRADA</span>' : '<span class="text-rose-700 font-bold">SAÍDA</span>',
-      { texto: l.categoria || 'Geral', bold: true },
-      l.descricao || '—',
-      pessoaOuMin,
-      l.forma_pagamento || 'PIX',
-      isEnt ? formatBRL(val) : '—',
-      !isEnt ? formatBRL(val) : '—'
+      { texto: escapeHtml(l.categoria || 'Geral'), bold: true },
+      escapeHtml(l.descricao || '—'),
+      escapeHtml(pessoaOuMin),
+      escapeHtml(l.forma_pagamento || 'PIX'),
+      isEnt ? { texto: formatBRL(val), bold: true, cor: 'text-emerald-700 whitespace-nowrap font-mono' } : { texto: '—', cor: 'text-slate-400' },
+      !isEnt ? { texto: formatBRL(val), bold: true, cor: 'text-rose-700 whitespace-nowrap font-mono' } : { texto: '—', cor: 'text-slate-400' }
     ];
   });
 
