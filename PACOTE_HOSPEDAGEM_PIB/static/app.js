@@ -7115,7 +7115,7 @@ function abrirVisualizadorRelatorioPDF(opts) {
     <thead>
       <tr class="border-b-2 border-slate-800 text-slate-700 font-bold uppercase text-[10px] bg-slate-100">
         ${colunas.map(c => `
-          <th class="py-2 px-2.5 text-${c.align || 'left'}" style="${c.width ? 'width:' + c.width : ''}">
+          <th class="py-1.5 px-1.5 text-${c.align || 'left'}" style="${c.width ? 'width:' + c.width : ''}">
             ${escapeHtml(c.label || '')}
           </th>
         `).join('')}
@@ -7140,7 +7140,7 @@ function abrirVisualizadorRelatorioPDF(opts) {
               if (cell.bold) isBold = true;
               if (cell.cor) corClasse = cell.cor;
             }
-            return `<td class="py-2 px-2.5 text-${align} ${isBold ? 'font-bold' : ''} ${corClasse}">${val !== undefined && val !== null ? val : '—'}</td>`;
+            return `<td class="py-1.5 px-1.5 text-${align} ${isBold ? 'font-bold' : ''} ${corClasse}">${val !== undefined && val !== null ? val : '—'}</td>`;
           }).join('')}
         </tr>
       `).join('')}
@@ -11815,7 +11815,7 @@ function abrirModalCustom(html, mostrarBotaoPrint = true, largura = 'largo') {
 
 
 
-    wrapper.classList.remove('max-w-xl', 'max-w-2xl', 'max-w-3xl', 'max-w-4xl', 'lg:max-w-5xl');
+    wrapper.classList.remove('max-w-xl', 'max-w-2xl', 'max-w-3xl', 'max-w-4xl', 'lg:max-w-5xl', 'max-w-6xl', 'max-w-7xl');
 
 
 
@@ -11847,7 +11847,7 @@ function abrirModalCustom(html, mostrarBotaoPrint = true, largura = 'largo') {
 
 
 
-      wrapper.classList.add('max-w-4xl', 'lg:max-w-5xl');
+      wrapper.classList.add('max-w-6xl', '2xl:max-w-7xl');
 
 
 
