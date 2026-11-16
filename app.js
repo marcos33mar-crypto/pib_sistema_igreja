@@ -20515,14 +20515,14 @@ function renderFluxoDeCaixa() {
   const elGeracao = document.getElementById('fc-kpi-geracao-liquida');
   if (elGeracao) {
     elGeracao.textContent = (geracaoLiquidaPeriodo >= 0 ? '+ ' : '') + formatBRL(geracaoLiquidaPeriodo);
-    elGeracao.className = `text-lg sm:text-xl font-black mt-1.5 font-mono ${geracaoLiquidaPeriodo >= 0 ? 'text-emerald-700' : 'text-rose-700'}`;
+    elGeracao.className = `text-sm sm:text-base xl:text-[15px] 2xl:text-lg font-black mt-1.5 tabular-nums whitespace-nowrap ${geracaoLiquidaPeriodo >= 0 ? 'text-emerald-700' : 'text-rose-700'}`;
   }
   setElText('fc-kpi-geracao-sub', geracaoLiquidaPeriodo >= 0 ? '🟢 Superávit de Caixa no período' : '🔴 Déficit de Caixa no período');
 
   const elSaldoFinal = document.getElementById('fc-kpi-saldo-final');
   if (elSaldoFinal) {
     elSaldoFinal.textContent = formatBRL(saldoFinalPeriodo);
-    elSaldoFinal.className = `text-lg sm:text-xl font-black mt-1.5 font-mono ${saldoFinalPeriodo >= 0 ? 'text-emerald-300' : 'text-rose-300'}`;
+    elSaldoFinal.className = `text-sm sm:text-base xl:text-[15px] 2xl:text-lg font-black mt-1.5 tabular-nums whitespace-nowrap ${saldoFinalPeriodo >= 0 ? 'text-emerald-300' : 'text-rose-300'}`;
   }
   setElText('fc-kpi-saldo-final-sub', `Fechamento em ${NOMES_MESES[ultimoMesIdx]}/${anoAtivo}`);
 
