@@ -1888,15 +1888,15 @@ def localizar_rubrica_matriz_para_lancamento(cur, data_lanc, tipo, categoria, de
                 break
 
         if not row_encontrada:
-            if "gasofil" in texto_busca:
+            if any(w in texto_busca for w in ["gasofil", "gazofil", "caixinha moeda", "dizimos caixa", "dízimos caixa"]):
                 for r in rows:
                     if "gasofil" in r["rubrica"].lower():
                         row_encontrada = r; break
-            elif any(w in texto_busca for w in ["itaú", "itau"]):
+            elif "saldo" in texto_busca and any(w in texto_busca for w in ["itaú", "itau"]):
                 for r in rows:
                     if any(w in r["rubrica"].lower() for w in ["itaú", "itau"]):
                         row_encontrada = r; break
-            elif "bradesco" in texto_busca:
+            elif "saldo" in texto_busca and "bradesco" in texto_busca:
                 for r in rows:
                     if "bradesco" in r["rubrica"].lower():
                         row_encontrada = r; break
@@ -1908,25 +1908,41 @@ def localizar_rubrica_matriz_para_lancamento(cur, data_lanc, tipo, categoria, de
                 for r in rows:
                     if "saldo" in r["rubrica"].lower():
                         row_encontrada = r; break
-            elif any(w in texto_busca for w in ["missõ", "misso", "missão", "missao", "jmm", "jmn", "jme"]):
+            elif "promessa" in texto_busca:
                 for r in rows:
-                    if any(w in r["rubrica"].lower() for w in ["missõ", "misso"]):
+                    if "promessa" in r["rubrica"].lower():
                         row_encontrada = r; break
-            elif any(w in texto_busca for w in ["cantina", "bazar"]):
+            elif "viver" in texto_busca:
+                for r in rows:
+                    if "viver" in r["rubrica"].lower():
+                        row_encontrada = r; break
+            elif "panetone" in texto_busca:
+                for r in rows:
+                    if "panetone" in r["rubrica"].lower():
+                        row_encontrada = r; break
+            elif "educa" in texto_busca and "crist" in texto_busca:
+                for r in rows:
+                    if "educa" in r["rubrica"].lower():
+                        row_encontrada = r; break
+            elif "bazar" in texto_busca:
+                for r in rows:
+                    if "bazar" in r["rubrica"].lower():
+                        row_encontrada = r; break
+                if not row_encontrada:
+                    for r in rows:
+                        if "cantina" in r["rubrica"].lower():
+                            row_encontrada = r; break
+            elif "cantina" in texto_busca:
                 for r in rows:
                     if "cantina" in r["rubrica"].lower():
                         row_encontrada = r; break
-            elif "acampamento" in texto_busca or "retiro" in texto_busca:
+            elif any(w in texto_busca for w in ["missõ", "misso", "missão", "missao", "jmm", "jmn", "jme", "campanha"]):
                 for r in rows:
-                    if "acampamento" in r["rubrica"].lower():
+                    if any(w in r["rubrica"].lower() for w in ["missõ", "misso", "campanha"]):
                         row_encontrada = r; break
-            elif "evento" in texto_busca:
+            elif any(w in texto_busca for w in ["acampamento", "retiro", "piquenique", "piquinique", "camiseta", "casais"]):
                 for r in rows:
-                    if "evento" in r["rubrica"].lower():
-                        row_encontrada = r; break
-            elif "promessa" in texto_busca or "campanha" in texto_busca:
-                for r in rows:
-                    if "promessa" in r["rubrica"].lower():
+                    if any(w in r["rubrica"].lower() for w in ["retiro", "piquenique", "acampamento"]):
                         row_encontrada = r; break
             elif any(w in texto_busca for w in ["reembolso", "estorno", "devolu", "ressarc"]):
                 for r in rows:
@@ -1935,6 +1951,10 @@ def localizar_rubrica_matriz_para_lancamento(cur, data_lanc, tipo, categoria, de
             elif any(w in texto_busca for w in ["dízimo", "dizimo"]):
                 for r in rows:
                     if any(w in r["rubrica"].lower() for w in ["dízimo", "dizimo"]):
+                        row_encontrada = r; break
+            elif "evento" in texto_busca:
+                for r in rows:
+                    if "evento" in r["rubrica"].lower():
                         row_encontrada = r; break
             elif "oferta" in texto_busca:
                 for r in rows:
