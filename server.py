@@ -2021,14 +2021,18 @@ def localizar_rubrica_matriz_para_lancamento(cur, data_lanc, tipo, categoria, de
             palavras_rubrica = [
                 (["água", "agua", "sabesp"], "Conta de Água (Sabesp)"),
                 (["luz", "energia", "enel", "eletric"], "Conta de Energia (Enel)"),
+                (["telefone", "internet", "claro", "vivo", "fibra", "wi-fi", "net serv"], "Conta de Internet Telefone"),
                 (["telefone", "internet", "claro", "vivo", "fibra", "wi-fi"], "Telefone e Internet (Claro)"),
+                (["alarme", "adt", "monitoramento", "segurança"], "Monitoramento Sistema ADT"),
                 (["alarme", "adt", "monitoramento", "segurança"], "Monitoramento Alarme (ADT)"),
                 (["extintor", "bombeiro"], "Recarga de Extintores"),
                 (["dedetiza"], "Dedetização"),
                 (["caixa d'água", "caixa d agua", "limpeza caixa"], "Limpeza Caixa D'água"),
                 (["diarista", "viviane", "faxina"], "Diarista (Viviane)"),
+                (["contabilidade", "contador", "cardoso", "garisto", "honorário"], "Contador Cardoso & Garisto"),
                 (["contabilidade", "contador", "honorário"], "Contabilidade"),
                 (["inss", "gps", "previdência"], "INSS"),
+                (["renda eclesiástica", "prebenda", "pastor ivan", "pr. ivan"], "Renda Eclesiástica (IVAN)"),
                 (["renda eclesiástica", "prebenda", "pastor ivan", "pr. ivan"], "Renda Eclesiástica (Pr. Ivan)"),
                 (["13º", "decimo terceiro", "férias"], "13º Salário / Férias"),
                 (["iptu"], "IPTU"),
@@ -2077,8 +2081,8 @@ def localizar_rubrica_matriz_para_lancamento(cur, data_lanc, tipo, categoria, de
                 "missionários fixos": "Missionários Fixos",
                 "missionarios fixos": "Missionários Fixos",
                 "impostos": "Impostos",
-                "desp. banco/cartório/sistema": "Desp. Banco/Cartório/Sistema",
-                "desp. banco": "Desp. Banco/Cartório/Sistema",
+                "desp. banco/cartório/sistema": "Desp. banco/Cartório/Sistema",
+                "desp. banco": "Desp. banco/Cartório/Sistema",
                 "gráfica /livraria/adm": "Gráfica /Livraria/ADM",
                 "grafica /livraria/adm": "Gráfica /Livraria/ADM",
                 "despesas com ministérios": "Despesas com Ministérios",
@@ -2114,7 +2118,7 @@ def reconciliar_lancamentos_com_matriz(conn):
     """Garante que os lançamentos diários pagos em `financeiro` estejam refletidos nas rubricas exatas da `matriz_tesouraria`."""
     cur = conn.cursor()
     lancs = cur.execute(
-        "SELECT id, data_lancamento, tipo, categoria, descricao, valor, status, ministerio_id FROM financeiro WHERE status != 'Cancelado'"
+        "SELECT id, data_lancamento, tipo, categoria, descricao, valor, status, ministerio_id FROM financeiro WHERE status != 'Cancelado' AND substr(data_lancamento, 1, 4) >= '2026'"
     ).fetchall()
     if not lancs:
         return False
