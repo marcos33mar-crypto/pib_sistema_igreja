@@ -8220,19 +8220,87 @@ function imprimirRelatorioOficial() {
 // SECRETARIA: LISTAGEM E FICHA 360º INTERATIVA DO MEMBRO
 // =======================================================
 
+function normalizarTextoFiltro(v) {
+  return String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+}
+
+function obterMembrosFiltrados() {
+  const buscaRaw = document.getElementById('busca-membro')?.value || '';
+  const busca = normalizarTextoFiltro(buscaRaw);
+  const buscaDigitos = buscaRaw.replace(/\D/g, '');
+  const statusFiltro = normalizarTextoFiltro(document.getElementById('filtro-status-membro')?.value || '');
+  const ebdFiltro = normalizarTextoFiltro(document.getElementById('filtro-ebd-membro')?.value || '');
+  const generoFiltro = normalizarTextoFiltro(document.getElementById('filtro-genero-membro')?.value || '');
+
+  return (STATE.membros || []).filter(m => {
+    let okBusca = true;
+    if (busca) {
+      const campos = [
+        m.nome, m.apelido, m.cargo_eclesiastico, m.familia,
+        m.rol, m.numero_ficha, m.telefone, m.cpf, m.celula_nome, m.sala_ebd
+      ].map(normalizarTextoFiltro).join(' ');
+      okBusca = campos.includes(busca);
+      if (!okBusca && buscaDigitos.length >= 3) {
+        const telDig = String(m.telefone || '').replace(/\D/g, '');
+        const cpfDig = String(m.cpf || '').replace(/\D/g, '');
+        const rolDig = String(m.rol || '').replace(/\D/g, '');
+        okBusca = telDig.includes(buscaDigitos) || cpfDig.includes(buscaDigitos) || rolDig.includes(buscaDigitos);
+      }
+    }
+    const okStatus = !statusFiltro || normalizarTextoFiltro(m.status) === statusFiltro;
+    const okEbd = !ebdFiltro || normalizarTextoFiltro(m.sala_ebd) === ebdFiltro;
+    const okGenero = !generoFiltro || normalizarTextoFiltro(m.genero) === generoFiltro;
+    return okBusca && okStatus && okEbd && okGenero;
+  });
+}
+
+function gerarPDFRolMembrosFiltrado() {
+  const filtrados = obterMembrosFiltrados();
+  const statusVal = document.getElementById('filtro-status-membro')?.value || 'Todos';
+  const ebdVal = document.getElementById('filtro-ebd-membro')?.value || 'Todas';
+  const genVal = document.getElementById('filtro-genero-membro')?.value || 'Todos';
+  const buscaVal = (document.getElementById('busca-membro')?.value || '').trim();
+  const sub = `Filtros — Status: ${statusVal} | EBD: ${ebdVal} | Gênero: ${genVal}${buscaVal ? ` | Busca: "${buscaVal}"` : ''}`;
+
+  const colunas = [
+    { label: 'Rol', width: '60px', align: 'center' },
+    { label: 'Nome Completo' },
+    { label: 'Cargo / Status', width: '145px' },
+    { label: 'Gênero', width: '85px', align: 'center' },
+    { label: 'Sala EBD', width: '120px' },
+    { label: 'Telefone / WhatsApp', width: '115px' }
+  ];
+  const linhas = filtrados.map(m => [
+    m.rol || '—',
+    { texto: escapeHtml(m.nome || ''), bold: true },
+    `${escapeHtml(m.cargo_eclesiastico || 'Membro')} (${escapeHtml(m.status || 'Ativo')})`,
+    escapeHtml(m.genero || '—'),
+    escapeHtml(m.sala_ebd || '—'),
+    escapeHtml(m.telefone || '—')
+  ]);
+
+  abrirVisualizadorRelatorioPDF({
+    titulo: 'Rol de Membros Filtrado',
+    subtitulo: sub,
+    periodo: `${filtrados.length} membro(s)`,
+    orientacao: 'landscape',
+    kpis: [
+      { label: 'Total Listado', valor: String(filtrados.length), cor: 'text-indigo-700', sub: 'Membros no filtro atual' },
+      { label: 'Homens', valor: String(filtrados.filter(m => normalizarTextoFiltro(m.genero) === 'masculino').length), cor: 'text-sky-700', sub: 'Masculino' },
+      { label: 'Mulheres', valor: String(filtrados.filter(m => normalizarTextoFiltro(m.genero) === 'feminino').length), cor: 'text-rose-700', sub: 'Feminino' },
+      { label: 'Ativos', valor: String(filtrados.filter(m => normalizarTextoFiltro(m.status) === 'ativo').length), cor: 'text-emerald-700', sub: 'Status Ativo' }
+    ],
+    colunas,
+    linhas,
+    nomeArquivo: 'Rol_Membros_Filtrado.pdf'
+  });
+}
+
 function renderMembros() {
-  const busca = (document.getElementById('busca-membro')?.value || '').toLowerCase();
-  const statusFiltro = document.getElementById('filtro-status-membro')?.value || '';
   const tbody = document.getElementById('tabela-membros');
   if (!tbody) return;
 
-  const filtrados = STATE.membros.filter(m => {
-    const okBusca = m.nome.toLowerCase().includes(busca) ||
-      (m.cargo_eclesiastico || '').toLowerCase().includes(busca) ||
-      (m.familia || '').toLowerCase().includes(busca);
-    const okStatus = !statusFiltro || m.status === statusFiltro;
-    return okBusca && okStatus;
-  });
+  const filtrados = obterMembrosFiltrados();
 
   tbody.innerHTML = filtrados.map(m => {
     const badgesMin = (m.ministerios || []).map(v =>
