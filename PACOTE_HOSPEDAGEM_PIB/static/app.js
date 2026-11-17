@@ -20132,14 +20132,17 @@ function consultarAtaModal(id) {
           </div>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-          <button type="button" onclick="iniciarLeituraAta(${ata.id})" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition cursor-pointer shadow-xs flex items-center gap-1">
+          <button type="button" id="btn-ata-voz-ler" onclick="iniciarLeituraAta(${ata.id})" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition cursor-pointer shadow-xs flex items-center gap-1">
             <span>▶️</span> Ler Ata
           </button>
           <button type="button" id="btn-ata-voz-pausar" onclick="pausarRetomarLeituraAta()" class="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition cursor-pointer shadow-xs flex items-center gap-1 disabled:opacity-40" disabled>
             <span>⏸️</span> Pausar
           </button>
-          <button type="button" id="btn-ata-voz-parar" onclick="pararLeituraAta()" class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition cursor-pointer shadow-xs flex items-center gap-1 disabled:opacity-40" disabled>
+          <button type="button" id="btn-ata-voz-parar" onclick="pararLeituraAta(false)" class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition cursor-pointer shadow-xs flex items-center gap-1 disabled:opacity-40" disabled>
             <span>⏹️</span> Parar
+          </button>
+          <button type="button" id="btn-ata-voz-reiniciar" onclick="reiniciarLeituraAta(${ata.id})" class="px-2.5 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs transition cursor-pointer flex items-center gap-1" title="Voltar leitura para o início da ata">
+            <span>⏮️</span> Início
           </button>
           <select id="ata-voz-rate" class="border border-violet-200 bg-white rounded-xl px-2 py-1.5 text-xs font-bold text-slate-700" title="Velocidade da leitura">
             <option value="0.85">0.85x (Solene)</option>
@@ -20268,7 +20271,7 @@ function consultarAtaModal(id) {
 // ============================================================================
 // MOTOR DE LEITURA DE ATAS EM VOZ ALTA (WEB SPEECH API - PT-BR)
 // ============================================================================
-let ATA_VOZ_STATE = { ativa: false, pausada: false, blocos: [], idx: 0 };
+let ATA_VOZ_STATE = { ataId: null, ativa: false, pausada: false, blocos: [], idx: 0, runId: 0 };
 
 function popularVozesLeitorAta() {
   const sel = document.getElementById('ata-voz-select');
@@ -20292,11 +20295,16 @@ function popularVozesLeitorAta() {
 
 function atualizarBotoesLeitorAta(statusTexto, ativa, pausada) {
   const st = document.getElementById('ata-voz-status');
+  const btnLer = document.getElementById('btn-ata-voz-ler');
   const btnPausar = document.getElementById('btn-ata-voz-pausar');
   const btnParar = document.getElementById('btn-ata-voz-parar');
   if (st) st.textContent = statusTexto;
+  if (btnLer) {
+    const podeContinuar = pausada && ATA_VOZ_STATE.blocos.length > 0 && ATA_VOZ_STATE.idx < ATA_VOZ_STATE.blocos.length;
+    btnLer.innerHTML = podeContinuar ? '<span>▶️</span> Continuar' : '<span>▶️</span> Ler Ata';
+  }
   if (btnPausar) {
-    btnPausar.disabled = !ativa;
+    btnPausar.disabled = !ativa && !pausada;
     btnPausar.innerHTML = pausada ? '<span>▶️</span> Retomar' : '<span>⏸️</span> Pausar';
   }
   if (btnParar) btnParar.disabled = !ativa;
@@ -20329,9 +20337,12 @@ function falarProximoBlocoAta() {
   if (!ATA_VOZ_STATE.ativa || ATA_VOZ_STATE.pausada) return;
   if (ATA_VOZ_STATE.idx >= ATA_VOZ_STATE.blocos.length) {
     ATA_VOZ_STATE.ativa = false;
+    ATA_VOZ_STATE.pausada = false;
+    ATA_VOZ_STATE.idx = 0;
     atualizarBotoesLeitorAta('Leitura concluída', false, false);
     return;
   }
+  const myRunId = ATA_VOZ_STATE.runId;
   const texto = ATA_VOZ_STATE.blocos[ATA_VOZ_STATE.idx];
   const utt = new SpeechSynthesisUtterance(texto);
   utt.lang = 'pt-BR';
@@ -20342,12 +20353,13 @@ function falarProximoBlocoAta() {
     if (v) utt.voice = v;
   }
   utt.onend = () => {
-    if (!ATA_VOZ_STATE.ativa || ATA_VOZ_STATE.pausada) return;
+    if (myRunId !== ATA_VOZ_STATE.runId || !ATA_VOZ_STATE.ativa || ATA_VOZ_STATE.pausada) return;
     ATA_VOZ_STATE.idx += 1;
     falarProximoBlocoAta();
   };
-  utt.onerror = () => {
-    if (!ATA_VOZ_STATE.ativa) return;
+  utt.onerror = (ev) => {
+    if (myRunId !== ATA_VOZ_STATE.runId || !ATA_VOZ_STATE.ativa || ATA_VOZ_STATE.pausada) return;
+    if (ev && (ev.error === 'interrupted' || ev.error === 'canceled')) return;
     ATA_VOZ_STATE.ativa = false;
     atualizarBotoesLeitorAta('Leitura interrompida', false, false);
   };
@@ -20355,14 +20367,26 @@ function falarProximoBlocoAta() {
   window.speechSynthesis.speak(utt);
 }
 
-function iniciarLeituraAta(id) {
+function iniciarLeituraAta(id, forcarInicio = false) {
   if (!('speechSynthesis' in window)) {
     alert('Seu navegador não suporta leitura em voz alta (Web Speech API). Use Google Chrome ou Microsoft Edge.');
     return;
   }
   const ata = (STATE.atas || []).find(a => Number(a.id) === Number(id));
   if (!ata) return;
-  pararLeituraAta();
+
+  // Se estava pausada/parada na mesma ata e nao pediu reinicio, continua exatamente da sequencia
+  if (!forcarInicio && Number(ATA_VOZ_STATE.ataId) === Number(id) && ATA_VOZ_STATE.pausada && ATA_VOZ_STATE.blocos.length > 0 && ATA_VOZ_STATE.idx < ATA_VOZ_STATE.blocos.length) {
+    ATA_VOZ_STATE.runId += 1;
+    window.speechSynthesis.cancel();
+    ATA_VOZ_STATE.ativa = true;
+    ATA_VOZ_STATE.pausada = false;
+    falarProximoBlocoAta();
+    return;
+  }
+
+  ATA_VOZ_STATE.runId += 1;
+  window.speechSynthesis.cancel();
 
   const dataFmt = ata.data_reuniao ? ata.data_reuniao.split('-').reverse().join('/') : 'data não informada';
   const trechos = [
@@ -20377,27 +20401,41 @@ function iniciarLeituraAta(id) {
 
   const blocos = quebrarTextoParaLeitura(trechos);
   if (!blocos.length) return;
-  ATA_VOZ_STATE = { ativa: true, pausada: false, blocos, idx: 0 };
+  ATA_VOZ_STATE = { ataId: id, ativa: true, pausada: false, blocos, idx: 0, runId: ATA_VOZ_STATE.runId };
   falarProximoBlocoAta();
 }
 
+function reiniciarLeituraAta(id) {
+  iniciarLeituraAta(id, true);
+}
+
 function pausarRetomarLeituraAta() {
-  if (!('speechSynthesis' in window) || !ATA_VOZ_STATE.ativa) return;
-  if (!ATA_VOZ_STATE.pausada) {
+  if (!('speechSynthesis' in window) || !ATA_VOZ_STATE.blocos.length) return;
+  if (!ATA_VOZ_STATE.pausada && ATA_VOZ_STATE.ativa) {
+    ATA_VOZ_STATE.runId += 1;
     ATA_VOZ_STATE.pausada = true;
     window.speechSynthesis.cancel();
     atualizarBotoesLeitorAta(`Pausado (${ATA_VOZ_STATE.idx + 1}/${ATA_VOZ_STATE.blocos.length})`, true, true);
-  } else {
+  } else if (ATA_VOZ_STATE.pausada) {
+    ATA_VOZ_STATE.runId += 1;
+    ATA_VOZ_STATE.ativa = true;
     ATA_VOZ_STATE.pausada = false;
     falarProximoBlocoAta();
   }
 }
 
-function pararLeituraAta() {
+function pararLeituraAta(limparTudo = true) {
+  ATA_VOZ_STATE.runId += 1;
   if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel();
   }
-  ATA_VOZ_STATE = { ativa: false, pausada: false, blocos: [], idx: 0 };
+  if (!limparTudo && ATA_VOZ_STATE.blocos.length > 0 && ATA_VOZ_STATE.idx < ATA_VOZ_STATE.blocos.length) {
+    ATA_VOZ_STATE.ativa = false;
+    ATA_VOZ_STATE.pausada = true;
+    atualizarBotoesLeitorAta(`Parado em ${ATA_VOZ_STATE.idx + 1}/${ATA_VOZ_STATE.blocos.length} (clique em Continuar)`, false, true);
+    return;
+  }
+  ATA_VOZ_STATE = { ataId: null, ativa: false, pausada: false, blocos: [], idx: 0, runId: ATA_VOZ_STATE.runId };
   atualizarBotoesLeitorAta('Pronto para leitura', false, false);
 }
 
