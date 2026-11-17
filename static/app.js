@@ -3729,6 +3729,17 @@ function renderSlideTesouraria() {
   const elTitulo = document.getElementById('slide-periodo-titulo');
   if (elTitulo) elTitulo.textContent = labelPeriodo;
 
+  const elTituloMes = document.getElementById('slide-titulo-mes');
+  if (elTituloMes) {
+    if (MES_SLIDE_ATIVO === 0) {
+      elTituloMes.textContent = `ENTRADAS E SAÍDAS | ANO ${ANO_MATRIZ_ATIVO}`;
+    } else {
+      const idxMes = MES_SLIDE_ATIVO - 1;
+      const nomeMesCompleto = (typeof NOMES_MESES_COMPLETOS !== 'undefined' && NOMES_MESES_COMPLETOS[idxMes]) || NOMES_MESES[idxMes] || '';
+      elTituloMes.textContent = `ENTRADAS E SAÍDAS | ${nomeMesCompleto} ${ANO_MATRIZ_ATIVO}`;
+    }
+  }
+
   // 3. Renderiza os Cards de Resumo Rápido para Celular (< 640px) com números ajustados
   const elMobileKpis = document.getElementById('slide-mobile-kpis');
   if (elMobileKpis) {
