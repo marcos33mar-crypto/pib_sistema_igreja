@@ -14615,6 +14615,7 @@ function openMultiUserModal() {
 
 
 function closeModal() {
+  if (typeof pararLeituraAta === 'function') pararLeituraAta();
 
 
 
@@ -20118,6 +20119,39 @@ function consultarAtaModal(id) {
         </div>
       </div>
 
+      <!-- LEITOR DE ATA EM VOZ ALTA (PARA ASSEMBLEIA) -->
+      <div class="no-print bg-gradient-to-r from-violet-50 via-indigo-50/70 to-slate-50 border border-violet-200 rounded-2xl p-3.5 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <div class="flex items-center gap-2.5">
+          <span class="w-9 h-9 rounded-xl bg-violet-600 text-white flex items-center justify-center text-lg shadow-xs shrink-0">🔊</span>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-extrabold text-violet-950">Leitor de Ata em Voz Alta</span>
+              <span id="ata-voz-status" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-violet-700 border border-violet-200">Pronto para leitura</span>
+            </div>
+            <p class="text-[11px] text-slate-500">Leitura automática do cabeçalho, pauta e texto integral para a assembleia.</p>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button" onclick="iniciarLeituraAta(${ata.id})" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition cursor-pointer shadow-xs flex items-center gap-1">
+            <span>▶️</span> Ler Ata
+          </button>
+          <button type="button" id="btn-ata-voz-pausar" onclick="pausarRetomarLeituraAta()" class="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition cursor-pointer shadow-xs flex items-center gap-1 disabled:opacity-40" disabled>
+            <span>⏸️</span> Pausar
+          </button>
+          <button type="button" id="btn-ata-voz-parar" onclick="pararLeituraAta()" class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition cursor-pointer shadow-xs flex items-center gap-1 disabled:opacity-40" disabled>
+            <span>⏹️</span> Parar
+          </button>
+          <select id="ata-voz-rate" class="border border-violet-200 bg-white rounded-xl px-2 py-1.5 text-xs font-bold text-slate-700" title="Velocidade da leitura">
+            <option value="0.85">0.85x (Solene)</option>
+            <option value="1" selected>1.0x (Normal)</option>
+            <option value="1.15">1.15x (Ágil)</option>
+          </select>
+          <select id="ata-voz-select" class="border border-violet-200 bg-white rounded-xl px-2 py-1.5 text-xs font-semibold text-slate-700 max-w-[175px]" title="Voz em Português">
+            <option value="">Voz padrão (PT-BR)</option>
+          </select>
+        </div>
+      </div>
+
       <!-- METADADOS DA SESSÃO / LIVRO / FOLHA -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-slate-50 p-4 rounded-2xl border border-slate-200">
         <div>
@@ -20225,7 +20259,146 @@ function consultarAtaModal(id) {
 
   if (typeof abrirModalCustom === 'function') {
     abrirModalCustom(html, true, 'largo');
+    setTimeout(() => {
+      if (typeof popularVozesLeitorAta === 'function') popularVozesLeitorAta();
+    }, 60);
   }
+}
+
+// ============================================================================
+// MOTOR DE LEITURA DE ATAS EM VOZ ALTA (WEB SPEECH API - PT-BR)
+// ============================================================================
+let ATA_VOZ_STATE = { ativa: false, pausada: false, blocos: [], idx: 0 };
+
+function popularVozesLeitorAta() {
+  const sel = document.getElementById('ata-voz-select');
+  if (!sel || !('speechSynthesis' in window)) return;
+  const carregar = () => {
+    const vozes = window.speechSynthesis.getVoices() || [];
+    const ptVozes = vozes.filter(v => (v.lang || '').toLowerCase().startsWith('pt'));
+    const lista = ptVozes.length ? ptVozes : vozes;
+    if (!lista.length) return;
+    sel.innerHTML = lista.map(v =>
+      `<option value="${escapeHtml(v.name)}">${escapeHtml(v.name)} (${escapeHtml(v.lang)})</option>`
+    ).join('');
+    const pref = lista.find(v => (v.lang || '').toLowerCase() === 'pt-br' && v.name.toLowerCase().includes('natural'))
+      || lista.find(v => (v.lang || '').toLowerCase() === 'pt-br')
+      || lista[0];
+    if (pref) sel.value = pref.name;
+  };
+  carregar();
+  window.speechSynthesis.onvoiceschanged = carregar;
+}
+
+function atualizarBotoesLeitorAta(statusTexto, ativa, pausada) {
+  const st = document.getElementById('ata-voz-status');
+  const btnPausar = document.getElementById('btn-ata-voz-pausar');
+  const btnParar = document.getElementById('btn-ata-voz-parar');
+  if (st) st.textContent = statusTexto;
+  if (btnPausar) {
+    btnPausar.disabled = !ativa;
+    btnPausar.innerHTML = pausada ? '<span>▶️</span> Retomar' : '<span>⏸️</span> Pausar';
+  }
+  if (btnParar) btnParar.disabled = !ativa;
+}
+
+function quebrarTextoParaLeitura(texto) {
+  const limpo = String(texto || '').replace(/\s+/g, ' ').trim();
+  if (!limpo) return [];
+  const partes = limpo.split(/(?<=[.!?;:])\s+/);
+  const blocos = [];
+  let atual = '';
+  for (const p of partes) {
+    if ((atual + ' ' + p).trim().length <= 220) {
+      atual = (atual + ' ' + p).trim();
+    } else {
+      if (atual) blocos.push(atual);
+      if (p.length <= 220) {
+        atual = p;
+      } else {
+        for (let i = 0; i < p.length; i += 200) blocos.push(p.slice(i, i + 200));
+        atual = '';
+      }
+    }
+  }
+  if (atual) blocos.push(atual);
+  return blocos;
+}
+
+function falarProximoBlocoAta() {
+  if (!ATA_VOZ_STATE.ativa || ATA_VOZ_STATE.pausada) return;
+  if (ATA_VOZ_STATE.idx >= ATA_VOZ_STATE.blocos.length) {
+    ATA_VOZ_STATE.ativa = false;
+    atualizarBotoesLeitorAta('Leitura concluída', false, false);
+    return;
+  }
+  const texto = ATA_VOZ_STATE.blocos[ATA_VOZ_STATE.idx];
+  const utt = new SpeechSynthesisUtterance(texto);
+  utt.lang = 'pt-BR';
+  utt.rate = Number(document.getElementById('ata-voz-rate')?.value || 1.0);
+  const nomeVoz = document.getElementById('ata-voz-select')?.value;
+  if (nomeVoz) {
+    const v = (window.speechSynthesis.getVoices() || []).find(x => x.name === nomeVoz);
+    if (v) utt.voice = v;
+  }
+  utt.onend = () => {
+    if (!ATA_VOZ_STATE.ativa || ATA_VOZ_STATE.pausada) return;
+    ATA_VOZ_STATE.idx += 1;
+    falarProximoBlocoAta();
+  };
+  utt.onerror = () => {
+    if (!ATA_VOZ_STATE.ativa) return;
+    ATA_VOZ_STATE.ativa = false;
+    atualizarBotoesLeitorAta('Leitura interrompida', false, false);
+  };
+  atualizarBotoesLeitorAta(`Lendo (${ATA_VOZ_STATE.idx + 1}/${ATA_VOZ_STATE.blocos.length})...`, true, false);
+  window.speechSynthesis.speak(utt);
+}
+
+function iniciarLeituraAta(id) {
+  if (!('speechSynthesis' in window)) {
+    alert('Seu navegador não suporta leitura em voz alta (Web Speech API). Use Google Chrome ou Microsoft Edge.');
+    return;
+  }
+  const ata = (STATE.atas || []).find(a => Number(a.id) === Number(id));
+  if (!ata) return;
+  pararLeituraAta();
+
+  const dataFmt = ata.data_reuniao ? ata.data_reuniao.split('-').reverse().join('/') : 'data não informada';
+  const trechos = [
+    `${ata.tipo || 'Assembleia Geral'}. ${ata.titulo || ''}.`,
+    `Realizada em ${dataFmt}, no local ${ata.local_reuniao || 'Templo Sede'}.`,
+    ata.presidente ? `Presidência de ${ata.presidente}.` : '',
+    ata.secretario ? `Secretaria de ${ata.secretario}.` : '',
+    ata.pauta ? `Pauta da convocação: ${ata.pauta}.` : '',
+    ata.conteudo ? `Texto da ata: ${ata.conteudo}` : 'Esta ata possui apenas arquivo digitalizado em anexo, sem texto digitado no corpo.',
+    ata.observacoes ? `Observações finais: ${ata.observacoes}` : ''
+  ].filter(Boolean).join(' ');
+
+  const blocos = quebrarTextoParaLeitura(trechos);
+  if (!blocos.length) return;
+  ATA_VOZ_STATE = { ativa: true, pausada: false, blocos, idx: 0 };
+  falarProximoBlocoAta();
+}
+
+function pausarRetomarLeituraAta() {
+  if (!('speechSynthesis' in window) || !ATA_VOZ_STATE.ativa) return;
+  if (!ATA_VOZ_STATE.pausada) {
+    ATA_VOZ_STATE.pausada = true;
+    window.speechSynthesis.cancel();
+    atualizarBotoesLeitorAta(`Pausado (${ATA_VOZ_STATE.idx + 1}/${ATA_VOZ_STATE.blocos.length})`, true, true);
+  } else {
+    ATA_VOZ_STATE.pausada = false;
+    falarProximoBlocoAta();
+  }
+}
+
+function pararLeituraAta() {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+  ATA_VOZ_STATE = { ativa: false, pausada: false, blocos: [], idx: 0 };
+  atualizarBotoesLeitorAta('Pronto para leitura', false, false);
 }
 
 function setFiltroAtasRapido(tipo) {
