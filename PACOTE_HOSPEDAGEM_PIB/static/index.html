@@ -8481,33 +8481,42 @@
             </div>
           </div>
 
-          <!-- GRID PRINCIPAL: FORMULÁRIO DE NOVA CONTA A PAGAR (ESQUERDA) & PAINEL DE CONTAS (DIREITA) -->
-          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <!-- DISPOSIÇÃO VERTICAL: CADASTRO NO TOPO & RELAÇÃO DE CONTAS LOGO ABAIXO -->
+          <div class="space-y-6">
 
-            <!-- FORMULÁRIO DE CADASTRO DE CONTA A PAGAR (4 COLUNAS) -->
-            <div class="lg:col-span-4 bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4 h-fit">
-              <div class="border-b border-slate-100 pb-3">
-                <div class="flex items-center justify-between">
-                  <span class="text-[10px] font-extrabold uppercase tracking-wider bg-rose-100 text-rose-800 px-2.5 py-0.5 rounded-full">Nova Obrigação</span>
-                  <span class="text-[11px] text-slate-400 font-medium">Integrado ao Livro-Caixa</span>
+            <!-- FORMULÁRIO DE CADASTRO DE CONTA A PAGAR (TOPO - LARGURA TOTAL) -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-extrabold uppercase tracking-wider bg-rose-100 text-rose-800 px-2.5 py-0.5 rounded-full">Nova Obrigação</span>
+                    <span class="text-[11px] text-slate-400 font-medium">Integrado ao Livro-Caixa</span>
+                  </div>
+                  <h4 class="font-extrabold text-slate-900 text-base mt-1">Cadastrar Conta a Pagar</h4>
                 </div>
-                <h4 class="font-extrabold text-slate-900 text-base mt-1">Cadastrar Conta a Pagar</h4>
                 <p class="text-xs text-slate-500">Registre contas únicas, boletos ou despesas parceladas/recorrentes.</p>
               </div>
 
               <form onsubmit="salvarNovaContaAPagar(event)" class="space-y-3 text-xs">
-                <div>
-                  <label class="font-bold text-slate-700 block mb-1">Fornecedor / Credor / Favorecido *</label>
-                  <input type="text" id="cp-fornecedor" required placeholder="Ex: Enel, Sabesp, Kalunga, Pr. Ivan..." class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white text-slate-800 focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                <!-- LINHA 1: FORNECEDOR, DESCRIÇÃO E DOCUMENTO -->
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+                  <div class="md:col-span-4">
+                    <label class="font-bold text-slate-700 block mb-1">Fornecedor / Credor / Favorecido *</label>
+                    <input type="text" id="cp-fornecedor" required placeholder="Ex: Enel, Sabesp, Kalunga, Pr. Ivan..." class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white text-slate-800 focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                  </div>
+                  <div class="md:col-span-5">
+                    <label class="font-bold text-slate-700 block mb-1">Descrição da Conta / Obrigação *</label>
+                    <input type="text" id="cp-descricao" required placeholder="Ex: Conta de Energia Elétrica, Material EBD..." class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white text-slate-800 focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                  </div>
+                  <div class="md:col-span-3">
+                    <label class="font-bold text-slate-700 block mb-1">Nº Documento / Boleto</label>
+                    <input type="text" id="cp-documento" placeholder="NF, Boleto, Recibo..." class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white text-slate-800 focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                  </div>
                 </div>
 
-                <div>
-                  <label class="font-bold text-slate-700 block mb-1">Descrição da Conta / Obrigação *</label>
-                  <input type="text" id="cp-descricao" required placeholder="Ex: Conta de Energia Elétrica, Material EBD..." class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white text-slate-800 focus:ring-2 focus:ring-rose-500 focus:outline-none" />
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div>
+                <!-- LINHA 2: CATEGORIA, MINISTÉRIO, VENCIMENTO E VALOR -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
+                  <div class="lg:col-span-4">
                     <label class="font-bold text-slate-700 block mb-1">Categoria / Conta *</label>
                     <select id="cp-categoria" class="w-full border border-slate-300 rounded-xl px-2.5 py-2 bg-white font-semibold text-slate-800 focus:ring-2 focus:ring-rose-500">
                       <option value="Despesas Fixas">🏠 Despesas Fixas (Água, Luz, Net, Aluguel)</option>
@@ -8522,25 +8531,23 @@
                       <option value="Gráfica /Livraria/ADM">📚 Gráfica, Livraria e ADM</option>
                     </select>
                   </div>
-                  <div>
-                    <label class="font-bold text-slate-700 block mb-1">Nº Documento / Boleto</label>
-                    <input type="text" id="cp-documento" placeholder="NF, Boleto, Recibo..." class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white text-slate-800 focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                  <div class="lg:col-span-4">
+                    <label class="font-bold text-slate-700 block mb-1">Centro de Custo / Ministério (Opcional)</label>
+                    <select id="cp-ministerio" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white text-slate-800"></select>
                   </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-2.5">
-                  <div>
+                  <div class="lg:col-span-2">
                     <label class="font-bold text-slate-700 block mb-1">Data de Vencimento *</label>
                     <input type="date" id="cp-vencimento" required class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white font-bold text-slate-800 focus:ring-2 focus:ring-rose-500" />
                   </div>
-                  <div>
+                  <div class="lg:col-span-2">
                     <label class="font-bold text-slate-700 block mb-1">Valor (R$) *</label>
                     <input type="number" step="0.01" min="0.01" id="cp-valor" required placeholder="0,00" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white font-black text-rose-700 text-sm focus:ring-2 focus:ring-rose-500" />
                   </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-2.5">
-                  <div>
+                <!-- LINHA 3: MEIO PGTO, STATUS, PARCELAS, OBSERVAÇÕES E BOTÃO -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end bg-slate-50/80 p-3 rounded-xl border border-slate-200">
+                  <div class="lg:col-span-2">
                     <label class="font-bold text-slate-700 block mb-1">Meio de Pagamento</label>
                     <select id="cp-forma" class="w-full border border-slate-300 rounded-xl px-2.5 py-2 bg-white font-semibold text-slate-800">
                       <option value="Boleto">📄 Boleto Bancário</option>
@@ -8550,59 +8557,48 @@
                       <option value="Dinheiro">💵 Dinheiro / Caixa</option>
                     </select>
                   </div>
-                  <div>
+                  <div class="lg:col-span-2">
                     <label class="font-bold text-slate-700 block mb-1">Status Inicial</label>
                     <select id="cp-status" class="w-full border border-slate-300 rounded-xl px-2.5 py-2 bg-white font-bold text-slate-800">
                       <option value="Em Aberto">⏳ Em Aberto (A Pagar)</option>
                       <option value="Pago">✅ Já Pago (Baixar Agora)</option>
                     </select>
                   </div>
-                </div>
-
-                <!-- RECORRÊNCIA / PARCELAMENTO -->
-                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                  <div class="grid grid-cols-2 gap-2">
-                    <div>
-                      <label class="font-bold text-slate-700 block mb-1 text-[11px]">Qtd. Parcelas / Meses</label>
-                      <select id="cp-parcelas" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 bg-white font-bold text-slate-800 text-xs">
-                        <option value="1">1x (Conta Única)</option>
-                        <option value="2">2x Mensais</option>
-                        <option value="3">3x Mensais</option>
-                        <option value="4">4x Mensais</option>
-                        <option value="5">5x Mensais</option>
-                        <option value="6">6x Semestrais</option>
-                        <option value="10">10x Mensais</option>
-                        <option value="12">12x Anuais (Fixa)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label class="font-bold text-slate-700 block mb-1 text-[11px]">Valor Informado é:</label>
-                      <select id="cp-modo-valor" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 bg-white font-semibold text-slate-800 text-xs">
-                        <option value="PARCELA">Valor de Cada Parcela</option>
-                        <option value="TOTAL">Valor Total a Dividir</option>
-                      </select>
-                    </div>
+                  <div class="lg:col-span-2">
+                    <label class="font-bold text-slate-700 block mb-1">Qtd. Parcelas / Meses</label>
+                    <select id="cp-parcelas" class="w-full border border-slate-300 rounded-xl px-2 py-2 bg-white font-bold text-slate-800">
+                      <option value="1">1x (Conta Única)</option>
+                      <option value="2">2x Mensais</option>
+                      <option value="3">3x Mensais</option>
+                      <option value="4">4x Mensais</option>
+                      <option value="5">5x Mensais</option>
+                      <option value="6">6x Semestrais</option>
+                      <option value="10">10x Mensais</option>
+                      <option value="12">12x Anuais (Fixa)</option>
+                    </select>
+                  </div>
+                  <div class="lg:col-span-2">
+                    <label class="font-bold text-slate-700 block mb-1">Valor Informado é:</label>
+                    <select id="cp-modo-valor" class="w-full border border-slate-300 rounded-xl px-2 py-2 bg-white font-semibold text-slate-800">
+                      <option value="PARCELA">Valor de Cada Parcela</option>
+                      <option value="TOTAL">Valor Total a Dividir</option>
+                    </select>
+                  </div>
+                  <div class="lg:col-span-2">
+                    <label class="font-bold text-slate-700 block mb-1">Observações</label>
+                    <input type="text" id="cp-observacoes" placeholder="Cód. barras, PIX..." class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white text-slate-800" />
+                  </div>
+                  <div class="lg:col-span-2">
+                    <button type="submit" class="w-full bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-extrabold py-2.5 px-3 rounded-xl shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer text-xs whitespace-nowrap">
+                      <span>💾</span> Cadastrar Conta
+                    </button>
                   </div>
                 </div>
-
-                <div>
-                  <label class="font-bold text-slate-700 block mb-1">Centro de Custo / Ministério (Opcional)</label>
-                  <select id="cp-ministerio" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white text-slate-800"></select>
-                </div>
-
-                <div>
-                  <label class="font-bold text-slate-700 block mb-1">Observações</label>
-                  <input type="text" id="cp-observacoes" placeholder="Código de barras, chave PIX, detalhes..." class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white text-slate-800" />
-                </div>
-
-                <button type="submit" class="w-full bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-extrabold py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer text-xs">
-                  <span>💾</span> Cadastrar Conta a Pagar
-                </button>
               </form>
             </div>
 
-            <!-- LISTAGEM E CONTROLE DE BAIXAS DE CONTAS A PAGAR (8 COLUNAS) -->
-            <div class="lg:col-span-8 bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
+            <!-- LISTAGEM E CONTROLE DE BAIXAS DE CONTAS A PAGAR (ABAIXO - LARGURA TOTAL) -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
               <div class="flex flex-col gap-3 pb-3 border-b border-slate-100">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
