@@ -14865,16 +14865,18 @@ function inicializarSistema() {
 
 
 function inicializarBloqueioAutofillFiltros() {
-  const seletores = 'input[type="search"], input[id*="busca"], input[id*="filtro"]';
-  document.querySelectorAll(seletores).forEach((el, idx) => {
+  const ignorarIds = ['cep', 'logradouro', 'endereco', 'bairro', 'cidade', 'uf', 'email', 'login', 'senha'];
+  document.querySelectorAll('input[type="text"], input[type="search"]').forEach((el, idx) => {
     const idLow = String(el.id || '').toLowerCase();
-    if (idLow.includes('cep') || el.dataset.autofillBlocked === '1') return;
+    if (ignorarIds.some(k => idLow.includes(k)) || el.dataset.autofillBlocked === '1' || el.hasAttribute('data-keep-readonly')) return;
     el.dataset.autofillBlocked = '1';
     el.setAttribute('autocomplete', 'off');
     el.setAttribute('aria-autocomplete', 'none');
     el.setAttribute('data-lpignore', 'true');
     el.setAttribute('data-form-type', 'other');
-    el.setAttribute('name', `kairos_search_nofill_${idx}_${Math.floor(Math.random() * 100000)}`);
+    if (!el.getAttribute('name')) {
+      el.setAttribute('name', `kairos_nofill_${idx}_${Math.floor(Math.random() * 100000)}`);
+    }
     el.setAttribute('readonly', 'readonly');
     el.style.cursor = 'text';
     const liberarDigitacao = () => {
