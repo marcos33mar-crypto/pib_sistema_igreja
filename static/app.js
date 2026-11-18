@@ -14868,16 +14868,22 @@ function inicializarBloqueioAutofillFiltros() {
   const seletores = 'input[type="search"], input[id*="busca"], input[id*="filtro"]';
   document.querySelectorAll(seletores).forEach((el, idx) => {
     const idLow = String(el.id || '').toLowerCase();
-    if (idLow.includes('cep')) return;
-    el.setAttribute('autocomplete', 'one-time-code');
+    if (idLow.includes('cep') || el.dataset.autofillBlocked === '1') return;
+    el.dataset.autofillBlocked = '1';
+    el.setAttribute('autocomplete', 'off');
     el.setAttribute('aria-autocomplete', 'none');
     el.setAttribute('data-lpignore', 'true');
     el.setAttribute('data-form-type', 'other');
-    el.setAttribute('name', `kairos_filtro_${idx}_${Date.now()}`);
+    el.setAttribute('name', `kairos_search_nofill_${idx}_${Math.floor(Math.random() * 100000)}`);
     el.setAttribute('readonly', 'readonly');
-    el.addEventListener('focus', () => {
-      setTimeout(() => el.removeAttribute('readonly'), 40);
-    });
+    el.style.cursor = 'text';
+    const liberarDigitacao = () => {
+      if (el.hasAttribute('readonly')) {
+        el.removeAttribute('readonly');
+      }
+    };
+    el.addEventListener('keydown', liberarDigitacao);
+    el.addEventListener('paste', liberarDigitacao);
     el.addEventListener('blur', () => {
       el.setAttribute('readonly', 'readonly');
     });
