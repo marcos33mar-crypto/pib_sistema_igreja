@@ -14864,31 +14864,34 @@ function inicializarSistema() {
 
 
 
+function inicializarBloqueioAutofillFiltros() {
+  const seletores = 'input[type="search"], input[id*="busca"], input[id*="filtro"]';
+  document.querySelectorAll(seletores).forEach((el, idx) => {
+    const idLow = String(el.id || '').toLowerCase();
+    if (idLow.includes('cep')) return;
+    el.setAttribute('autocomplete', 'one-time-code');
+    el.setAttribute('aria-autocomplete', 'none');
+    el.setAttribute('data-lpignore', 'true');
+    el.setAttribute('data-form-type', 'other');
+    el.setAttribute('name', `kairos_filtro_${idx}_${Date.now()}`);
+    el.setAttribute('readonly', 'readonly');
+    el.addEventListener('focus', () => {
+      setTimeout(() => el.removeAttribute('readonly'), 40);
+    });
+    el.addEventListener('blur', () => {
+      el.setAttribute('readonly', 'readonly');
+    });
+  });
+}
+
 if (document.readyState === 'loading') {
-
-
-
-
-
-
-
-  document.addEventListener('DOMContentLoaded', inicializarSistema);
-
-
-
-
-
-
-
+  document.addEventListener('DOMContentLoaded', () => {
+    inicializarSistema();
+    inicializarBloqueioAutofillFiltros();
+  });
 } else {
-
-
-
-
-
-
-
   inicializarSistema();
+  inicializarBloqueioAutofillFiltros();
 
 
 
