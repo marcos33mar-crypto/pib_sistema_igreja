@@ -8396,6 +8396,14 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-2">
+              <!-- Filtro de Ano -->
+              <select id="cp-filtro-ano" onchange="renderContasAPagar()" class="bg-slate-50 border border-slate-300 text-slate-800 text-xs font-bold rounded-xl px-3 py-1.5 focus:ring-2 focus:ring-rose-500 cursor-pointer">
+                <option value="TODOS">🗓️ Todos os Anos</option>
+                <option value="2025">2025</option>
+                <option value="2026">2026</option>
+                <option value="2027">2027</option>
+              </select>
+
               <!-- Filtro de Mês / Exercício -->
               <select id="cp-filtro-mes" onchange="renderContasAPagar()" class="bg-slate-50 border border-slate-300 text-slate-800 text-xs font-bold rounded-xl px-3 py-1.5 focus:ring-2 focus:ring-rose-500 cursor-pointer">
                 <option value="TODOS">📅 Todos os Meses do Exercício</option>
@@ -8595,10 +8603,15 @@
 
             <!-- LISTAGEM E CONTROLE DE BAIXAS DE CONTAS A PAGAR (8 COLUNAS) -->
             <div class="lg:col-span-8 bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
-              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                <div>
-                  <h4 class="font-extrabold text-slate-900 text-base">Relação de Contas a Pagar & Obrigações</h4>
-                  <p class="text-xs text-slate-500">Clique em <strong>"✓ Pagar / Dar Baixa"</strong> para quitar a obrigação e registrar a saída no Livro-Caixa automaticamente</p>
+              <div class="flex flex-col gap-3 pb-3 border-b border-slate-100">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h4 class="font-extrabold text-slate-900 text-base">Relação de Contas a Pagar & Obrigações</h4>
+                    <p class="text-xs text-slate-500">Clique em <strong>"✓ Pagar / Dar Baixa"</strong> para quitar a obrigação e registrar a saída no Livro-Caixa automaticamente</p>
+                  </div>
+                  <div id="cp-resumo-filtro" class="text-[11px] font-bold px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 whitespace-nowrap">
+                    0 conta(s) • R$ 0,00
+                  </div>
                 </div>
 
                 <div class="flex flex-wrap items-center gap-2">
@@ -8606,8 +8619,8 @@
                     type="text"
                     id="cp-busca-input"
                     oninput="renderContasAPagar()"
-                    placeholder="🔍 Buscar fornecedor, descrição..."
-                    class="border border-slate-300 rounded-xl px-3 py-1.5 text-xs bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500"
+                    placeholder="🔍 Buscar fornecedor, descrição, doc..."
+                    class="border border-slate-300 rounded-xl px-3 py-1.5 text-xs bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500 min-w-[200px] flex-1"
                   />
                   <select id="cp-filtro-status" onchange="renderContasAPagar()" class="border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-700 bg-white">
                     <option value="TODAS">📋 Todos os Status</option>
@@ -8616,6 +8629,30 @@
                     <option value="PROXIMOS7">📅 Vencendo em até 7 Dias</option>
                     <option value="PAGO">✅ Pagas / Quitadas</option>
                   </select>
+                  <select id="cp-filtro-categoria" onchange="renderContasAPagar()" class="border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white">
+                    <option value="">🏷️ Todas as Categorias</option>
+                  </select>
+                  <select id="cp-filtro-ministerio" onchange="renderContasAPagar()" class="border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white">
+                    <option value="">🏛️ Todos os Ministérios</option>
+                  </select>
+                  <select id="cp-filtro-forma" onchange="renderContasAPagar()" class="border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white">
+                    <option value="">💳 Todas as Formas</option>
+                    <option value="Boleto">📄 Boleto</option>
+                    <option value="Transferência">🏦 Transferência</option>
+                    <option value="Débito em Conta">🏧 Débito em Conta</option>
+                    <option value="Dinheiro">💵 Dinheiro</option>
+                    <option value="PIX">⚡ PIX</option>
+                    <option value="Cartão">💳 Cartão</option>
+                  </select>
+                  <select id="cp-filtro-ordem" onchange="renderContasAPagar()" class="border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white">
+                    <option value="VENC_ASC">↕️ Vencimento (Mais Próximo)</option>
+                    <option value="VENC_DESC">↕️ Vencimento (Mais Distante)</option>
+                    <option value="VALOR_DESC">💰 Maior Valor</option>
+                    <option value="VALOR_ASC">💰 Menor Valor</option>
+                  </select>
+                  <button type="button" onclick="limparFiltrosContasPagar()" class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-200 cursor-pointer transition">
+                    🧹 Limpar
+                  </button>
                 </div>
               </div>
 
@@ -22895,7 +22932,7 @@
   </div>
 
   <script src="/qrcode.min.js"></script>
-  <script src="/app.js?v=20261117_v256_leitor_atas_seq"></script>
+  <script src="/app.js?v=20261117_v257_filtros_cp"></script>
 
 
 

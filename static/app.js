@@ -21297,6 +21297,24 @@ function filtrarStatusContasPagar(statusCod) {
   renderContasAPagar();
 }
 
+function limparFiltrosContasPagar() {
+  const ids = {
+    'cp-filtro-ano': 'TODOS',
+    'cp-filtro-mes': 'TODOS',
+    'cp-filtro-status': 'TODAS',
+    'cp-filtro-categoria': '',
+    'cp-filtro-ministerio': '',
+    'cp-filtro-forma': '',
+    'cp-filtro-ordem': 'VENC_ASC',
+    'cp-busca-input': ''
+  };
+  Object.entries(ids).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+  });
+  renderContasAPagar();
+}
+
 function renderContasAPagar() {
   const sec = document.getElementById('tes-subtab-contaspagar');
   const listaCompleta = Array.isArray(STATE.contas_pagar) ? STATE.contas_pagar : [];
@@ -21329,14 +21347,63 @@ function renderContasAPagar() {
       STATE.ministerios.map(m => `<option value="${m.id}">🏛️ ${escapeHtml(m.nome)}</option>`).join('');
   }
 
+  // Popula filtro dinâmico de Anos, Categorias e Ministérios em Contas a Pagar
+  const selAnoFiltro = document.getElementById('cp-filtro-ano');
+  if (selAnoFiltro) {
+    const valAtualAno = selAnoFiltro.value || 'TODOS';
+    const anosSet = new Set(['2025', '2026', '2027']);
+    listaCompleta.forEach(c => {
+      const a = String(c.data_vencimento || '').substring(0, 4);
+      if (/^\d{4}$/.test(a)) anosSet.add(a);
+    });
+    const anosOrdenados = Array.from(anosSet).sort();
+    selAnoFiltro.innerHTML = '<option value="TODOS">🗓️ Todos os Anos</option>' +
+      anosOrdenados.map(a => `<option value="${a}">${a}</option>`).join('');
+    if (Array.from(selAnoFiltro.options).some(o => o.value === valAtualAno)) {
+      selAnoFiltro.value = valAtualAno;
+    }
+  }
+
+  const selCatFiltro = document.getElementById('cp-filtro-categoria');
+  if (selCatFiltro) {
+    const valAtualCat = selCatFiltro.value || '';
+    const cats = Array.from(new Set(listaCompleta.map(c => String(c.categoria || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    selCatFiltro.innerHTML = '<option value="">🏷️ Todas as Categorias</option>' +
+      cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+    if (Array.from(selCatFiltro.options).some(o => o.value === valAtualCat)) {
+      selCatFiltro.value = valAtualCat;
+    }
+  }
+
+  const selMinFiltro = document.getElementById('cp-filtro-ministerio');
+  if (selMinFiltro) {
+    const valAtualMin = selMinFiltro.value || '';
+    const optsMin = ['<option value="">🏛️ Todos os Ministérios</option>', '<option value="GERAL">⛪ Geral da Igreja (Sem Ministério)</option>'];
+    if (Array.isArray(STATE.ministerios)) {
+      STATE.ministerios.forEach(m => optsMin.push(`<option value="${m.id}">🏛️ ${escapeHtml(m.nome)}</option>`));
+    }
+    selMinFiltro.innerHTML = optsMin.join('');
+    if (Array.from(selMinFiltro.options).some(o => o.value === valAtualMin)) {
+      selMinFiltro.value = valAtualMin;
+    }
+  }
+
+  const filtroAno = document.getElementById('cp-filtro-ano')?.value || 'TODOS';
   const filtroMes = document.getElementById('cp-filtro-mes')?.value || 'TODOS';
   const filtroStatus = document.getElementById('cp-filtro-status')?.value || 'TODAS';
-  const termoBusca = (document.getElementById('cp-busca-input')?.value || '').trim().toLowerCase();
+  const filtroCat = document.getElementById('cp-filtro-categoria')?.value || '';
+  const filtroMin = document.getElementById('cp-filtro-ministerio')?.value || '';
+  const filtroForma = document.getElementById('cp-filtro-forma')?.value || '';
+  const filtroOrdem = document.getElementById('cp-filtro-ordem')?.value || 'VENC_ASC';
+  const termoBuscaRaw = (document.getElementById('cp-busca-input')?.value || '').trim();
+  const termoBusca = typeof normalizarTextoFiltro === 'function' ? normalizarTextoFiltro(termoBuscaRaw) : termoBuscaRaw.toLowerCase();
 
-  // Filtra pelo mês se selecionado
+  // Filtra pelo ano e mês selecionados (base para os 5 KPIs do período)
   const listaMes = listaCompleta.filter(cp => {
+    const vencStr = String(cp.data_vencimento || '');
+    if (filtroAno !== 'TODOS' && vencStr.substring(0, 4) !== filtroAno) return false;
     if (filtroMes !== 'TODOS') {
-      const m = parseInt(String(cp.data_vencimento || '').substring(5, 7), 10);
+      const m = parseInt(vencStr.substring(5, 7), 10);
       if (m !== parseInt(filtroMes, 10)) return false;
     }
     return true;
@@ -21403,7 +21470,7 @@ function renderContasAPagar() {
     }
   }
 
-  // Filtra a tabela por status e busca
+  // Filtra a tabela por status, categoria, ministério, forma de pagamento e busca
   const listaFiltrada = listaMes.filter(cp => {
     const sit = classificarSituacaoContaPagar(cp, hojeISO);
     if (filtroStatus === 'ABERTO' && cp.status === 'Pago') return false;
@@ -21411,12 +21478,34 @@ function renderContasAPagar() {
     if (filtroStatus === 'PROXIMOS7' && sit.codigo !== 'HOJE' && sit.codigo !== 'PROXIMOS7') return false;
     if (filtroStatus === 'PAGO' && cp.status !== 'Pago') return false;
 
+    if (filtroCat && String(cp.categoria || '').trim() !== filtroCat) return false;
+    if (filtroMin === 'GERAL' && cp.ministerio_id) return false;
+    if (filtroMin && filtroMin !== 'GERAL' && String(cp.ministerio_id || '') !== String(filtroMin)) return false;
+
+    if (filtroForma) {
+      const fNorm = typeof normalizarTextoFiltro === 'function' ? normalizarTextoFiltro(cp.forma_pagamento) : String(cp.forma_pagamento || '').toLowerCase();
+      const ffNorm = typeof normalizarTextoFiltro === 'function' ? normalizarTextoFiltro(filtroForma) : filtroForma.toLowerCase();
+      if (!fNorm.includes(ffNorm)) return false;
+    }
+
     if (termoBusca) {
-      const alvo = `${cp.fornecedor || ''} ${cp.descricao || ''} ${cp.categoria || ''} ${cp.documento || ''} ${cp.ministerio_nome || ''} ${cp.observacoes || ''}`.toLowerCase();
+      const bruto = `${cp.fornecedor || ''} ${cp.descricao || ''} ${cp.categoria || ''} ${cp.documento || ''} ${cp.ministerio_nome || ''} ${cp.forma_pagamento || ''} ${cp.observacoes || ''}`;
+      const alvo = typeof normalizarTextoFiltro === 'function' ? normalizarTextoFiltro(bruto) : bruto.toLowerCase();
       if (!alvo.includes(termoBusca)) return false;
     }
     return true;
   });
+
+  // Ordenação selecionada
+  listaFiltrada.sort((a, b) => {
+    if (filtroOrdem === 'VENC_DESC') return String(b.data_vencimento || '').localeCompare(String(a.data_vencimento || ''));
+    if (filtroOrdem === 'VALOR_DESC') return Number(b.valor || 0) - Number(a.valor || 0);
+    if (filtroOrdem === 'VALOR_ASC') return Number(a.valor || 0) - Number(b.valor || 0);
+    return String(a.data_vencimento || '').localeCompare(String(b.data_vencimento || ''));
+  });
+
+  const totalFiltrado = listaFiltrada.reduce((acc, c) => acc + Number(c.valor || 0), 0);
+  setTxt('cp-resumo-filtro', `${listaFiltrada.length} conta(s) • ${formatBRL(totalFiltrado)}`);
 
   const tbody = document.getElementById('cp-tabela-tbody');
   if (!tbody) return;
