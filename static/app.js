@@ -14834,6 +14834,134 @@ function openMultiUserModal() {
 
 
 
+function filtrarMinisteriosPainel() {
+  const termo = (document.getElementById('filtro-ministerios-busca')?.value || '').trim().toLowerCase();
+  const lista = document.getElementById('painel-ministerios-list');
+  if (!lista) return;
+  let visiveis = 0;
+  Array.from(lista.children).forEach(card => {
+    const ok = !termo || (card.textContent || '').toLowerCase().includes(termo);
+    card.classList.toggle('hidden', !ok);
+    if (ok) visiveis++;
+  });
+  const contador = document.getElementById('min-painel-contador');
+  if (contador) contador.textContent = `${visiveis} ministério(s)`;
+}
+
+function aoMudarNomeMembroNoCadastro() {
+  const nome = (document.getElementById('usr-nome')?.value || '').trim().toLowerCase();
+  if (!nome) return;
+  const membro = (STATE.membros || []).find(m => (m.nome || '').trim().toLowerCase() === nome);
+  if (!membro) return;
+  const emailEl = document.getElementById('usr-email');
+  const cargoEl = document.getElementById('usr-cargo');
+  if (emailEl && !emailEl.value.trim() && membro.email) emailEl.value = membro.email;
+  if (cargoEl && !cargoEl.value.trim() && (membro.cargo || membro.funcao)) cargoEl.value = membro.cargo || membro.funcao;
+}
+
+function abrirModalRestaurarBackup() {
+  const html = `
+    <div class="p-6 space-y-4">
+      <div class="border-b border-slate-200 pb-3">
+        <span class="text-[10px] font-extrabold uppercase tracking-wider bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full">Administração</span>
+        <h3 class="text-lg font-extrabold text-slate-900 mt-1">Restaurar Banco de Dados (.db)</h3>
+      </div>
+      <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900">
+        <strong>Atenção:</strong> A restauração substitui os dados atuais pelo arquivo selecionado. Um backup de segurança automático (<code>.bak</code>) é salvo no servidor antes da substituição.
+      </div>
+      <form onsubmit="confirmarRestauracaoBackup(event)" class="space-y-4 text-xs">
+        <div>
+          <label class="font-bold text-slate-700 block mb-1.5">Arquivo de Backup SQLite (.db) *</label>
+          <input type="file" id="restore-db-file" accept=".db,.sqlite,.sqlite3" required class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white" />
+        </div>
+        <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="fecharModalCustom()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer">Cancelar</button>
+          <button type="submit" id="btn-confirmar-restore" class="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold cursor-pointer">📥 Restaurar Banco</button>
+        </div>
+      </form>
+    </div>
+  `;
+  abrirModalCustom(html, false, 'normal');
+}
+
+async function confirmarRestauracaoBackup(e) {
+  e.preventDefault();
+  const fileInput = document.getElementById('restore-db-file');
+  const file = fileInput?.files?.[0];
+  if (!file) return;
+  if (!confirm(`Confirma a restauração do banco de dados usando "${file.name}"?`)) return;
+  const btn = document.getElementById('btn-confirmar-restore');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Restaurando...'; }
+  try {
+    const b64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    const res = await apiPost('/api/sistema/restaurar-db', { database_base64: b64 });
+    if (res && res.ok) {
+      fecharModalCustom();
+      showLiveToast('✅ Banco de dados restaurado com sucesso!');
+      fetchBootstrap();
+    } else {
+      alert((res && res.mensagem) || 'Erro ao restaurar backup.');
+    }
+  } catch (err) {
+    console.error('Erro ao restaurar backup:', err);
+    alert('Falha ao ler ou enviar o arquivo de backup.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📥 Restaurar Banco'; }
+  }
+}
+
+function abrirModalEditarConsideracoesEmprestimo(id) {
+  const emp = (STATE.patrimonio_emprestimos || []).find(x => Number(x.id) === Number(id));
+  if (!emp) return;
+  const html = `
+    <div class="p-6 space-y-4">
+      <div class="border-b border-slate-200 pb-3">
+        <span class="text-[10px] font-extrabold uppercase tracking-wider bg-indigo-100 text-indigo-800 px-2.5 py-0.5 rounded-full">Empréstimo #${emp.id}</span>
+        <h3 class="text-lg font-extrabold text-slate-900 mt-1">Editar Considerações do Empréstimo</h3>
+        <p class="text-xs text-slate-500">${escapeHtml(emp.item || '')} — ${escapeHtml(emp.solicitante_nome || '')}</p>
+      </div>
+      <form onsubmit="salvarConsideracoesEmprestimo(event, ${emp.id})" class="space-y-3 text-xs">
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Considerações na Saída</label>
+          <textarea id="edit-emp-obs-saida" rows="3" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white">${escapeHtml(emp.observacoes_saida || '')}</textarea>
+        </div>
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Considerações no Retorno</label>
+          <textarea id="edit-emp-obs-retorno" rows="3" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white">${escapeHtml(emp.observacoes_retorno || '')}</textarea>
+        </div>
+        <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="fecharModalCustom()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer">Cancelar</button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold cursor-pointer">💾 Salvar Considerações</button>
+        </div>
+      </form>
+    </div>
+  `;
+  abrirModalCustom(html, false, 'normal');
+}
+
+async function salvarConsideracoesEmprestimo(e, id) {
+  e.preventDefault();
+  const obsSaida = document.getElementById('edit-emp-obs-saida')?.value || '';
+  const obsRetorno = document.getElementById('edit-emp-obs-retorno')?.value || '';
+  const res = await apiPost('/api/patrimonio/emprestimo/atualizar-observacoes', {
+    id,
+    observacoes_saida: obsSaida,
+    observacoes_retorno: obsRetorno
+  });
+  if (res && res.ok) {
+    fecharModalCustom();
+    showLiveToast('✅ Considerações atualizadas com sucesso!');
+    fetchBootstrap();
+  } else {
+    alert((res && res.mensagem) || 'Erro ao atualizar considerações.');
+  }
+}
+
 function closeModal() {
   if (typeof pararLeituraAta === 'function') pararLeituraAta();
   const overlay = document.getElementById('modal-overlay');
@@ -20188,12 +20316,10 @@ async function executarTrocaSenhaObrigatoria(e) {
 
     if (res.ok && data.ok) {
       if (CURRENT_OPERATOR && Number(CURRENT_OPERATOR.id) === userId) {
-        CURRENT_OPERATOR.senha = novaSenha;
         CURRENT_OPERATOR.senha_alterada = 1;
       }
       const uDb = (STATE.usuarios || []).find(u => Number(u.id) === userId);
       if (uDb) {
-        uDb.senha = novaSenha;
         uDb.senha_alterada = 1;
       }
 
@@ -20259,7 +20385,6 @@ Ele será obrigado a cadastrar uma nova senha pessoal segura (com letras, númer
       showLiveToast(`🔄 Senha de ${nome} resetada para 123456 com sucesso!`);
       const uDb = (STATE.usuarios || []).find(u => Number(u.id) === userId);
       if (uDb) {
-        uDb.senha = '123456';
         uDb.senha_alterada = 0;
       }
       renderPatrimonioEUsuarios();
