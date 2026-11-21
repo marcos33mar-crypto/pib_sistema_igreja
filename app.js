@@ -9332,7 +9332,7 @@ function editarPatrimonio(id) {
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="font-bold text-slate-700 block mb-1">Data de Compra</label>
-            <input type="text" id="edit-pat-data-compra" value="${escapeHtml(p.data_compra || '')}" placeholder="AAAA-MM-DD" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white" />
+            <input type="date" id="edit-pat-data-compra" value="${escapeHtml((String(p.data_compra || '').includes('/') ? String(p.data_compra).split('/').reverse().join('-') : String(p.data_compra || '')).substring(0, 10))}" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white font-semibold text-slate-800" />
           </div>
           <div>
             <label class="font-bold text-slate-700 block mb-1">Nota Fiscal</label>
