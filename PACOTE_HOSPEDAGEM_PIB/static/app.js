@@ -9122,7 +9122,13 @@ function renderPatrimonioEUsuarios() {
                   ${p.codigo}
                 </span>
                 <div>
-                  <strong class="text-slate-900 block text-xs">${p.item}</strong>
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <strong class="text-slate-900 text-xs">${escapeHtml(p.item)}</strong>
+                    ${Number(p.quantidade || 1) > 1 ? `<span class="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-100 text-indigo-800 border border-indigo-200">${Number(p.quantidade)} unid.</span>` : ''}
+                    ${p.situacao ? `<span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold ${String(p.situacao).toLowerCase().includes('inutil') ? 'bg-rose-100 text-rose-800' : String(p.situacao).toLowerCase().includes('estoque') ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'}">${escapeHtml(p.situacao)}</span>` : ''}
+                  </div>
+                  ${(p.data_compra || p.nota_fiscal) ? `<div class="text-[10px] text-slate-500 mt-0.5">${p.data_compra ? `Compra: ${formatDateBR(p.data_compra)}` : ''}${p.data_compra && p.nota_fiscal ? ' • ' : ''}${p.nota_fiscal ? `NF: ${escapeHtml(p.nota_fiscal)}` : ''}</div>` : ''}
+                  ${p.observacoes ? `<div class="text-[10px] text-slate-400 mt-0.5">${escapeHtml(p.observacoes)}</div>` : ''}
                   ${empAtivo ? `
                     <div class="mt-1 flex items-center gap-1.5 flex-wrap">
                       <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200">

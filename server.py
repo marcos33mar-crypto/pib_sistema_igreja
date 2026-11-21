@@ -1245,6 +1245,21 @@ def init_db():
 
                 cur.execute(f"ALTER TABLE membros ADD COLUMN {col_name} {col_type}")
 
+        # Garante colunas estendidas de inventario em patrimonio (quantidade, situacao, NF, etc.)
+        cols_pat = [r["name"] for r in cur.execute("PRAGMA table_info(patrimonio)").fetchall()]
+        novas_cols_pat = [
+            ("quantidade", "INTEGER DEFAULT 1"),
+            ("situacao", "TEXT DEFAULT 'Em uso'"),
+            ("motivo_entrada", "TEXT DEFAULT ''"),
+            ("motivo_baixa", "TEXT DEFAULT ''"),
+            ("data_compra", "TEXT DEFAULT ''"),
+            ("nota_fiscal", "TEXT DEFAULT ''"),
+            ("observacoes", "TEXT DEFAULT ''"),
+        ]
+        for col_name, col_type in novas_cols_pat:
+            if col_name not in cols_pat:
+                cur.execute(f"ALTER TABLE patrimonio ADD COLUMN {col_name} {col_type}")
+
 
 
         # Garante flexibilidade de membros e digitacao livre nas escalas
@@ -7058,9 +7073,9 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                     cur.execute(
 
-                        """INSERT INTO patrimonio (codigo, item, ministerio_id, localizacao, valor_aquisicao, estado, responsavel)
+                        """INSERT INTO patrimonio (codigo, item, ministerio_id, localizacao, valor_aquisicao, estado, responsavel, quantidade, situacao, motivo_entrada, motivo_baixa, data_compra, nota_fiscal, observacoes)
 
-                        VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
 
                         (
 
@@ -7077,6 +7092,20 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                             body.get("estado", "Bom"),
 
                             body.get("responsavel", ""),
+
+                            int(body.get("quantidade", 1) or 1),
+
+                            body.get("situacao", "Em uso"),
+
+                            body.get("motivo_entrada", ""),
+
+                            body.get("motivo_baixa", ""),
+
+                            body.get("data_compra", ""),
+
+                            body.get("nota_fiscal", ""),
+
+                            body.get("observacoes", ""),
 
                         ),
 
