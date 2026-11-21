@@ -2635,10 +2635,25 @@ async function fetchBootstrap() {
   isFetchingBootstrap = true;
 
   try {
-    const res = await fetch('/api/bootstrap?_t=' + Date.now());
+    const qsAtual = window.location.search || '';
+    const sep = qsAtual ? '&' : '?';
+    const res = await fetch('/api/bootstrap' + qsAtual + sep + '_t=' + Date.now());
     const data = await res.json();
     STATE = data;
     renderBadgesAndKPIs();
+
+    // Se a sessão local estava marcada como logada mas o cookie expirou no servidor, solicita nova autenticação
+    let sessaoLocal = false;
+    try { sessaoLocal = sessionStorage.getItem('pib_sessao_autenticada') === 'true' || localStorage.getItem('pib_sessao_autenticada') === 'true'; } catch (e) {}
+    const veioPorQRCodeCheck = (window.location.search || '').includes('modo=assembleia') || (window.location.search || '').includes('view=assembleia') || (window.location.search || '').includes('qrcode=1');
+    if (sessaoLocal && data && data.autenticado === false && !veioPorQRCodeCheck && !window._sessaoAssembleiaAtiva) {
+      try {
+        sessionStorage.removeItem('pib_sessao_autenticada');
+        localStorage.removeItem('pib_sessao_autenticada');
+      } catch (e) {}
+      CURRENT_OPERATOR = null;
+      if (typeof abrirTelaLogin === 'function') abrirTelaLogin();
+    }
 
     // Auto-acesso instantâneo para Membros da Assembleia via QR Code (Sem Senha, Apenas Projeção)
     const urlParams = new URLSearchParams(window.location.search);
@@ -3246,6 +3261,9 @@ async function executarLoginSistema(e) {
         localStorage.setItem('pib_auth_user_id', String(user.id));
         localStorage.setItem('pib_auth_timestamp', String(Date.now()));
       } catch (e) {}
+
+      // Carrega os dados completos autenticados do servidor após emitir o cookie HttpOnly
+      await fetchBootstrap();
 
       if (data.exige_troca_senha || (user.senha === '123456' && Number(user.senha_alterada) === 0)) {
         fecharTelaLogin();
@@ -10672,6 +10690,8 @@ function abrirNovoCadastroMembro() {
   const statusCep = document.getElementById('status-cep-mem');
   if (statusCep) statusCep.textContent = '';
   if (document.getElementById('mem-observacoes')) document.getElementById('mem-observacoes').value = '';
+  if (document.getElementById('mem-lgpd-consentimento')) document.getElementById('mem-lgpd-consentimento').checked = false;
+  if (document.getElementById('mem-lgpd-data-label')) document.getElementById('mem-lgpd-data-label').textContent = '';
   if (document.getElementById('mem-profissao')) document.getElementById('mem-profissao').value = '';
   if (document.getElementById('mem-conjuge')) document.getElementById('mem-conjuge').value = '';
   if (document.getElementById('mem-data-casamento')) document.getElementById('mem-data-casamento').value = '';
@@ -10727,6 +10747,10 @@ function editarMembro(id) {
   if (document.getElementById('mem-status')) document.getElementById('mem-status').value = m.status || 'Ativo';
   if (document.getElementById('mem-sala-ebd')) document.getElementById('mem-sala-ebd').value = m.sala_ebd || '';
   if (document.getElementById('mem-observacoes')) document.getElementById('mem-observacoes').value = m.observacoes || '';
+  if (document.getElementById('mem-lgpd-consentimento')) document.getElementById('mem-lgpd-consentimento').checked = Number(m.lgpd_consentimento || 0) === 1;
+  if (document.getElementById('mem-lgpd-data-label')) {
+    document.getElementById('mem-lgpd-data-label').textContent = m.lgpd_data ? `Registrado em: ${m.lgpd_data}` : '';
+  }
 
   // Foto do Membro
   const fotoInp = document.getElementById('mem-foto-base64');
@@ -10906,7 +10930,8 @@ async function salvarMembro(e) {
     funcao_ministerio_2: (document.getElementById('mem-funcao-min-2')?.value || '').trim(),
     tipo_transferencia: document.getElementById('mem-tipo-transferencia')?.value || '',
     motivo_transferencia: (document.getElementById('mem-motivo-transferencia')?.value || '').trim(),
-    observacoes: (document.getElementById('mem-observacoes')?.value || '').trim()
+    observacoes: (document.getElementById('mem-observacoes')?.value || '').trim(),
+    lgpd_consentimento: document.getElementById('mem-lgpd-consentimento')?.checked ? 1 : 0
   };
 
   if (!payload.nome) {

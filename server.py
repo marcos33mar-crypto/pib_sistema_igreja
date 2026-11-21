@@ -22,6 +22,9 @@ import os
 
 import re
 import shutil
+import hashlib
+import hmac
+import secrets
 
 import socket
 
@@ -1229,6 +1232,10 @@ def init_db():
             ("tipo_transferencia", "TEXT DEFAULT ''"),
 
             ("motivo_transferencia", "TEXT DEFAULT ''"),
+
+            ("lgpd_consentimento", "INTEGER DEFAULT 0"),
+
+            ("lgpd_data", "TEXT DEFAULT ''"),
 
         ]
 
@@ -2800,7 +2807,107 @@ def seed_data(conn):
 
 
 
+# ============================================================================
+# SEGURANÇA, HASH DE SENHAS (PBKDF2), SESSÃO HMAC E LGPD
+# ============================================================================
+
+def gerar_hash_senha(senha_raw):
+    s = str(senha_raw or "").strip()
+    salt = secrets.token_hex(16)
+    dk = hashlib.pbkdf2_hmac("sha256", s.encode("utf-8"), salt.encode("utf-8"), 120000).hex()
+    return f"pbkdf2${salt}${dk}"
+
+
+def verificar_senha_segura(senha_digitada, senha_db, senha_alterada=1):
+    s_dig = str(senha_digitada or "").strip()
+    s_db = str(senha_db or "").strip()
+    if not s_dig:
+        return False
+    if s_db.startswith("pbkdf2$"):
+        partes = s_db.split("$")
+        if len(partes) == 3:
+            _, salt, dk_esp = partes
+            dk_calc = hashlib.pbkdf2_hmac("sha256", s_dig.encode("utf-8"), salt.encode("utf-8"), 120000).hex()
+            if hmac.compare_digest(dk_calc, dk_esp):
+                return True
+            if int(senha_alterada or 0) == 0 and s_dig == "123456":
+                dk_123 = hashlib.pbkdf2_hmac("sha256", b"123456", salt.encode("utf-8"), 120000).hex()
+                return hmac.compare_digest(dk_123, dk_esp)
+        return False
+    # Compatibilidade com senhas legadas em texto plano (com auto-upgrade no login)
+    aceitas = set()
+    if s_db:
+        aceitas.add(s_db)
+        sem_pref = s_db.lstrip("*@#$!%&")
+        if sem_pref:
+            aceitas.add(sem_pref)
+            aceitas.add(f"*{sem_pref}")
+    if int(senha_alterada or 0) == 0 or not s_db:
+        aceitas.add("123456")
+    return (
+        s_dig in aceitas
+        or (s_db and s_dig.lower() == s_db.lower())
+        or (s_db and s_dig.lower() == s_db.lstrip("*@#$!%&").lower())
+    )
+
+
+def obter_segredo_sistema(conn, chave):
+    env_map = {
+        "session_secret": os.environ.get("KAIROS_SESSION_SECRET", "").strip(),
+        "backup_key": os.environ.get("KAIROS_BACKUP_KEY", "").strip(),
+    }
+    if env_map.get(chave):
+        return env_map[chave]
+    cur = conn.cursor()
+    cur.execute("CREATE TABLE IF NOT EXISTS sistema_seguranca (chave TEXT PRIMARY KEY, valor TEXT NOT NULL)")
+    row = cur.execute("SELECT valor FROM sistema_seguranca WHERE chave=?", (chave,)).fetchone()
+    if row and row["valor"]:
+        return row["valor"]
+    novo = secrets.token_hex(32)
+    cur.execute("INSERT OR REPLACE INTO sistema_seguranca (chave, valor) VALUES (?, ?)", (chave, novo))
+    conn.commit()
+    return novo
+
+
+def criar_token_sessao(conn, user_row):
+    secret = obter_segredo_sistema(conn, "session_secret")
+    payload = {
+        "id": int(user_row["id"]),
+        "nome": str(user_row["nome"] or ""),
+        "perfil": str(user_row["perfil"] or "").upper(),
+        "exp": int(time.time()) + 43200,
+    }
+    raw_b64 = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode("utf-8")).decode("ascii")
+    sig = hmac.new(secret.encode("utf-8"), raw_b64.encode("ascii"), hashlib.sha256).hexdigest()
+    return f"{raw_b64}.{sig}"
+
+
+def validar_token_sessao(token):
+    if not token or "." not in token:
+        return None
+    try:
+        raw_b64, sig = token.split(".", 1)
+        with db_lock:
+            conn = get_db()
+            secret = obter_segredo_sistema(conn, "session_secret")
+            conn.close()
+        esp = hmac.new(secret.encode("utf-8"), raw_b64.encode("ascii"), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig, esp):
+            return None
+        payload = json.loads(base64.urlsafe_b64decode(raw_b64.encode("ascii")).decode("utf-8"))
+        if int(payload.get("exp", 0)) < int(time.time()):
+            return None
+        return payload
+    except Exception:
+        return None
+
+
 def build_bootstrap_data(req_handler=None):
+
+    auth_user = req_handler.get_authenticated_user() if (req_handler and hasattr(req_handler, "get_authenticated_user")) else None
+    is_auth = bool(auth_user)
+    path_str = str(getattr(req_handler, "path", "") or "")
+    modo_assembleia = any(k in path_str for k in ("modo=assembleia", "view=assembleia", "qrcode=1"))
 
     with db_lock:
 
@@ -2810,7 +2917,46 @@ def build_bootstrap_data(req_handler=None):
 
 
 
-        usuarios = [dict(r) for r in cur.execute("SELECT * FROM usuarios ORDER BY id").fetchall()]
+        usuarios_raw = [dict(r) for r in cur.execute("SELECT * FROM usuarios ORDER BY id").fetchall()]
+        usuarios = []
+        for u in usuarios_raw:
+            u.pop("senha", None)
+            if is_auth:
+                usuarios.append(u)
+            else:
+                usuarios.append({
+                    "id": u.get("id"),
+                    "nome": u.get("nome"),
+                    "cargo": u.get("cargo"),
+                    "perfil": u.get("perfil"),
+                    "ativo": u.get("ativo", 1),
+                    "senha_alterada": u.get("senha_alterada", 0),
+                })
+
+        if not is_auth and not modo_assembleia:
+            conn.close()
+            return {
+                "autenticado": False,
+                "usuarios": usuarios,
+                "ministerios": [],
+                "ministerios_orcamentos": [],
+                "matriz_tesouraria": [],
+                "celulas": [],
+                "membros": [],
+                "vinculos": [],
+                "visitantes": [],
+                "escalas": [],
+                "financeiro": [],
+                "requisicoes": [],
+                "config_alertas_verba": {},
+                "patrimonio": [],
+                "patrimonio_emprestimos": [],
+                "auditoria": [],
+                "atas": [],
+                "contas_pagar": [],
+                "clientes_conectados": 0,
+                "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+            }
 
         ministerios = [dict(r) for r in cur.execute("SELECT * FROM ministerios ORDER BY orcamento_2026 DESC, id ASC").fetchall()]
 
@@ -3217,7 +3363,33 @@ def build_bootstrap_data(req_handler=None):
         with sse_lock:
             clientes_ativos = max(1, len(sse_clients))
 
+        if not is_auth and modo_assembleia:
+            return {
+                "autenticado": False,
+                "modo_assembleia": True,
+                "usuarios": usuarios,
+                "ministerios": ministerios,
+                "ministerios_orcamentos": ministerios_orcamentos,
+                "matriz_tesouraria": matriz_rows,
+                "celulas": [],
+                "membros": [],
+                "vinculos": [],
+                "visitantes": [],
+                "escalas": [],
+                "financeiro": [],
+                "requisicoes": [],
+                "config_alertas_verba": {},
+                "patrimonio": [],
+                "patrimonio_emprestimos": [],
+                "auditoria": [],
+                "atas": [],
+                "contas_pagar": [],
+                "clientes_conectados": 0,
+                "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+            }
+
         return {
+            "autenticado": is_auth,
             "usuarios": usuarios,
             "ministerios": ministerios,
             "ministerios_orcamentos": ministerios_orcamentos,
@@ -3670,7 +3842,32 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
 
-    def send_json(self, data, status=200):
+    def get_cookie_value(self, nome):
+        raw_cookie = self.headers.get("Cookie", "")
+        for parte in raw_cookie.split(";"):
+            k, _, v = parte.strip().partition("=")
+            if k == nome:
+                return v
+        return ""
+
+    def get_authenticated_user(self):
+        tok = self.get_cookie_value("kairos_session")
+        return validar_token_sessao(tok)
+
+    def has_valid_backup_key(self):
+        key_hdr = str(self.headers.get("X-Backup-Key", "") or "").strip()
+        if not key_hdr:
+            return False
+        try:
+            with db_lock:
+                conn = get_db()
+                esperada = obter_segredo_sistema(conn, "backup_key")
+                conn.close()
+            return hmac.compare_digest(key_hdr, esperada)
+        except Exception:
+            return False
+
+    def send_json(self, data, status=200, extra_headers=None):
 
         try:
 
@@ -3683,6 +3880,10 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
             self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
 
             self.send_header("Access-Control-Allow-Origin", "*")
+
+            if extra_headers:
+                for hk, hv in extra_headers:
+                    self.send_header(hk, hv)
 
             self.send_header("Content-Length", str(len(raw)))
 
@@ -3784,6 +3985,10 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
             return
 
         if path == "/api/sistema/backup-db":
+            auth_u = self.get_authenticated_user()
+            is_admin = bool(auth_u and auth_u.get("perfil") == "ADMIN")
+            if not is_admin and not self.has_valid_backup_key():
+                return self.send_json({"ok": False, "mensagem": "Acesso não autorizado ao backup do banco."}, 401)
             with db_lock:
                 conn = get_db()
                 conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
@@ -3802,6 +4007,8 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
         if path == "/api/atas":
+            if not self.get_authenticated_user():
+                return self.send_json({"ok": False, "mensagem": "Autenticação necessária."}, 401)
 
             qs = parse_qs(parsed.query)
 
@@ -4209,6 +4416,20 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
         path = parsed.path
 
+        if path == "/api/logout":
+            cookie_clr = "kairos_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"
+            return self.send_json({"ok": True}, 200, [("Set-Cookie", cookie_clr)])
+
+        rotas_publicas_post = ("/api/usuarios/verificar-senha",)
+        rotas_backup_post = ("/api/sistema/backup-db", "/api/sistema/restaurar-db")
+        if path in rotas_backup_post:
+            auth_u = self.get_authenticated_user()
+            if not (auth_u and auth_u.get("perfil") == "ADMIN") and not self.has_valid_backup_key():
+                return self.send_json({"ok": False, "mensagem": "Acesso não autorizado."}, 401)
+        elif path not in rotas_publicas_post:
+            if not self.get_authenticated_user():
+                return self.send_json({"ok": False, "mensagem": "Sessão expirada ou não autenticada. Faça login novamente."}, 401)
+
         body = self.read_json_body()
 
         operador = body.get("operador", "Administrador")
@@ -4505,22 +4726,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                         return ("*" in setores_u) or ("tesouraria" in setores_u) or ("editar_planilha" in setores_u)
 
                     def conferir_senha_usuario(u, s_dig):
-                        senha_db = str(u["senha"] or "").strip()
-                        senha_alt = int(u["senha_alterada"] or 0)
-                        aceitas = set()
-                        if senha_db:
-                            aceitas.add(senha_db)
-                            sem_pref = senha_db.lstrip("*@#$!%&")
-                            if sem_pref:
-                                aceitas.add(sem_pref)
-                                aceitas.add(f"*{sem_pref}")
-                        if senha_alt == 0 or not senha_db:
-                            aceitas.add("123456")
-                        return (
-                            s_dig in aceitas
-                            or (senha_db and s_dig.lower() == senha_db.lower())
-                            or (senha_db and s_dig.lower() == senha_db.lstrip("*@#$!%&").lower())
-                        )
+                        return verificar_senha_segura(s_dig, u["senha"], u["senha_alterada"])
 
                     candidatos = [u for u in rows_usuarios if is_usuario_autorizado_planilha(u)]
                     if usuario_id and str(usuario_id).isdigit() and int(usuario_id) > 0:
@@ -4671,9 +4877,9 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                          foto_base64, ministerio_id_2, funcao_ministerio_2, tipo_transferencia, motivo_transferencia,
 
-                         cargo_eclesiastico, status, sala_ebd, celula_id, observacoes, criado_em)
+                         cargo_eclesiastico, status, sala_ebd, celula_id, observacoes, lgpd_consentimento, lgpd_data, criado_em)
 
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
 
                         (
 
@@ -4744,6 +4950,10 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                             body.get("celula_id") or None,
 
                             body.get("observacoes", ""),
+
+                            1 if body.get("lgpd_consentimento") else 0,
+
+                            (agora if body.get("lgpd_consentimento") else ""),
 
                             agora,
 
@@ -4918,6 +5128,12 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     celula_id = body.get("celula_id") if "celula_id" in body else atual["celula_id"]
 
                     observacoes = body.get("observacoes", atual["observacoes"] or "")
+                    lgpd_consentimento = 1 if body.get("lgpd_consentimento") else (int(atual["lgpd_consentimento"] or 0) if "lgpd_consentimento" not in body and "lgpd_consentimento" in atual.keys() else 0)
+                    lgpd_data = (atual["lgpd_data"] if "lgpd_data" in atual.keys() and atual["lgpd_data"] else "")
+                    if lgpd_consentimento and not lgpd_data:
+                        lgpd_data = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    elif not lgpd_consentimento:
+                        lgpd_data = ""
 
 
 
@@ -4941,7 +5157,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                             tipo_transferencia=?, motivo_transferencia=?,
 
-                            status=?, sala_ebd=?, cargo_eclesiastico=?, celula_id=?, observacoes=?
+                            status=?, sala_ebd=?, cargo_eclesiastico=?, celula_id=?, observacoes=?, lgpd_consentimento=?, lgpd_data=?
 
                         WHERE id=?""",
 
@@ -4961,7 +5177,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                             tipo_transferencia, motivo_transferencia,
 
-                            status, sala_ebd, cargo, celula_id or None, observacoes, membro_id
+                            status, sala_ebd, cargo, celula_id or None, observacoes, lgpd_consentimento, lgpd_data, membro_id
 
                         ),
 
@@ -7290,6 +7506,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     valida_pwd, _ = validar_padrao_senha(senha)
 
                     nova_senha_alterada = 1 if valida_pwd and senha != "123456" else 0
+                    senha_hash = gerar_hash_senha(senha)
 
                     try:
 
@@ -7299,7 +7516,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                             VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?)""",
 
-                            (nome, email, cargo, perfil, ministerio_id, setores_permitidos, senha, relatorios_permitidos, nova_senha_alterada),
+                            (nome, email, cargo, perfil, ministerio_id, setores_permitidos, senha_hash, relatorios_permitidos, nova_senha_alterada),
 
                         )
 
@@ -7471,27 +7688,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     senha_alterada = int(row["senha_alterada"] or 0)
                     senha_digitada = senha.strip()
 
-                    # Validação estrita e segura: restrita à senha cadastrada para o operador
-                    senhas_aceitas = set()
-
-                    if senha_db:
-                        # Senha exata cadastrada
-                        senhas_aceitas.add(senha_db)
-                        # Variação com ou sem o caractere especial de prefixo (ex: *Mr250177 <-> Mr250177)
-                        sem_prefixo = senha_db.lstrip('*@#$!%&')
-                        if sem_prefixo:
-                            senhas_aceitas.add(sem_prefixo)
-                            senhas_aceitas.add(f"*{sem_prefixo}")
-
-                    # Apenas operadores em primeiro acesso (sem senha personalizada) utilizam 123456
-                    if senha_alterada == 0 or not senha_db:
-                        senhas_aceitas.add("123456")
-
-                    senha_valida = (
-                        senha_digitada in senhas_aceitas or
-                        (senha_db and senha_digitada.lower() == senha_db.lower()) or
-                        (senha_db and senha_digitada.lower() == senha_db.lstrip('*@#$!%&').lower())
-                    )
+                    senha_valida = verificar_senha_segura(senha_digitada, senha_db, senha_alterada)
 
                     if not senha_valida:
                         log_auditoria(conn, row["nome"], "Segurança", "Tentativa de Acesso Inválida", f"Senha incorreta informada para {row['nome']}.")
@@ -7500,9 +7697,14 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                         msg_aviso = "Senha incorreta! Digite a senha cadastrada para o seu usuário." if senha_alterada == 1 else "Senha incorreta! Digite a senha inicial 123456 para seu primeiro acesso."
                         return self.send_json({"ok": False, "mensagem": msg_aviso}, 401)
 
+                    if not senha_db.startswith("pbkdf2$"):
+                        cur.execute("UPDATE usuarios SET senha=? WHERE id=?", (gerar_hash_senha(senha_digitada), row["id"]))
+
                     precisa_trocar_senha = (senha_alterada == 0 and senha_digitada == "123456")
 
-
+                    sess_token = criar_token_sessao(conn, row)
+                    is_https = str(self.headers.get("X-Forwarded-Proto", "")).lower() == "https"
+                    cookie_val = f"kairos_session={sess_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=43200" + ("; Secure" if is_https else "")
 
                     log_auditoria(conn, row["nome"], "Segurança", "Login Autorizado", f"Usuário {row['nome']} autenticado com sucesso (precisa_trocar_senha={precisa_trocar_senha}).")
 
@@ -7528,7 +7730,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                         "precisa_trocar_senha": precisa_trocar_senha
 
-                    })
+                    }, 200, [("Set-Cookie", cookie_val)])
 
 
 
@@ -7568,7 +7770,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
 
-                    cur.execute("UPDATE usuarios SET senha=?, senha_alterada=1 WHERE id=?", (nova_senha, user_id))
+                    cur.execute("UPDATE usuarios SET senha=?, senha_alterada=1 WHERE id=?", (gerar_hash_senha(nova_senha), user_id))
 
                     row_u = cur.execute("SELECT nome FROM usuarios WHERE id=?", (user_id,)).fetchone()
 
@@ -7654,7 +7856,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
 
-                    cur.execute("UPDATE usuarios SET senha='123456', senha_alterada=0 WHERE id=?", (user_id,))
+                    cur.execute("UPDATE usuarios SET senha=?, senha_alterada=0 WHERE id=?", (gerar_hash_senha("123456"), user_id))
 
                     row_u = cur.execute("SELECT nome FROM usuarios WHERE id=?", (user_id,)).fetchone()
 
@@ -7871,6 +8073,9 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
     def do_DELETE(self):
+
+        if not self.get_authenticated_user():
+            return self.send_json({"ok": False, "mensagem": "Sessão expirada ou não autenticada."}, 401)
 
         parsed = urlparse(self.path)
 
