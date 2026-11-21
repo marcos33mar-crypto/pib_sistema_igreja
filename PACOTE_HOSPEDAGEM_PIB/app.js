@@ -12220,14 +12220,6 @@ function abrirModalCustom(html, mostrarBotaoPrint = true, largura = 'largo') {
 
 
 
-  const overlay = document.getElementById('modal-overlay');
-
-
-
-
-
-
-
   if (overlay) {
 
 
@@ -14846,21 +14838,7 @@ function openMultiUserModal() {
 
 function closeModal() {
   if (typeof pararLeituraAta === 'function') pararLeituraAta();
-
-
-
-
-
-
-
   const overlay = document.getElementById('modal-overlay');
-
-
-
-
-
-
-
   if (overlay) {
 
 
