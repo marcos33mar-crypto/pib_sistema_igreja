@@ -9182,9 +9182,7 @@ function renderPatrimonioEUsuarios() {
           <tr class="hover:bg-slate-50 transition border-b border-slate-100">
             <td class="py-3 px-3">
               <div class="flex items-start gap-2.5">
-                <span class="font-mono text-[10px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200 mt-0.5 shrink-0">
-                  ${escapeHtml(p.codigo)}
-                </span>
+                ${p.codigo ? `<span class="font-mono text-[10px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200 mt-0.5 shrink-0">${escapeHtml(p.codigo)}</span>` : `<span class="text-[10px] font-semibold bg-slate-50 text-slate-400 px-2 py-0.5 rounded border border-dashed border-slate-200 mt-0.5 shrink-0">Sem cód.</span>`}
                 <div>
                   <div class="flex items-center gap-1.5 flex-wrap">
                     <strong class="text-slate-900 text-xs">${escapeHtml(p.item)}</strong>
