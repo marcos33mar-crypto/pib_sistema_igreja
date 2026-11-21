@@ -7125,6 +7125,42 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
 
+                elif path == "/api/patrimonio/atualizar":
+                    pat_id = int(body.get("id", 0))
+                    if not pat_id:
+                        conn.close()
+                        return self.send_json({"ok": False, "mensagem": "ID do bem patrimonial ausente."}, 400)
+                    item_nome = str(body.get("item", "")).strip()
+                    if not item_nome:
+                        conn.close()
+                        return self.send_json({"ok": False, "mensagem": "Informe a descrição do bem."}, 400)
+                    cur.execute(
+                        """UPDATE patrimonio
+                           SET codigo=?, item=?, ministerio_id=?, localizacao=?, valor_aquisicao=?, estado=?, responsavel=?,
+                               quantidade=?, situacao=?, data_compra=?, nota_fiscal=?, observacoes=?
+                           WHERE id=?""",
+                        (
+                            str(body.get("codigo", "")).strip(),
+                            item_nome,
+                            body.get("ministerio_id") or None,
+                            str(body.get("localizacao", "")).strip(),
+                            float(body.get("valor_aquisicao", 0) or 0),
+                            str(body.get("estado", "Bom")).strip(),
+                            str(body.get("responsavel", "")).strip(),
+                            int(body.get("quantidade", 1) or 1),
+                            str(body.get("situacao", "Em uso")).strip(),
+                            str(body.get("data_compra", "")).strip(),
+                            str(body.get("nota_fiscal", "")).strip(),
+                            str(body.get("observacoes", "")).strip(),
+                            pat_id,
+                        ),
+                    )
+                    log_auditoria(conn, operador, "Patrimônio", "Edição de Bem Patrimonial", f"{operador} atualizou o item patrimonial #{pat_id} ({item_nome}).")
+                    conn.commit()
+                    conn.close()
+                    broadcast_event("sync", {"setor": "Patrimônio", "operador": operador, "mensagem": f"{operador} atualizou o item patrimonial {item_nome}."})
+                    return self.send_json({"ok": True})
+
                 elif path == "/api/patrimonio/estado":
 
                     pat_id = int(body["id"])

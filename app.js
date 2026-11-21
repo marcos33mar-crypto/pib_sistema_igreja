@@ -9241,6 +9241,9 @@ function renderPatrimonioEUsuarios() {
                     <span>📦</span> Emprestar
                   </button>
                 `}
+                <button onclick="editarPatrimonio(${p.id})" class="px-2 py-1 bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-700 border border-slate-200 rounded-lg text-[10px] font-bold transition flex items-center gap-1 whitespace-nowrap cursor-pointer" title="Editar dados deste bem">
+                  <span>✏️</span> Editar
+                </button>
                 <button onclick="excluirItemPatrimonio(${p.id})" class="p-1.5 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg text-xs transition" title="Excluir do Inventário">
                   🗑️
                 </button>
@@ -9254,6 +9257,128 @@ function renderPatrimonioEUsuarios() {
 
   renderUsuarios();
   renderPatrimonioEmprestimos();
+}
+
+function editarPatrimonio(id) {
+  const p = (STATE.patrimonio || []).find(x => Number(x.id) === Number(id));
+  if (!p) return;
+
+  const minOpts = '<option value="">Uso Geral da Igreja</option>' +
+    (STATE.ministerios || []).map(m =>
+      `<option value="${m.id}" ${Number(p.ministerio_id) === Number(m.id) ? 'selected' : ''}>${escapeHtml(m.nome)}</option>`
+    ).join('');
+
+  const html = `
+    <div class="p-6 max-w-2xl mx-auto space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+        <div>
+          <span class="text-[10px] font-extrabold uppercase tracking-wider bg-indigo-100 text-indigo-800 px-2.5 py-0.5 rounded-full">Inventário Patrimonial</span>
+          <h3 class="text-lg font-extrabold text-slate-900 mt-1">Editar Bem Patrimonial</h3>
+        </div>
+        <button type="button" onclick="fecharModalCustom()" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-700 font-bold text-xs cursor-pointer">✕</button>
+      </div>
+
+      <form onsubmit="salvarEdicaoPatrimonio(event, ${p.id})" autocomplete="off" class="space-y-3 text-xs">
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
+          <div class="sm:col-span-3">
+            <label class="font-bold text-slate-700 block mb-1">Código</label>
+            <input type="text" id="edit-pat-codigo" value="${escapeHtml(p.codigo || '')}" placeholder="Opcional" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white" />
+          </div>
+          <div class="sm:col-span-6">
+            <label class="font-bold text-slate-700 block mb-1">Descrição do Bem *</label>
+            <input type="text" id="edit-pat-item" required value="${escapeHtml(p.item || '')}" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white font-semibold" />
+          </div>
+          <div class="sm:col-span-3">
+            <label class="font-bold text-slate-700 block mb-1">Quantidade</label>
+            <input type="number" min="1" id="edit-pat-qtd" value="${Number(p.quantidade || 1)}" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white font-bold" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">Valor Total (R$)</label>
+            <input type="number" step="0.01" id="edit-pat-valor" value="${Number(p.valor_aquisicao || 0)}" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white font-bold" />
+          </div>
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">Estado de Conservação</label>
+            <select id="edit-pat-estado" class="w-full border border-slate-300 rounded-xl px-2.5 py-2 bg-white font-semibold">
+              <option value="Novo" ${p.estado === 'Novo' ? 'selected' : ''}>✨ Novo</option>
+              <option value="Bom" ${p.estado === 'Bom' ? 'selected' : ''}>👍 Bom / Perfeito</option>
+              <option value="Em Manutenção" ${p.estado === 'Em Manutenção' ? 'selected' : ''}>⚠️ Em Manutenção</option>
+              <option value="Danificado" ${p.estado === 'Danificado' ? 'selected' : ''}>❌ Danificado</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">Situação Atual</label>
+            <input type="text" id="edit-pat-situacao" value="${escapeHtml(p.situacao || 'Em uso')}" placeholder="Em uso, Estoque, Inutilizavel" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">Ministério Vinculado</label>
+            <select id="edit-pat-ministerio" class="w-full border border-slate-300 rounded-xl px-2.5 py-2 bg-white">${minOpts}</select>
+          </div>
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">Ambiente / Localização *</label>
+            <input type="text" id="edit-pat-local" required value="${escapeHtml(p.localizacao || '')}" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white" />
+          </div>
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">Responsável / Setor</label>
+            <input type="text" id="edit-pat-resp" value="${escapeHtml(p.responsavel || '')}" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">Data de Compra</label>
+            <input type="text" id="edit-pat-data-compra" value="${escapeHtml(p.data_compra || '')}" placeholder="AAAA-MM-DD" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white" />
+          </div>
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">Nota Fiscal</label>
+            <input type="text" id="edit-pat-nf" value="${escapeHtml(p.nota_fiscal || '')}" placeholder="Número da NF" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white" />
+          </div>
+        </div>
+
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Observações / Detalhes</label>
+          <textarea id="edit-pat-obs" rows="2" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white">${escapeHtml(p.observacoes || '')}</textarea>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="fecharModalCustom()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer">Cancelar</button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold cursor-pointer shadow-sm">💾 Salvar Alterações</button>
+        </div>
+      </form>
+    </div>
+  `;
+  abrirModalCustom(html, false, 'normal');
+}
+
+async function salvarEdicaoPatrimonio(e, id) {
+  e.preventDefault();
+  const res = await apiPost('/api/patrimonio/atualizar', {
+    id,
+    codigo: document.getElementById('edit-pat-codigo')?.value || '',
+    item: document.getElementById('edit-pat-item')?.value || '',
+    quantidade: document.getElementById('edit-pat-qtd')?.value || 1,
+    valor_aquisicao: document.getElementById('edit-pat-valor')?.value || 0,
+    estado: document.getElementById('edit-pat-estado')?.value || 'Bom',
+    situacao: document.getElementById('edit-pat-situacao')?.value || 'Em uso',
+    ministerio_id: document.getElementById('edit-pat-ministerio')?.value || null,
+    localizacao: document.getElementById('edit-pat-local')?.value || '',
+    responsavel: document.getElementById('edit-pat-resp')?.value || '',
+    data_compra: document.getElementById('edit-pat-data-compra')?.value || '',
+    nota_fiscal: document.getElementById('edit-pat-nf')?.value || '',
+    observacoes: document.getElementById('edit-pat-obs')?.value || ''
+  });
+  if (res && res.ok) {
+    fecharModalCustom();
+    showLiveToast('✅ Bem patrimonial atualizado com sucesso!');
+    fetchBootstrap();
+  } else {
+    alert((res && res.mensagem) || 'Erro ao atualizar bem patrimonial.');
+  }
 }
 
 async function excluirItemPatrimonio(id) {
