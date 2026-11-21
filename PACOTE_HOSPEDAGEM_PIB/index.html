@@ -20968,563 +20968,162 @@
         </div>
 
         <!-- SUB-ABA 1: INVENTÁRIO & CADASTRO DE BENS -->
-        <div id="subtab-pat-inventario" class="space-y-6">
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-
-
-
-
-
-
-          <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm h-fit">
-
-
-
-
-
-
-
-            <h3 class="font-bold text-slate-800 text-base mb-1">Cadastrar Bem Patrimonial</h3>
-
-
-
-
-
-
-
-            <p class="text-xs text-slate-500 mb-4">Controle de equipamentos de som, instrumentos, projetores e móveis por setor</p>
-
-
-
-
-
-
-
-            <form onsubmit="salvarPatrimonio(event)" class="space-y-3 text-xs">
-
-
-
-
-
-
-
-              <div class="grid grid-cols-2 gap-2">
-
-
-
-
-
-
-
-                <div>
-
-
-
-
-
-
-
-                  <label class="font-semibold text-slate-700 block mb-1">Código Tombamento *</label>
-
-
-
-
-
-
-
-                  <input type="text" id="pat-codigo" required placeholder="PAT-001" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
-
-
-
-
-
-
-
-                </div>
-
-
-
-
-
-
-
-                <div>
-
-
-
-
-
-
-
-                  <label class="font-semibold text-slate-700 block mb-1">Estado</label>
-
-
-
-
-
-
-
-                  <select id="pat-estado" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white">
-
-
-
-
-
-
-
-                    <option value="Novo">Novo</option>
-
-
-
-
-
-
-
-                    <option value="Bom">Bom</option>
-
-
-
-
-
-
-
-                    <option value="Em Manutenção">Em Manutenção</option>
-
-
-
-
-
-
-
-                    <option value="Danificado">Danificado</option>
-
-
-
-
-
-
-
-                  </select>
-
-
-
-
-
-
-
-                </div>
-
-
-
-
-
-
-
-              </div>
-
-
-
-
-
-
-
-              <div>
-
-
-
-
-
-
-
-                <label class="font-semibold text-slate-700 block mb-1">Equipamento / Bem *</label>
-
-
-
-
-
-
-
-                <input type="text" id="pat-item" required placeholder="Ex: Violão Takamine Aço" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
-
-
-
-
-
-
-
-              </div>
-
-
-
-
-
-
-
-              <div>
-
-
-
-
-
-
-
-                <label class="font-semibold text-slate-700 block mb-1">Ministério Responsável</label>
-
-
-
-
-
-
-
-                <select id="pat-ministerio" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white"></select>
-
-
-
-
-
-
-
-              </div>
-
-
-
-
-
-
-
-              <div class="grid grid-cols-2 gap-2">
-
-
-
-
-
-
-
-                <div>
-
-
-
-
-
-
-
-                  <label class="font-semibold text-slate-700 block mb-1">Localização *</label>
-
-
-
-
-
-
-
-                  <input type="text" id="pat-local" required placeholder="Ex: Altar / Sala Kids" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
-
-
-
-
-
-
-
-                </div>
-
-
-
-
-
-
-
-                <div>
-
-
-
-
-
-
-
-                  <label class="font-semibold text-slate-700 block mb-1">Valor Estimado (R$)</label>
-
-
-
-
-
-
-
-                  <input type="number" step="0.01" id="pat-valor" placeholder="2500.00" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
-
-
-
-
-
-
-
-                </div>
-
-
-
-
-
-
-
-              </div>
-
-
-
-
-
-
-
-              <div>
-
-
-
-
-
-
-
-                <label class="font-semibold text-slate-700 block mb-1">Responsável Direto</label>
-
-
-
-
-
-
-
-                <input type="text" id="pat-resp" list="lista-membros-datalist" placeholder="Digite ou selecione o líder/zelador..." class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500" autocomplete="off" />
-
-
-
-
-
-
-
-              </div>
-
-
-
-
-
-
-
-              <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl shadow transition">
-
-
-
-
-
-
-
-                + Cadastrar Equipamento
-
-
-
-
-
-
-
-              </button>
-
-
-
-
-
-
-
-            </form>
-
-
-
-
-
-
-
+        <div id="subtab-pat-inventario" class="space-y-5">
+
+          <!-- 4 KPIs EXECUTIVOS DO INVENTÁRIO -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+              <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">1. Bens Cadastrados</span>
+              <p class="text-xl font-black text-slate-900 mt-1"><span id="inv-total-itens">0</span> <span class="text-xs font-bold text-slate-500">itens</span></p>
+              <p class="text-[11px] text-indigo-600 font-semibold mt-0.5"><span id="inv-total-unidades">0</span> unidades totais</p>
+            </div>
+            <div class="bg-gradient-to-br from-emerald-50/70 to-white p-4 rounded-2xl border border-emerald-200 shadow-xs">
+              <span class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800">2. Disponíveis no Templo</span>
+              <p id="inv-disponiveis-itens" class="text-xl font-black text-emerald-700 mt-1">0</p>
+              <p class="text-[11px] text-emerald-600 font-semibold mt-0.5">Prontos para uso</p>
+            </div>
+            <div class="bg-gradient-to-br from-amber-50/70 to-white p-4 rounded-2xl border border-amber-200 shadow-xs">
+              <span class="text-[10px] font-extrabold uppercase tracking-wider text-amber-800">3. Emprestados</span>
+              <p id="inv-emprestados-itens" class="text-xl font-black text-amber-700 mt-1">0</p>
+              <p class="text-[11px] text-amber-600 font-semibold mt-0.5">Com termo de cautela ativo</p>
+            </div>
+            <div class="bg-gradient-to-br from-slate-900 to-slate-800 p-4 rounded-2xl border border-slate-700 shadow-sm text-white">
+              <span class="text-[10px] font-extrabold uppercase tracking-wider text-indigo-300">4. Valor Total do Patrimônio</span>
+              <p id="inv-valor-total" class="text-lg sm:text-xl font-black text-white mt-1 tabular-nums">R$ 0,00</p>
+              <p class="text-[11px] text-slate-300 font-medium mt-0.5">Soma dos bens inventariados</p>
+            </div>
           </div>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-          <div class="lg:col-span-2">
-
-
-
-
-
-
-
-            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-
-
-
-
-
-
-
-              <h3 class="font-bold text-slate-800 text-base mb-1">Inventário Interativo de Patrimônio por Setor</h3>
-
-
-
-
-
-
-
-              <p class="text-xs text-slate-500 mb-3">Altere o estado de conservação (Novo, Bom, Em Manutenção) diretamente na tabela</p>
-
-
-
-
-
-
-
-              
-              <!-- Resumo Rápido do Inventário Linkado com Empréstimos -->
-              <div class="flex items-center gap-2.5 text-xs mb-3 flex-wrap">
-                <span class="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg font-semibold">Total: <strong id="inv-total-itens">0</strong> bens</span>
-                <span class="px-2.5 py-1 bg-emerald-50 text-emerald-800 rounded-lg font-semibold border border-emerald-200">🟢 No Templo: <strong id="inv-disponiveis-itens">0</strong></span>
-                <span class="px-2.5 py-1 bg-amber-50 text-amber-900 rounded-lg font-semibold border border-amber-200">🟡 Emprestados: <strong id="inv-emprestados-itens">0</strong></span>
-                <span class="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg font-semibold border border-indigo-200">💰 Patrimônio: <strong id="inv-valor-total">R$ 0,00</strong></span>
+          <!-- FORMULÁRIO HORIZONTAL COMPACTO NO TOPO -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+              <div>
+                <h3 class="font-extrabold text-slate-900 text-base">Cadastrar Bem Patrimonial</h3>
+                <p class="text-xs text-slate-500">Controle de equipamentos de som, instrumentos, projetores e móveis por setor</p>
               </div>
-
-              <div class="overflow-x-auto">
-
-
-
-
-
-
-
-                <table class="w-full text-left border-collapse text-xs">
-
-
-
-
-
-
-
-                  <thead>
-
-
-
-
-
-
-
-                    <tr class="border-b border-slate-200 text-slate-500 uppercase">
-
-
-
-
-
-
-
-                      <th class="py-2 px-2">Código / Item</th>
-
-
-
-
-
-
-
-                      <th class="py-2 px-2">Setor / Local</th>
-
-
-
-
-
-
-
-                      <th class="py-2 px-2">Estado Interativo</th>
-
-
-
-
-
-
-
-                      <th class="py-2 px-2 text-right">Valor</th>
-
-
-
-
-
-
-
-                      <th class="py-2 px-2 text-right">Ações</th>
-
-
-
-
-
-
-
-                    </tr>
-
-
-
-
-
-
-
-                  </thead>
-
-
-
-
-
-
-
-                  <tbody id="tabela-patrimonio" class="divide-y divide-slate-100"></tbody>
-
-
-
-
-
-
-
-                </table>
-
-
-
-
-
-
-
-              </div>
-
-
-
-
-
-
-
+              <span class="text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full border border-indigo-200 w-fit">Novo Item</span>
             </div>
 
+            <form onsubmit="salvarPatrimonio(event)" autocomplete="off" class="space-y-3 text-xs">
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
+                <div class="lg:col-span-2">
+                  <label class="font-bold text-slate-700 block mb-1">Código *</label>
+                  <input type="text" id="pat-codigo" required placeholder="00001" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white" />
+                </div>
+                <div class="lg:col-span-4">
+                  <label class="font-bold text-slate-700 block mb-1">Descrição do Bem *</label>
+                  <input type="text" id="pat-item" required placeholder="Ex: Mesa de Som Digital, Microfone..." class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white" />
+                </div>
+                <div class="lg:col-span-2">
+                  <label class="font-bold text-slate-700 block mb-1">Quantidade</label>
+                  <input type="number" min="1" value="1" id="pat-qtd" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white font-bold" />
+                </div>
+                <div class="lg:col-span-2">
+                  <label class="font-bold text-slate-700 block mb-1">Valor Total (R$)</label>
+                  <input type="number" step="0.01" id="pat-valor" placeholder="0,00" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white font-bold" />
+                </div>
+                <div class="lg:col-span-2">
+                  <label class="font-bold text-slate-700 block mb-1">Estado</label>
+                  <select id="pat-estado" class="w-full border border-slate-300 rounded-xl px-2.5 py-2 bg-white font-semibold">
+                    <option value="Novo">✨ Novo</option>
+                    <option value="Bom">👍 Bom / Perfeito</option>
+                    <option value="Em Manutenção">⚠️ Em Manutenção</option>
+                    <option value="Danificado">❌ Danificado</option>
+                  </select>
+                </div>
+              </div>
 
-
-
-
-
-
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
+                <div class="lg:col-span-3">
+                  <label class="font-bold text-slate-700 block mb-1">Ministério Vinculado</label>
+                  <select id="pat-ministerio" class="w-full border border-slate-300 rounded-xl px-2.5 py-2 bg-white"></select>
+                </div>
+                <div class="lg:col-span-3">
+                  <label class="font-bold text-slate-700 block mb-1">Ambiente / Localização *</label>
+                  <input type="text" id="pat-local" required placeholder="Templo, Sala de som - 01..." class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white" />
+                </div>
+                <div class="lg:col-span-2">
+                  <label class="font-bold text-slate-700 block mb-1">Responsável / Setor</label>
+                  <input type="text" id="pat-resp" placeholder="Sonoplastia, Patrimonio, TI..." class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white" />
+                </div>
+                <div class="lg:col-span-2">
+                  <label class="font-bold text-slate-700 block mb-1">Situação</label>
+                  <select id="pat-situacao" class="w-full border border-slate-300 rounded-xl px-2.5 py-2 bg-white font-semibold">
+                    <option value="Em uso">🟢 Em uso</option>
+                    <option value="Estoque">📦 Estoque</option>
+                    <option value="Inutilizavel">🔴 Inutilizável</option>
+                  </select>
+                </div>
+                <div class="lg:col-span-2">
+                  <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold py-2.5 px-3 rounded-xl transition cursor-pointer shadow-sm whitespace-nowrap">
+                    + Cadastrar Bem
+                  </button>
+                </div>
+              </div>
+            </form>
           </div>
 
+          <!-- INVENTÁRIO EM LARGURA TOTAL COM FILTROS -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
+            <div class="flex flex-col gap-3 pb-3 border-b border-slate-100">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h3 class="font-extrabold text-slate-900 text-base">Inventário Interativo de Patrimônio</h3>
+                  <p class="text-xs text-slate-500">Altere o estado de conservação diretamente na tabela ou registre empréstimos com termo de cautela</p>
+                </div>
+                <div id="pat-resumo-filtro" class="text-[11px] font-bold px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 whitespace-nowrap w-fit">
+                  0 itens • 0 unid. • R$ 0,00
+                </div>
+              </div>
 
+              <div class="flex flex-wrap items-center gap-2">
+                <input type="search" autocomplete="off" spellcheck="false" id="pat-busca-input" oninput="renderPatrimonioEUsuarios()" placeholder="🔍 Buscar código, item, ambiente, NF..." class="border border-slate-300 rounded-xl px-3 py-1.5 text-xs bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 min-w-[220px] flex-1" />
+                <select id="pat-filtro-resp" onchange="renderPatrimonioEUsuarios()" class="border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white">
+                  <option value="">🏛️ Todos os Responsáveis</option>
+                </select>
+                <select id="pat-filtro-estado" onchange="renderPatrimonioEUsuarios()" class="border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white">
+                  <option value="">✨ Todos os Estados</option>
+                  <option value="Novo">✨ Novo</option>
+                  <option value="Bom">👍 Bom / Perfeito</option>
+                  <option value="Em Manutenção">⚠️ Em Manutenção</option>
+                  <option value="Danificado">❌ Danificado</option>
+                </select>
+                <select id="pat-filtro-situacao" onchange="renderPatrimonioEUsuarios()" class="border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white">
+                  <option value="">📋 Todas as Situações</option>
+                  <option value="Em uso">🟢 Em uso</option>
+                  <option value="Estoque">📦 Estoque</option>
+                  <option value="Inutilizavel">🔴 Inutilizável</option>
+                </select>
+                <select id="pat-filtro-ordem" onchange="renderPatrimonioEUsuarios()" class="border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white">
+                  <option value="PADRAO">↕️ Ordem de Cadastro</option>
+                  <option value="VALOR_DESC">💰 Maior Valor</option>
+                  <option value="VALOR_ASC">💰 Menor Valor</option>
+                  <option value="QTD_DESC">📦 Maior Quantidade</option>
+                  <option value="NOME_ASC">🔤 Nome (A–Z)</option>
+                </select>
+                <button type="button" onclick="limparFiltrosPatrimonio()" class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-200 cursor-pointer transition">
+                  🧹 Limpar
+                </button>
+              </div>
+            </div>
 
+            <div class="overflow-x-auto border border-slate-200 rounded-xl">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead class="bg-slate-900 text-white uppercase text-[10px] font-bold tracking-wider">
+                  <tr>
+                    <th class="py-3 px-3">Código / Bem Patrimonial</th>
+                    <th class="py-3 px-3">Setor / Ambiente</th>
+                    <th class="py-3 px-3">Estado</th>
+                    <th class="py-3 px-3 text-center">Qtd.</th>
+                    <th class="py-3 px-3 text-right">Valor Total</th>
+                    <th class="py-3 px-3 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="tabela-patrimonio" class="divide-y divide-slate-100 bg-white"></tbody>
+              </table>
+            </div>
+          </div>
 
-
-
-
-        </div>
-
-        
         </div>
 
         <!-- SUB-ABA 2: QUADRO DE EMPRÉSTIMOS DE BENS (ALOCADO EM SUBMENU) -->
@@ -22937,7 +22536,7 @@
   </div>
 
   <script src="/qrcode.min.js"></script>
-  <script src="/app.js?v=20261121_v262_patrimonio_lote"></script>
+  <script src="/app.js?v=20261121_v263_inventario_visual"></script>
 
 
 

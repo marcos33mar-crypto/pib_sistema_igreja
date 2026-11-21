@@ -9073,14 +9073,31 @@ function switchSubTabPatrimonio(tab) {
   }
 }
 
+function limparFiltrosPatrimonio() {
+  const ids = {
+    'pat-busca-input': '',
+    'pat-filtro-resp': '',
+    'pat-filtro-estado': '',
+    'pat-filtro-situacao': '',
+    'pat-filtro-ordem': 'PADRAO'
+  };
+  Object.entries(ids).forEach(([id, v]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = v;
+  });
+  renderPatrimonioEUsuarios();
+}
+
 function renderPatrimonioEUsuarios() {
   const tbody = document.getElementById('tabela-patrimonio');
   const listaPat = STATE.patrimonio || [];
   const listaEmp = STATE.patrimonio_emprestimos || [];
 
-  // 1. Calcula indicadores do inventário linkados com empréstimos
+  // 1. Calcula indicadores globais do inventário
   let totalEmprestados = 0;
+  let totalUnidades = 0;
   listaPat.forEach(p => {
+    totalUnidades += Number(p.quantidade || 1);
     const isEmp = listaEmp.some(e => (e.patrimonio_id === p.id || (e.codigo && e.codigo === p.codigo)) && e.status !== 'Devolvido');
     if (isEmp) totalEmprestados++;
   });
@@ -9089,75 +9106,112 @@ function renderPatrimonioEUsuarios() {
   const valorTotal = listaPat.reduce((acc, p) => acc + Number(p.valor_aquisicao || 0), 0);
 
   const elTot = document.getElementById('inv-total-itens');
+  const elTotUn = document.getElementById('inv-total-unidades');
   const elDisp = document.getElementById('inv-disponiveis-itens');
   const elEmp = document.getElementById('inv-emprestados-itens');
   const elVal = document.getElementById('inv-valor-total');
 
   if (elTot) elTot.textContent = totalBens;
+  if (elTotUn) elTotUn.textContent = totalUnidades;
   if (elDisp) elDisp.textContent = totalDisponiveis;
   if (elEmp) elEmp.textContent = totalEmprestados;
   if (elVal) elVal.textContent = formatBRL(valorTotal);
 
-  // 2. Renderiza a tabela de inventário com linking de empréstimo e ações
+  // Popula filtro dinâmico de responsáveis
+  const selResp = document.getElementById('pat-filtro-resp');
+  if (selResp) {
+    const atualResp = selResp.value || '';
+    const resps = Array.from(new Set(listaPat.map(p => String(p.responsavel || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    selResp.innerHTML = '<option value="">🏛️ Todos os Responsáveis</option>' +
+      resps.map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('');
+    if (Array.from(selResp.options).some(o => o.value === atualResp)) selResp.value = atualResp;
+  }
+
+  // Aplica filtros e ordenação
+  const buscaRaw = (document.getElementById('pat-busca-input')?.value || '').trim();
+  const busca = typeof normalizarTextoFiltro === 'function' ? normalizarTextoFiltro(buscaRaw) : buscaRaw.toLowerCase();
+  const fResp = document.getElementById('pat-filtro-resp')?.value || '';
+  const fEstado = document.getElementById('pat-filtro-estado')?.value || '';
+  const fSit = document.getElementById('pat-filtro-situacao')?.value || '';
+  const fOrdem = document.getElementById('pat-filtro-ordem')?.value || 'PADRAO';
+
+  const filtrados = listaPat.filter(p => {
+    if (fResp && String(p.responsavel || '').trim() !== fResp) return false;
+    if (fEstado && String(p.estado || '') !== fEstado) return false;
+    if (fSit) {
+      const sitLow = String(p.situacao || 'Em uso').toLowerCase();
+      if (!sitLow.includes(fSit.toLowerCase())) return false;
+    }
+    if (busca) {
+      const bruto = `${p.codigo || ''} ${p.item || ''} ${p.localizacao || ''} ${p.responsavel || ''} ${p.ministerio_nome || ''} ${p.nota_fiscal || ''} ${p.observacoes || ''}`;
+      const alvo = typeof normalizarTextoFiltro === 'function' ? normalizarTextoFiltro(bruto) : bruto.toLowerCase();
+      if (!alvo.includes(busca)) return false;
+    }
+    return true;
+  });
+
+  if (fOrdem === 'VALOR_DESC') filtrados.sort((a, b) => Number(b.valor_aquisicao || 0) - Number(a.valor_aquisicao || 0));
+  else if (fOrdem === 'VALOR_ASC') filtrados.sort((a, b) => Number(a.valor_aquisicao || 0) - Number(b.valor_aquisicao || 0));
+  else if (fOrdem === 'QTD_DESC') filtrados.sort((a, b) => Number(b.quantidade || 1) - Number(a.quantidade || 1));
+  else if (fOrdem === 'NOME_ASC') filtrados.sort((a, b) => String(a.item || '').localeCompare(String(b.item || ''), 'pt-BR'));
+
+  const elResumo = document.getElementById('pat-resumo-filtro');
+  if (elResumo) {
+    const qFilt = filtrados.reduce((acc, p) => acc + Number(p.quantidade || 1), 0);
+    const vFilt = filtrados.reduce((acc, p) => acc + Number(p.valor_aquisicao || 0), 0);
+    elResumo.textContent = `${filtrados.length} item(ns) • ${qFilt} unid. • ${formatBRL(vFilt)}`;
+  }
+
+  // 2. Renderiza a tabela de inventário em largura total
   if (tbody) {
-    if (listaPat.length === 0) {
+    if (filtrados.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="5" class="py-6 text-center text-slate-400 text-xs">
-            Nenhum bem patrimonial cadastrado ainda. Use o formulário ao lado para cadastrar.
+          <td colspan="6" class="py-8 text-center text-slate-400 text-xs">
+            Nenhum bem patrimonial encontrado para os filtros selecionados.
           </td>
         </tr>
       `;
     } else {
-      tbody.innerHTML = listaPat.map(p => {
-        // Busca se este item específico do cadastro está emprestado no momento
+      tbody.innerHTML = filtrados.map(p => {
         const empAtivo = listaEmp.find(e => (e.patrimonio_id === p.id || (e.codigo && e.codigo === p.codigo)) && e.status !== 'Devolvido');
+        const qtd = Number(p.quantidade || 1);
+        const val = Number(p.valor_aquisicao || 0);
 
         return `
           <tr class="hover:bg-slate-50 transition border-b border-slate-100">
-            <!-- 1. Código e Item com Status de Empréstimo em tempo real -->
-            <td class="py-2.5 px-3">
-              <div class="flex items-start gap-2">
-                <span class="font-mono text-[10px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200 mt-0.5">
-                  ${p.codigo}
+            <td class="py-3 px-3">
+              <div class="flex items-start gap-2.5">
+                <span class="font-mono text-[10px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200 mt-0.5 shrink-0">
+                  ${escapeHtml(p.codigo)}
                 </span>
                 <div>
                   <div class="flex items-center gap-1.5 flex-wrap">
                     <strong class="text-slate-900 text-xs">${escapeHtml(p.item)}</strong>
-                    ${Number(p.quantidade || 1) > 1 ? `<span class="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-100 text-indigo-800 border border-indigo-200">${Number(p.quantidade)} unid.</span>` : ''}
-                    ${p.situacao ? `<span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold ${String(p.situacao).toLowerCase().includes('inutil') ? 'bg-rose-100 text-rose-800' : String(p.situacao).toLowerCase().includes('estoque') ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'}">${escapeHtml(p.situacao)}</span>` : ''}
+                    ${p.situacao ? `<span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold ${String(p.situacao).toLowerCase().includes('inutil') ? 'bg-rose-100 text-rose-800' : String(p.situacao).toLowerCase().includes('estoque') ? 'bg-amber-100 text-amber-800' : 'bg-emerald-50 text-emerald-700'}">${escapeHtml(p.situacao)}</span>` : ''}
                   </div>
                   ${(p.data_compra || p.nota_fiscal) ? `<div class="text-[10px] text-slate-500 mt-0.5">${p.data_compra ? `Compra: ${formatDateBR(p.data_compra)}` : ''}${p.data_compra && p.nota_fiscal ? ' • ' : ''}${p.nota_fiscal ? `NF: ${escapeHtml(p.nota_fiscal)}` : ''}</div>` : ''}
                   ${p.observacoes ? `<div class="text-[10px] text-slate-400 mt-0.5">${escapeHtml(p.observacoes)}</div>` : ''}
                   ${empAtivo ? `
                     <div class="mt-1 flex items-center gap-1.5 flex-wrap">
                       <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
-                        🟡 Emprestado: <strong>${empAtivo.solicitante_nome}</strong>
-                      </span>
-                      <span class="text-[10px] text-slate-500">Devolução prevista: ${formatarDataHora(empAtivo.previsao_devolucao)}</span>
-                    </div>
-                  ` : `
-                    <div class="mt-1">
-                      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                        🟢 No Templo (Disponível)
+                        🟡 Emprestado: <strong>${escapeHtml(empAtivo.solicitante_nome)}</strong>
                       </span>
                     </div>
-                  `}
+                  ` : ''}
                 </div>
               </div>
             </td>
 
-            <!-- 2. Setor e Localização -->
-            <td class="py-2.5 px-3 text-slate-600 text-xs">
+            <td class="py-3 px-3 text-slate-600 text-xs">
               <div>
-                <strong>${p.ministerio_nome || 'Uso Geral'}</strong>
-                <span class="text-slate-400 block text-[11px]">${p.localizacao}</span>
-                ${p.responsavel ? `<span class="text-[10px] text-indigo-700 block font-medium">Resp: ${p.responsavel}</span>` : ''}
+                <strong>${escapeHtml(p.ministerio_nome || 'Uso Geral')}</strong>
+                <span class="text-slate-500 block text-[11px]">${escapeHtml(p.localizacao)}</span>
+                ${p.responsavel ? `<span class="text-[10px] text-indigo-700 block font-semibold">Resp: ${escapeHtml(p.responsavel)}</span>` : ''}
               </div>
             </td>
 
-            <!-- 3. Estado Interativo -->
-            <td class="py-2.5 px-3">
+            <td class="py-3 px-3">
               <select onchange="alterarEstadoPatrimonio(${p.id}, this.value)" class="border border-slate-300 rounded-lg px-2 py-1 text-[11px] font-bold bg-white text-slate-800 focus:ring-1 focus:ring-indigo-500">
                 <option value="Novo" ${p.estado === 'Novo' ? 'selected' : ''}>✨ Novo</option>
                 <option value="Bom" ${p.estado === 'Bom' ? 'selected' : ''}>👍 Bom</option>
@@ -9166,13 +9220,16 @@ function renderPatrimonioEUsuarios() {
               </select>
             </td>
 
-            <!-- 4. Valor de Aquisição -->
-            <td class="py-2.5 px-3 text-right font-bold text-slate-800 text-xs">
-              ${formatBRL(p.valor_aquisicao)}
+            <td class="py-3 px-3 text-center">
+              <span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-extrabold ${qtd > 1 ? 'bg-indigo-100 text-indigo-800 border border-indigo-200' : 'bg-slate-100 text-slate-700'}">${qtd}x</span>
             </td>
 
-            <!-- 5. Ações Linkadas -->
-            <td class="py-2.5 px-3 text-right">
+            <td class="py-3 px-3 text-right font-bold text-slate-800 text-xs whitespace-nowrap">
+              <div>${formatBRL(val)}</div>
+              ${qtd > 1 && val > 0 ? `<div class="text-[10px] text-slate-400 font-normal">(${formatBRL(val / qtd)}/un)</div>` : ''}
+            </td>
+
+            <td class="py-3 px-3 text-right">
               <div class="flex items-center justify-end gap-1.5">
                 ${empAtivo ? `
                   <button onclick="abrirModalDevolucaoPatrimonio(${empAtivo.id})" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold shadow-sm transition flex items-center gap-1 whitespace-nowrap" title="Registrar Retorno deste Equipamento">
@@ -9182,7 +9239,7 @@ function renderPatrimonioEUsuarios() {
                     📄
                   </button>
                 ` : `
-                  <button onclick="abrirModalNovoEmprestimoParaItem(${p.id})" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 border border-indigo-200 rounded-lg text-[10px] font-bold transition flex items-center gap-1 shadow-sm whitespace-nowrap" title="Registrar Empréstimo deste Item com dados pré-preenchidos">
+                  <button onclick="abrirModalNovoEmprestimoParaItem(${p.id})" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 border border-indigo-200 rounded-lg text-[10px] font-bold transition flex items-center gap-1 shadow-sm whitespace-nowrap" title="Registrar Empréstimo deste Item">
                     <span>📦</span> Emprestar
                   </button>
                 `}
@@ -11086,7 +11143,9 @@ async function salvarPatrimonio(e) {
     ministerio_id: document.getElementById('pat-ministerio').value || null,
     localizacao: document.getElementById('pat-local').value,
     valor_aquisicao: document.getElementById('pat-valor').value || 0,
-    responsavel: document.getElementById('pat-resp').value
+    responsavel: document.getElementById('pat-resp').value,
+    quantidade: document.getElementById('pat-qtd')?.value || 1,
+    situacao: document.getElementById('pat-situacao')?.value || 'Em uso'
   });
   e.target.reset();
   fetchBootstrap();
