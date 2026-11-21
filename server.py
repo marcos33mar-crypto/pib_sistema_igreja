@@ -41,7 +41,13 @@ import base64
 import urllib.parse
 import urllib.request
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+
+TZ_BRASILIA = timezone(timedelta(hours=-3))
+
+
+def agora_brasilia():
+    return datetime.now(TZ_BRASILIA)
 
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
@@ -561,7 +567,7 @@ def executar_auto_backup_nuvem():
             except Exception:
                 pass
 
-            agora_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            agora_str = agora_brasilia().strftime("%Y-%m-%d %H:%M:%S")
             payload = {
                 "message": f"Blindagem Kairós Auto-Backup ({agora_str})",
                 "content": base64.b64encode(db_bytes).decode("ascii"),
@@ -673,7 +679,7 @@ def iniciar_keep_alive_blindagem():
 
 def log_auditoria(conn, usuario_nome, setor, acao, detalhes):
 
-    agora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    agora = agora_brasilia().strftime("%Y-%m-%d %H:%M:%S")
 
     conn.execute(
 
@@ -1462,7 +1468,7 @@ def init_db():
                     """INSERT INTO config_alertas_verba 
                        (id, responsavel_padrao, telefone_padrao, ntfy_topico, alerta_auto_ativo, atualizado_em)
                        VALUES (1, ?, ?, 'kairos-pib-parque-sp-verbas', 1, ?)""",
-                    (resp_ini, fone_ini, datetime.now().strftime("%d/%m/%Y %H:%M"))
+                    (resp_ini, fone_ini, agora_brasilia().strftime("%d/%m/%Y %H:%M"))
                 )
         except Exception:
             pass
@@ -2970,7 +2976,7 @@ def build_bootstrap_data(req_handler=None):
                 "atas": [],
                 "contas_pagar": [],
                 "clientes_conectados": 0,
-                "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                "timestamp": agora_brasilia().strftime("%d/%m/%Y %H:%M:%S"),
             }
 
         ministerios = [dict(r) for r in cur.execute("SELECT * FROM ministerios ORDER BY orcamento_2026 DESC, id ASC").fetchall()]
@@ -3400,7 +3406,7 @@ def build_bootstrap_data(req_handler=None):
                 "atas": [],
                 "contas_pagar": [],
                 "clientes_conectados": 0,
-                "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                "timestamp": agora_brasilia().strftime("%d/%m/%Y %H:%M:%S"),
             }
 
         return {
@@ -3425,7 +3431,7 @@ def build_bootstrap_data(req_handler=None):
             "clientes_conectados": clientes_ativos,
             "url_publica": (f"{req_handler.headers.get('X-Forwarded-Proto', 'https')}://{req_handler.headers.get('Host')}" if (req_handler and hasattr(req_handler, 'headers') and req_handler.headers.get('Host') and not req_handler.headers.get('Host', '').startswith(('localhost', '127.0.0.1', '10.', '192.168.'))) else PUBLIC_TUNNEL_URL),
             "url_rede_local": (f"{req_handler.headers.get('X-Forwarded-Proto', 'https')}://{req_handler.headers.get('Host')}" if (req_handler and hasattr(req_handler, 'headers') and req_handler.headers.get('Host') and not req_handler.headers.get('Host', '').startswith(('localhost', '127.0.0.1', '10.', '192.168.'))) else LOCAL_LAN_URL),
-            "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+            "timestamp": agora_brasilia().strftime("%d/%m/%Y %H:%M:%S"),
         }
 
 
@@ -4872,7 +4878,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
 
-                    agora = datetime.now().strftime("%Y-%m-%d")
+                    agora = agora_brasilia().strftime("%Y-%m-%d")
 
                     sala_ebd = body.get("sala_ebd", "").strip()
 
@@ -5146,7 +5152,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     lgpd_consentimento = 1 if body.get("lgpd_consentimento") else (int(atual["lgpd_consentimento"] or 0) if "lgpd_consentimento" not in body and "lgpd_consentimento" in atual.keys() else 0)
                     lgpd_data = (atual["lgpd_data"] if "lgpd_data" in atual.keys() and atual["lgpd_data"] else "")
                     if lgpd_consentimento and not lgpd_data:
-                        lgpd_data = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        lgpd_data = agora_brasilia().strftime("%Y-%m-%d %H:%M:%S")
                     elif not lgpd_consentimento:
                         lgpd_data = ""
 
@@ -5851,7 +5857,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                 elif path == "/api/financeiro":
 
-                    data_lanc = body.get("data_lancamento") or datetime.now().strftime("%Y-%m-%d")
+                    data_lanc = body.get("data_lancamento") or agora_brasilia().strftime("%Y-%m-%d")
 
                     tipo = body["tipo"]
 
@@ -5941,7 +5947,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
 
-                        grupo_id = f"PARC-{datetime.now().strftime('%Y%m%d%H%M%S')}-{random.randint(100, 999)}"
+                        grupo_id = f"PARC-{agora_brasilia().strftime('%Y%m%d%H%M%S')}-{random.randint(100, 999)}"
 
                         try:
 
@@ -5949,7 +5955,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                         except Exception:
 
-                            dt_base = datetime.now()
+                            dt_base = agora_brasilia()
 
 
 
@@ -6321,7 +6327,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                     tipo = (body.get("tipo") or "Assembleia Geral Ordinária").strip()
 
-                    data_reuniao = (body.get("data_reuniao") or datetime.now().strftime("%Y-%m-%d")).strip()
+                    data_reuniao = (body.get("data_reuniao") or agora_brasilia().strftime("%Y-%m-%d")).strip()
 
                     hora_inicio = (body.get("hora_inicio") or "").strip()
 
@@ -6373,7 +6379,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
 
-                    agora_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    agora_ts = agora_brasilia().strftime("%Y-%m-%d %H:%M:%S")
 
 
 
@@ -6516,7 +6522,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
 
-                    agora_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    agora_ts = agora_brasilia().strftime("%Y-%m-%d %H:%M:%S")
 
 
 
@@ -6551,8 +6557,8 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
                 elif path == "/api/requisicoes":
-                    agora = datetime.now().strftime("%Y-%m-%d")
-                    agora_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
+                    agora = agora_brasilia().strftime("%Y-%m-%d")
+                    agora_hora = agora_brasilia().strftime("%d/%m/%Y %H:%M")
                     ministerio_id = int(body["ministerio_id"])
                     solicitante = (body.get("solicitante") or "").strip() or operador
                     solicitante_telefone = (body.get("solicitante_telefone") or "").strip()
@@ -6651,7 +6657,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     canal = (body.get("canal") or "WhatsApp/SMS").strip()
                     destino_nome = (body.get("responsavel_tesouraria") or "Tesouraria").strip()
                     telefone = (body.get("telefone_tesouraria") or "").strip()
-                    agora_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
+                    agora_hora = agora_brasilia().strftime("%d/%m/%Y %H:%M")
                     resumo_aviso = f"Alerta via {canal} p/ {destino_nome} ({telefone or 'Celular'}) em {agora_hora}"
 
                     cur.execute(
@@ -6683,7 +6689,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     return self.send_json({"ok": True, "data_alerta": agora_hora, "ultimo_aviso_alerta": resumo_aviso})
 
                 elif path == "/api/requisicoes/config-alertas":
-                    agora_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
+                    agora_hora = agora_brasilia().strftime("%d/%m/%Y %H:%M")
                     responsavel_padrao = (body.get("responsavel_padrao") or "Tesouraria / Financeiro").strip()
                     telefone_padrao = (body.get("telefone_padrao") or "").strip()
                     telefone_secundario = (body.get("telefone_secundario") or "").strip()
@@ -6749,7 +6755,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                 elif path == "/api/requisicoes/avaliar":
                     req_id = int(body["id"])
                     decisao = body["decisao"]
-                    agora = datetime.now().strftime("%Y-%m-%d")
+                    agora = agora_brasilia().strftime("%Y-%m-%d")
 
                     req = cur.execute(
                         """SELECT r.*, m.nome as ministerio_nome
@@ -6833,7 +6839,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                     nome = body["nome"]
 
-                    agora = body.get("data_visita") or datetime.now().strftime("%Y-%m-%d")
+                    agora = body.get("data_visita") or agora_brasilia().strftime("%Y-%m-%d")
 
                     quem_convidou = (body.get("quem_convidou") or "").strip()
 
@@ -6919,7 +6925,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
 
-                    agora = datetime.now().strftime("%Y-%m-%d")
+                    agora = agora_brasilia().strftime("%Y-%m-%d")
 
                     cur.execute(
 
@@ -7201,7 +7207,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                         return self.send_json({"erro": "Nome do retirante é obrigatório"}, 400)
 
                     condicao_saida = body.get("condicao_saida", "").strip() or "Bom Estado"
-                    data_retirada = body.get("data_retirada", "").strip() or datetime.now().strftime("%Y-%m-%d %H:%M")
+                    data_retirada = body.get("data_retirada", "").strip() or agora_brasilia().strftime("%Y-%m-%d %H:%M")
                     previsao_devolucao = body.get("previsao_devolucao", "").strip()
                     if not previsao_devolucao:
                         conn.close()
@@ -7220,7 +7226,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     telefone_responsavel_patrimonio = body.get("telefone_responsavel_patrimonio", "").strip()
                     enviar_sms_setor_agora = bool(body.get("enviar_sms_setor_agora", False))
 
-                    agora_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+                    agora_str = agora_brasilia().strftime("%d/%m/%Y %H:%M")
                     status_aprov_setor = "Pendente"
                     data_aprov_setor = None
                     op_aprov_setor = None
@@ -7268,7 +7274,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                 elif path == "/api/patrimonio/emprestimo/aprovar-setor":
                     emp_id = int(body["id"])
-                    agora_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+                    agora_str = agora_brasilia().strftime("%d/%m/%Y %H:%M")
                     cur.execute(
                         """
                         UPDATE patrimonio_emprestimos 
@@ -7302,7 +7308,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                         conn.close()
                         return self.send_json({"erro": "A autorização do Responsável pelo Patrimônio depende da aprovação prévia do Responsável do Setor."}, 400)
 
-                    agora_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+                    agora_str = agora_brasilia().strftime("%d/%m/%Y %H:%M")
                     cur.execute(
                         """
                         UPDATE patrimonio_emprestimos 
@@ -7330,7 +7336,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                         conn.close()
                         return self.send_json({"erro": "A retirada só pode acontecer após o OK do Responsável pelo Setor e do Responsável pelo Patrimônio."}, 400)
 
-                    agora_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+                    agora_str = agora_brasilia().strftime("%Y-%m-%d %H:%M")
                     cur.execute(
                         "UPDATE patrimonio_emprestimos SET status = 'Em Aberto / Emprestado', data_retirada = COALESCE(?, data_retirada) WHERE id = ?",
                         (agora_str, emp_id)
@@ -7351,8 +7357,8 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                         row_emp_ant = cur.execute("SELECT observacoes_retorno FROM patrimonio_emprestimos WHERE id=?", (emp_id,)).fetchone()
                         if row_emp_ant and row_emp_ant["observacoes_retorno"]:
                             observacoes_retorno = row_emp_ant["observacoes_retorno"]
-                    data_retorno = body.get("data_devolucao_real", "").strip() or datetime.now().strftime("%Y-%m-%d %H:%M")
-                    agora_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+                    data_retorno = body.get("data_devolucao_real", "").strip() or agora_brasilia().strftime("%Y-%m-%d %H:%M")
+                    agora_str = agora_brasilia().strftime("%d/%m/%Y %H:%M")
 
                     ok_setor = bool(body.get("ok_setor", False))
                     ok_patrimonio = bool(body.get("ok_patrimonio", False))
@@ -7405,7 +7411,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                 elif path == "/api/patrimonio/emprestimo/ok-retorno-setor":
                     emp_id = int(body["id"])
-                    agora_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+                    agora_str = agora_brasilia().strftime("%d/%m/%Y %H:%M")
                     cur.execute(
                         """
                         UPDATE patrimonio_emprestimos 
@@ -7427,7 +7433,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                 elif path == "/api/patrimonio/emprestimo/ok-retorno-patrimonio":
                     emp_id = int(body["id"])
-                    agora_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+                    agora_str = agora_brasilia().strftime("%d/%m/%Y %H:%M")
                     cur.execute(
                         """
                         UPDATE patrimonio_emprestimos 
@@ -7455,7 +7461,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                         conn.close()
                         return self.send_json({"erro": "Assinatura digital é obrigatória."}, 400)
 
-                    agora_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+                    agora_str = agora_brasilia().strftime("%d/%m/%Y %H:%M")
                     row = cur.execute("SELECT * FROM patrimonio_emprestimos WHERE id = ?", (emp_id,)).fetchone()
                     if not row:
                         conn.close()
@@ -7947,8 +7953,8 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     descricao = (body.get("descricao") or "").strip() or "Conta a Pagar"
                     categoria = (body.get("categoria") or "Despesas Operacionais").strip()
                     documento = (body.get("documento") or "").strip()
-                    data_emissao = body.get("data_emissao") or datetime.now().strftime("%Y-%m-%d")
-                    data_venc = body.get("data_vencimento") or datetime.now().strftime("%Y-%m-%d")
+                    data_emissao = body.get("data_emissao") or agora_brasilia().strftime("%Y-%m-%d")
+                    data_venc = body.get("data_vencimento") or agora_brasilia().strftime("%Y-%m-%d")
                     valor_in = parse_moeda(body.get("valor", 0))
                     forma = (body.get("forma_pagamento") or "Boleto").strip()
                     status_ini = (body.get("status") or "Em Aberto").strip()
@@ -7968,8 +7974,8 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     modo_valor = (body.get("modo_valor") or "PARCELA").upper()  # PARCELA ou TOTAL
                     is_parcelado = 1 if num_parcelas > 1 else 0
 
-                    agora_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    hoje_str = datetime.now().strftime("%Y-%m-%d")
+                    agora_str = agora_brasilia().strftime("%Y-%m-%d %H:%M:%S")
+                    hoje_str = agora_brasilia().strftime("%Y-%m-%d")
 
                     if is_parcelado:
                         if modo_valor == "TOTAL":
@@ -7979,11 +7985,11 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                             val_parcela = valor_in
                             val_total = round(valor_in * num_parcelas, 2)
 
-                        grupo_id = f"CP-{datetime.now().strftime('%Y%m%d%H%M%S')}-{random.randint(100, 999)}"
+                        grupo_id = f"CP-{agora_brasilia().strftime('%Y%m%d%H%M%S')}-{random.randint(100, 999)}"
                         try:
                             dt_base = datetime.strptime(data_venc, "%Y-%m-%d")
                         except Exception:
-                            dt_base = datetime.now()
+                            dt_base = agora_brasilia()
 
                         for i in range(1, num_parcelas + 1):
                             dt_venc_i = add_months(dt_base, i - 1).strftime("%Y-%m-%d")
@@ -8065,7 +8071,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                         conn.close()
                         return self.send_json({"ok": True, "mensagem": "Esta conta já consta como paga."})
 
-                    dt_pag = body.get("data_pagamento") or datetime.now().strftime("%Y-%m-%d")
+                    dt_pag = body.get("data_pagamento") or agora_brasilia().strftime("%Y-%m-%d")
                     val_pago = parse_moeda(body.get("valor_pago", row_cp["valor"]))
                     if val_pago <= 0:
                         val_pago = float(row_cp["valor"] or 0)
