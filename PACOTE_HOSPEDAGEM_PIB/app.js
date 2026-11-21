@@ -3551,11 +3551,17 @@ function toggleSubmenuPatrimonio() {
   const subMenu = document.getElementById('submenu-patrimonio');
   const seta = document.getElementById('seta-subnav-patrimonio');
 
-  if (subMenu) {
-    subMenu.classList.remove('hidden');
+  if (ACTIVE_TAB !== 'patrimonio') {
+    window._submenuPatrimonioUserClosed = false;
+    switchTab('patrimonio');
+    switchSubTabPatrimonio(SUBTAB_PATRIMONIO_ATIVA || 'inventario');
+    if (subMenu) subMenu.classList.remove('hidden');
     if (seta) seta.style.transform = 'rotate(0deg)';
+  } else if (subMenu) {
+    const oculto = subMenu.classList.toggle('hidden');
+    if (seta) seta.style.transform = oculto ? 'rotate(-90deg)' : 'rotate(0deg)';
+    window._submenuPatrimonioUserClosed = oculto;
   }
-  abrirPatrimonioSubtab(SUBTAB_PATRIMONIO_ATIVA || 'inventario');
 }
 
 function abrirPatrimonioSubtab(subtab) {
@@ -3563,6 +3569,7 @@ function abrirPatrimonioSubtab(subtab) {
     alert(`Acesso Restrito: O usuário '${CURRENT_OPERATOR.nome}' não possui permissão para acessar o Patrimônio.`);
     return;
   }
+  window._submenuPatrimonioUserClosed = false;
   SUBTAB_PATRIMONIO_ATIVA = subtab || 'inventario';
   switchTab('patrimonio');
   switchSubTabPatrimonio(SUBTAB_PATRIMONIO_ATIVA);
@@ -9009,9 +9016,14 @@ function switchSubTabPatrimonio(tab) {
   const subMenu = document.getElementById('submenu-patrimonio');
   const seta = document.getElementById('seta-subnav-patrimonio');
 
-  // Garante que o submenu lateral de Patrimônio esteja aberto
-  if (subMenu) subMenu.classList.remove('hidden');
-  if (seta) seta.style.transform = 'rotate(0deg)';
+  // Mantém o submenu lateral de Patrimônio aberto apenas se o usuário não o recolheu manualmente
+  if (!window._submenuPatrimonioUserClosed) {
+    if (subMenu) subMenu.classList.remove('hidden');
+    if (seta) seta.style.transform = 'rotate(0deg)';
+  } else {
+    if (subMenu) subMenu.classList.add('hidden');
+    if (seta) seta.style.transform = 'rotate(-90deg)';
+  }
 
   // Alterna as telas
   if (subInv) {
