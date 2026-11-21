@@ -11497,9 +11497,7 @@ function renderUsuarios(termoBusca = FILTRO_USUARIOS_TERMO, tipoFiltro = FILTRO_
               <span>🔒</span> Credencial:
             </span>
             <span class="flex items-center gap-1.5 font-mono font-bold text-slate-700 bg-white px-2.5 py-1 rounded-lg border border-slate-200 text-[10px]">
-              <span id="senha-mask-${u.id}">••••••</span>
-              <span id="senha-val-${u.id}" class="hidden text-indigo-700 font-bold">${u.senha || '123456'}</span>
-              <button type="button" onclick="alternarVerSenhaCard(${u.id})" class="text-slate-400 hover:text-slate-800 text-xs cursor-pointer ml-1" title="Ver / Ocultar Senha">👁️</button>
+              ${isSenhaAlterada ? '🔐 Protegida (Criptografada)' : '🔑 123456 (1º acesso)'}
             </span>
           </div>
           <div class="flex items-center justify-between pt-1.5 border-t border-slate-200/60 gap-1.5 flex-wrap">
