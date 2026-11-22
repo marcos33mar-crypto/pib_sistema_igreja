@@ -22001,7 +22001,8 @@ function renderContasAPagar() {
   const selAnoFiltro = document.getElementById('cp-filtro-ano');
   if (selAnoFiltro) {
     const valAtualAno = selAnoFiltro.value || 'TODOS';
-    const anosSet = new Set(['2025', '2026', '2027']);
+    const anosSet = new Set();
+    for (let y = 2020; y <= 2035; y++) anosSet.add(String(y));
     listaCompleta.forEach(c => {
       const a = String(c.data_vencimento || '').substring(0, 4);
       if (/^\d{4}$/.test(a)) anosSet.add(a);
