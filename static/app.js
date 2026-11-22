@@ -11331,14 +11331,48 @@ async function salvarPatrimonio(e) {
 
 let FILTRO_USUARIOS_TERMO = '';
 let FILTRO_USUARIOS_TIPO = 'TODOS';
+let FILTRO_USUARIOS_SETOR = 'TODOS';
+let MODO_VISUALIZACAO_USUARIOS = 'tabela';
+let PAGINA_ATUAL_USUARIOS = 1;
+let ITENS_POR_PAGINA_USUARIOS = 10;
 
 function aoBuscarUsuariosNaTela(val) {
   FILTRO_USUARIOS_TERMO = (val || '').trim().toLowerCase();
+  PAGINA_ATUAL_USUARIOS = 1;
+  renderUsuarios(FILTRO_USUARIOS_TERMO, FILTRO_USUARIOS_TIPO);
+}
+
+function aoFiltrarSetorUsuarios(setor) {
+  FILTRO_USUARIOS_SETOR = setor || 'TODOS';
+  PAGINA_ATUAL_USUARIOS = 1;
+  renderUsuarios(FILTRO_USUARIOS_TERMO, FILTRO_USUARIOS_TIPO);
+}
+
+function alterarModoVisualizacaoUsuarios(modo) {
+  MODO_VISUALIZACAO_USUARIOS = modo === 'cards' ? 'cards' : 'tabela';
+  const btnTab = document.getElementById('btn-usr-view-tabela');
+  const btnCards = document.getElementById('btn-usr-view-cards');
+  const clsAtivo = 'px-3 py-1.5 rounded-lg font-bold bg-white text-indigo-700 shadow-2xs cursor-pointer transition';
+  const clsInativo = 'px-3 py-1.5 rounded-lg font-bold text-slate-600 hover:text-slate-900 cursor-pointer transition';
+  if (btnTab) btnTab.className = MODO_VISUALIZACAO_USUARIOS === 'tabela' ? clsAtivo : clsInativo;
+  if (btnCards) btnCards.className = MODO_VISUALIZACAO_USUARIOS === 'cards' ? clsAtivo : clsInativo;
+  renderUsuarios(FILTRO_USUARIOS_TERMO, FILTRO_USUARIOS_TIPO);
+}
+
+function mudarPaginaUsuarios(delta) {
+  PAGINA_ATUAL_USUARIOS = Math.max(1, PAGINA_ATUAL_USUARIOS + Number(delta || 0));
+  renderUsuarios(FILTRO_USUARIOS_TERMO, FILTRO_USUARIOS_TIPO);
+}
+
+function aoMudarItensPorPaginaUsuarios(val) {
+  ITENS_POR_PAGINA_USUARIOS = Number(val) || 10;
+  PAGINA_ATUAL_USUARIOS = 1;
   renderUsuarios(FILTRO_USUARIOS_TERMO, FILTRO_USUARIOS_TIPO);
 }
 
 function aoFiltrarTipoUsuarios(tipo) {
   FILTRO_USUARIOS_TIPO = tipo;
+  PAGINA_ATUAL_USUARIOS = 1;
   ['filtro-usr-todos', 'filtro-usr-pendentes', 'filtro-usr-definitivas', 'filtro-usr-admins'].forEach(id => {
     const btn = document.getElementById(id);
     if (!btn) return;
@@ -11359,7 +11393,6 @@ function aoFiltrarTipoUsuarios(tipo) {
 function renderUsuarios(termoBusca = FILTRO_USUARIOS_TERMO, tipoFiltro = FILTRO_USUARIOS_TIPO) {
   const usuarios = STATE.usuarios || [];
 
-  // Atualiza KPIs
   const kpiTotal = document.getElementById('kpi-total-usuarios');
   const kpiAdmins = document.getElementById('kpi-total-admins');
   const kpiSenhas = document.getElementById('kpi-total-senhas-ok');
@@ -11383,6 +11416,7 @@ function renderUsuarios(termoBusca = FILTRO_USUARIOS_TERMO, tipoFiltro = FILTRO_
   renderOperatorSelector();
 
   const usrCont = document.getElementById('lista-usuarios');
+  const pagCont = document.getElementById('paginacao-usuarios');
   if (!usrCont) return;
 
   const descPerfil = {
@@ -11396,10 +11430,30 @@ function renderUsuarios(termoBusca = FILTRO_USUARIOS_TERMO, tipoFiltro = FILTRO_
     CUSTOM: '⚙️ Personalizado'
   };
 
-  let filtrados = usuarios.filter(u => {
+  const setorBadgesMap = {
+    dashboard: ['📊 Visão Geral', 'bg-blue-100 text-blue-800 border-blue-200'],
+    tesouraria: ['💰 Tesouraria', 'bg-emerald-100 text-emerald-800 border-emerald-300'],
+    pedidos: ['📤 Pedidos', 'bg-amber-100 text-amber-800 border-amber-300'],
+    projecao: ['📽️ Projeção', 'bg-amber-100 text-amber-800 border-amber-300'],
+    relatorios: ['📑 Relatórios', 'bg-indigo-100 text-indigo-800 border-indigo-200'],
+    secretaria: ['👥 Secretaria', 'bg-blue-100 text-blue-800 border-blue-200'],
+    atas: ['📜 Atas', 'bg-violet-100 text-violet-800 border-violet-200'],
+    ministerios: ['📅 Ministérios', 'bg-purple-100 text-purple-800 border-purple-200'],
+    celulas: ['🏡 Células', 'bg-emerald-100 text-emerald-800 border-emerald-300'],
+    patrimonio: ['🏛️ Patrimônio', 'bg-amber-100 text-amber-800 border-amber-300'],
+    recepcao: ['🤝 Recepção', 'bg-teal-100 text-teal-800 border-teal-200'],
+    acessos: ['⚙️ Acessos', 'bg-rose-100 text-rose-800 border-rose-200']
+  };
+
+  const filtrados = usuarios.filter(u => {
     if (tipoFiltro === 'PENDENTES' && Number(u.senha_alterada) === 1) return false;
     if (tipoFiltro === 'DEFINITIVAS' && Number(u.senha_alterada) !== 1) return false;
     if (tipoFiltro === 'ADMINS' && u.perfil !== 'ADMIN') return false;
+
+    if (FILTRO_USUARIOS_SETOR && FILTRO_USUARIOS_SETOR !== 'TODOS') {
+      const perm = getPermissoesOperador(u);
+      if (u.perfil !== 'ADMIN' && !perm.includes(FILTRO_USUARIOS_SETOR)) return false;
+    }
 
     if (termoBusca) {
       const matchNome = (u.nome || '').toLowerCase().includes(termoBusca);
@@ -11412,142 +11466,196 @@ function renderUsuarios(termoBusca = FILTRO_USUARIOS_TERMO, tipoFiltro = FILTRO_
   });
 
   if (filtrados.length === 0) {
+    usrCont.className = 'w-full text-xs';
     usrCont.innerHTML = `
-      <div class="col-span-full py-12 px-6 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-300">
+      <div class="py-12 px-6 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-300">
         <span class="text-4xl block mb-2">🔍</span>
         <h4 class="font-bold text-slate-800 text-sm">Nenhum operador encontrado</h4>
-        <p class="text-xs text-slate-500 mt-1">Tente ajustar o termo da busca ou o filtro de status selecionado.</p>
-        <button type="button" onclick="aoFiltrarTipoUsuarios('TODOS'); const b = document.getElementById('busca-usuarios-input'); if(b) b.value=''; aoBuscarUsuariosNaTela('');" class="mt-4 bg-white border border-slate-300 text-indigo-700 hover:bg-indigo-50 font-bold px-4 py-2 rounded-xl text-xs transition cursor-pointer">
+        <p class="text-xs text-slate-500 mt-1">Tente ajustar o termo da busca, setor ou filtro selecionado.</p>
+        <button type="button" onclick="FILTRO_USUARIOS_SETOR='TODOS'; const fs=document.getElementById('filtro-usr-setor'); if(fs) fs.value='TODOS'; const b=document.getElementById('busca-usuarios-input'); if(b) b.value=''; FILTRO_USUARIOS_TERMO=''; aoFiltrarTipoUsuarios('TODOS');" class="mt-4 bg-white border border-slate-300 text-indigo-700 hover:bg-indigo-50 font-bold px-4 py-2 rounded-xl text-xs transition cursor-pointer">
           Limpar Filtros
         </button>
       </div>
     `;
+    if (pagCont) pagCont.innerHTML = '';
     return;
   }
 
-  usrCont.innerHTML = filtrados.map(u => {
+  const porPagina = ITENS_POR_PAGINA_USUARIOS >= 9999 ? filtrados.length : ITENS_POR_PAGINA_USUARIOS;
+  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / porPagina));
+  if (PAGINA_ATUAL_USUARIOS > totalPaginas) PAGINA_ATUAL_USUARIOS = totalPaginas;
+  const inicio = (PAGINA_ATUAL_USUARIOS - 1) * porPagina;
+  const paginados = filtrados.slice(inicio, inicio + porPagina);
+
+  const avatarGradients = [
+    'from-indigo-600 to-purple-600',
+    'from-emerald-600 to-teal-700',
+    'from-blue-600 to-indigo-700',
+    'from-rose-600 to-pink-700',
+    'from-amber-600 to-orange-700'
+  ];
+
+  const getDadosUsuarioRender = (u) => {
     const permitidas = getPermissoesOperador(u);
-    const badges = [];
-
-    if (u.perfil === 'ADMIN') {
-      badges.push(`<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">👑 Acesso Total (Todos os Setores)</span>`);
-    } else {
-      if (permitidas.includes('dashboard')) badges.push(`<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">📊 Visão Geral</span>`);
-      if (permitidas.includes('tesouraria')) badges.push(`<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">💰 Tesouraria</span>`);
-      if (permitidas.includes('pedidos')) badges.push(`<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">📤 Pedidos</span>`);
-      if (permitidas.includes('projecao')) badges.push(`<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">📽️ Projeção</span>`);
-      if (permitidas.includes('secretaria')) badges.push(`<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">👥 Secretaria</span>`);
-      if (permitidas.includes('atas')) badges.push(`<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-800 border border-violet-200">📜 Atas</span>`);
-      if (permitidas.includes('ministerios')) badges.push(`<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">📅 Ministérios</span>`);
-      if (permitidas.includes('celulas')) badges.push(`<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">🏡 Células</span>`);
-      if (permitidas.includes('patrimonio')) badges.push(`<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">🏛️ Patrimônio</span>`);
-      if (permitidas.includes('recepcao')) badges.push(`<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 text-teal-800 border border-teal-200">🤝 Recepção</span>`);
-      if (permitidas.includes('acessos')) badges.push(`<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">⚙️ Acessos</span>`);
-    }
-
-    const relsU = getRelatoriosPermitidos(u);
-    let relBadge = '';
-    if (u.perfil === 'ADMIN' || relsU.includes('*') || relsU.length >= 16) {
-      relBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">📑 Todos Relatórios (16)</span>`;
-    } else if (relsU.length > 0) {
-      relBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">📑 ${relsU.length} Relatório(s)</span>`;
-    } else {
-      relBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">📑 Sem relatórios</span>`;
-    }
-
-    // Iniciais do nome para avatar visual
-    const partesNome = (u.nome || 'U').trim().split(/\\s+/);
+    const setoresLimpos = permitidas.filter(p => p !== 'ministerios_painel' && setorBadgesMap[p]);
+    const partesNome = (u.nome || 'U').trim().split(/\s+/);
     const iniciais = (partesNome[0][0] + (partesNome.length > 1 ? partesNome[partesNome.length - 1][0] : '')).toUpperCase();
-    const avatarGradients = [
-      'from-indigo-600 to-purple-600',
-      'from-emerald-600 to-teal-700',
-      'from-blue-600 to-indigo-700',
-      'from-rose-600 to-pink-700',
-      'from-amber-600 to-orange-700'
-    ];
-    const gradIndex = Math.abs((Number(u.id) || 1) * 7) % avatarGradients.length;
-    const grad = avatarGradients[gradIndex];
-
+    const grad = avatarGradients[Math.abs((Number(u.id) || 1) * 7) % avatarGradients.length];
     const isSenhaAlterada = Number(u.senha_alterada) === 1;
+    const relsU = getRelatoriosPermitidos(u);
+    const qtdRels = (u.perfil === 'ADMIN' || relsU.includes('*') || relsU.length >= 16) ? '16 (Todos)' : `${relsU.length}`;
+    return { permitidas, setoresLimpos, iniciais, grad, isSenhaAlterada, relsU, qtdRels };
+  };
 
-    return `
-      <div class="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs hover:border-indigo-300 hover:shadow-md transition flex flex-col justify-between overflow-hidden gap-3.5">
-        
-        <!-- Cabeçalho do Card: Avatar, Identificação e Perfil -->
-        <div class="flex items-start justify-between gap-3 pb-3 border-b border-slate-100">
-          <div class="flex items-center gap-3 min-w-0">
-            <div class="w-11 h-11 rounded-2xl bg-gradient-to-br ${grad} text-white font-black text-sm flex items-center justify-center shrink-0 shadow-sm">
-              ${iniciais}
+  if (MODO_VISUALIZACAO_USUARIOS === 'tabela') {
+    usrCont.className = 'w-full overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-2xs text-xs';
+    usrCont.innerHTML = `
+      <table class="w-full text-left border-collapse">
+        <thead>
+          <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+            <th class="py-3 px-4">Operador</th>
+            <th class="py-3 px-3">Perfil</th>
+            <th class="py-3 px-3">Credencial</th>
+            <th class="py-3 px-3">Setores & Relatórios</th>
+            <th class="py-3 px-4 text-right">Ações</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          ${paginados.map(u => {
+            const { setoresLimpos, iniciais, grad, isSenhaAlterada, qtdRels } = getDadosUsuarioRender(u);
+            const resumoSetores = u.perfil === 'ADMIN'
+              ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">👑 Acesso Total (12 setores)</span>'
+              : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200" title="${setoresLimpos.map(s => setorBadgesMap[s][0]).join(', ')}">${setoresLimpos.length} setor(es)</span>`;
+            return `
+              <tr class="hover:bg-slate-50/80 transition-colors">
+                <td class="py-3 px-4">
+                  <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-br ${grad} text-white font-black text-xs flex items-center justify-center shrink-0">${iniciais}</div>
+                    <div class="min-w-0">
+                      <div class="font-extrabold text-slate-900 truncate max-w-[240px]" title="${escapeHtml(u.nome)}">${escapeHtml(u.nome)}</div>
+                      <div class="text-[11px] text-slate-500 truncate max-w-[240px]">${escapeHtml(u.cargo || 'Operador')} · <span class="font-mono text-slate-400">${escapeHtml(u.email || '')}</span></div>
+                    </div>
+                  </div>
+                </td>
+                <td class="py-3 px-3 whitespace-nowrap">
+                  <span class="text-[10px] bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-1 rounded-xl font-bold">${descPerfil[u.perfil] || escapeHtml(u.perfil)}</span>
+                </td>
+                <td class="py-3 px-3 whitespace-nowrap">
+                  ${isSenhaAlterada
+                    ? '<span class="text-[10px] font-extrabold text-emerald-800 bg-emerald-100/80 border border-emerald-300 px-2 py-0.5 rounded-full inline-flex items-center gap-1">🔐 Definitiva</span>'
+                    : '<span class="text-[10px] font-extrabold text-amber-800 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-full inline-flex items-center gap-1">⚠️ 1º Acesso (123456)</span>'}
+                </td>
+                <td class="py-3 px-3">
+                  <div class="flex flex-wrap items-center gap-1.5">
+                    ${resumoSetores}
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">📑 ${qtdRels}</span>
+                  </div>
+                </td>
+                <td class="py-3 px-4 text-right whitespace-nowrap">
+                  <div class="inline-flex items-center gap-1.5">
+                    <button type="button" onclick="carregarUsuarioNoFormulario(${u.id})" title="Editar Acessos & Permissões" class="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 font-bold text-[11px] cursor-pointer transition">✏️ Editar</button>
+                    <button type="button" onclick="abrirModalAlterarSenhaUsuario(${u.id})" title="Alterar Senha" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 font-bold text-[11px] cursor-pointer transition">🔑</button>
+                    <button type="button" onclick="resetarSenhaOperador(${u.id})" title="Resetar para 123456" class="px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold text-[11px] cursor-pointer transition">🔄</button>
+                    ${totalUsers > 1 ? `<button type="button" onclick="removerItem('/api/usuarios', ${u.id})" title="Remover Operador" class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-200 font-bold text-[11px] cursor-pointer transition">🗑️</button>` : ''}
+                  </div>
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+  } else {
+    usrCont.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 text-xs';
+    usrCont.innerHTML = paginados.map(u => {
+      const { setoresLimpos, iniciais, grad, isSenhaAlterada, relsU } = getDadosUsuarioRender(u);
+      const badges = u.perfil === 'ADMIN'
+        ? [`<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">👑 Acesso Total (Todos os Setores)</span>`]
+        : setoresLimpos.map(s => `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${setorBadgesMap[s][1]}">${setorBadgesMap[s][0]}</span>`);
+
+      let relBadge = '';
+      if (u.perfil === 'ADMIN' || relsU.includes('*') || relsU.length >= 16) {
+        relBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">📑 Todos Relatórios (16)</span>`;
+      } else if (relsU.length > 0) {
+        relBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">📑 ${relsU.length} Relatório(s)</span>`;
+      } else {
+        relBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">📑 Sem relatórios</span>`;
+      }
+
+      return `
+        <div class="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs hover:border-indigo-300 hover:shadow-md transition flex flex-col justify-between overflow-hidden gap-3.5">
+          <div class="flex items-start justify-between gap-3 pb-3 border-b border-slate-100">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-11 h-11 rounded-2xl bg-gradient-to-br ${grad} text-white font-black text-sm flex items-center justify-center shrink-0 shadow-sm">${iniciais}</div>
+              <div class="min-w-0">
+                <h4 class="font-black text-slate-900 text-sm leading-tight truncate" title="${escapeHtml(u.nome)}">${escapeHtml(u.nome)}</h4>
+                <p class="text-[11px] text-slate-600 font-medium truncate mt-0.5" title="${escapeHtml(u.cargo)}">${escapeHtml(u.cargo)}</p>
+                <p class="text-[10px] text-slate-400 font-mono truncate" title="${escapeHtml(u.email)}">🔑 ${escapeHtml(u.email)}</p>
+              </div>
             </div>
-            <div class="min-w-0">
-              <h4 class="font-black text-slate-900 text-sm leading-tight truncate" title="${u.nome}">${u.nome}</h4>
-              <p class="text-[11px] text-slate-600 font-medium truncate mt-0.5" title="${u.cargo}">${u.cargo}</p>
-              <p class="text-[10px] text-slate-400 font-mono truncate" title="${u.email}">🔑 ${u.email}</p>
+            <span class="text-[10px] bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-1 rounded-xl font-bold shrink-0">${descPerfil[u.perfil] || escapeHtml(u.perfil)}</span>
+          </div>
+
+          <div class="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 space-y-2 text-[11px]">
+            <div class="flex items-center justify-between">
+              <span class="text-slate-600 font-bold flex items-center gap-1.5"><span>🔒</span> Credencial:</span>
+              <span class="flex items-center gap-1.5 font-mono font-bold text-slate-700 bg-white px-2.5 py-1 rounded-lg border border-slate-200 text-[10px]">
+                ${isSenhaAlterada ? '🔐 Protegida (Criptografada)' : '🔑 123456 (1º acesso)'}
+              </span>
+            </div>
+            <div class="flex items-center justify-between pt-1.5 border-t border-slate-200/60 gap-1.5 flex-wrap">
+              <div>
+                ${isSenhaAlterada
+                  ? '<span class="text-[10px] font-extrabold text-emerald-800 bg-emerald-100/80 border border-emerald-300 px-2 py-0.5 rounded-full inline-flex items-center gap-1">✅ Senha Definitiva</span>'
+                  : '<span class="text-[10px] font-extrabold text-amber-800 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-full inline-flex items-center gap-1">⚠️ 1º Acesso Pendente</span>'}
+              </div>
+              <div class="flex items-center gap-1.5">
+                <button type="button" onclick="abrirModalAlterarSenhaUsuario(${u.id})" class="text-[10px] text-indigo-700 hover:text-white bg-indigo-50 hover:bg-indigo-600 px-2.5 py-1 rounded-xl border border-indigo-200 hover:border-indigo-600 font-bold transition flex items-center gap-1 cursor-pointer shadow-2xs">🔑 Alterar Senha</button>
+                <button type="button" onclick="resetarSenhaOperador(${u.id})" class="text-[10px] text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-xl border border-amber-200 font-bold transition flex items-center gap-1 cursor-pointer">🔄 Resetar 123456</button>
+              </div>
             </div>
           </div>
-          <span class="text-[10px] bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-1 rounded-xl font-bold shrink-0">
-            ${descPerfil[u.perfil] || u.perfil}
-          </span>
-        </div>
 
-        <!-- Status de Senha e Credencial -->
-        <div class="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 space-y-2 text-[11px]">
-          <div class="flex items-center justify-between">
-            <span class="text-slate-600 font-bold flex items-center gap-1.5">
-              <span>🔒</span> Credencial:
-            </span>
-            <span class="flex items-center gap-1.5 font-mono font-bold text-slate-700 bg-white px-2.5 py-1 rounded-lg border border-slate-200 text-[10px]">
-              ${isSenhaAlterada ? '🔐 Protegida (Criptografada)' : '🔑 123456 (1º acesso)'}
-            </span>
-          </div>
-          <div class="flex items-center justify-between pt-1.5 border-t border-slate-200/60 gap-1.5 flex-wrap">
-            <div>
-              ${isSenhaAlterada ? 
-                '<span class="text-[10px] font-extrabold text-emerald-800 bg-emerald-100/80 border border-emerald-300 px-2 py-0.5 rounded-full inline-flex items-center gap-1">✅ Senha Definitiva</span>' : 
-                '<span class="text-[10px] font-extrabold text-amber-800 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-full inline-flex items-center gap-1">⚠️ 1º Acesso Pendente</span>'
-              }
+          <div class="bg-slate-50/50 rounded-2xl p-3 border border-slate-200/60 space-y-2">
+            <div class="flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              <span>Setores Autorizados:</span>
+              <span class="font-mono text-slate-400">${u.perfil === 'ADMIN' ? '12' : setoresLimpos.length} liberado(s)</span>
             </div>
-            <div class="flex items-center gap-1.5">
-              <button type="button" onclick="abrirModalAlterarSenhaUsuario(${u.id})" class="text-[10px] text-indigo-700 hover:text-white bg-indigo-50 hover:bg-indigo-600 px-2.5 py-1 rounded-xl border border-indigo-200 hover:border-indigo-600 font-bold transition flex items-center gap-1 cursor-pointer shadow-2xs" title="Definir nova senha para este operador">
-                🔑 Alterar Senha
-              </button>
-              <button type="button" onclick="resetarSenhaOperador(${u.id})" class="text-[10px] text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-xl border border-amber-200 font-bold transition flex items-center gap-1 cursor-pointer" title="Resetar para senha padrão 123456">
-                🔄 Resetar 123456
-              </button>
+            <div class="flex flex-wrap gap-1.5 items-center">${badges.length > 0 ? badges.join('') : '<span class="text-[10px] text-slate-400 font-medium italic">Nenhum módulo selecionado</span>'}</div>
+            <div class="pt-1.5 border-t border-slate-200/50 flex items-center justify-between">
+              <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Relatórios:</span>
+              ${relBadge}
             </div>
           </div>
-        </div>
 
-        <!-- Setores Liberados -->
-        <div class="bg-slate-50/50 rounded-2xl p-3 border border-slate-200/60 space-y-2">
-          <div class="flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-            <span>Setores Autorizados:</span>
-            <span class="font-mono text-slate-400">${u.perfil === 'ADMIN' ? '12' : permitidas.filter(p => p !== 'ministerios_painel').length} liberado(s)</span>
-          </div>
-          <div class="flex flex-wrap gap-1.5 items-center">
-            ${badges.length > 0 ? badges.join('') : '<span class="text-[10px] text-slate-400 font-medium italic">Nenhum módulo selecionado</span>'}
-          </div>
-          <div class="pt-1.5 border-t border-slate-200/50 flex items-center justify-between">
-            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Relatórios:</span>
-            ${relBadge}
+          <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+            <button type="button" onclick="carregarUsuarioNoFormulario(${u.id})" class="flex-1 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white font-bold py-2.5 px-3 rounded-xl text-xs border border-indigo-200 hover:border-indigo-600 transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"><span>✏️</span> Editar Acessos & Permissões</button>
+            ${totalUsers > 1 ? `<button type="button" onclick="removerItem('/api/usuarios', ${u.id})" title="Remover Operador" class="bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-200 hover:border-rose-600 py-2.5 px-3 rounded-xl text-xs font-bold transition cursor-pointer shadow-2xs">🗑️</button>` : ''}
           </div>
         </div>
+      `;
+    }).join('');
+  }
 
-        <!-- Botões de Ação do Card -->
-        <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
-          <button type="button" onclick="carregarUsuarioNoFormulario(${u.id})" class="flex-1 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white font-bold py-2.5 px-3 rounded-xl text-xs border border-indigo-200 hover:border-indigo-600 transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs">
-            <span>✏️</span> Editar Acessos & Permissões
-          </button>
-          ${totalUsers > 1 ? `
-            <button type="button" onclick="removerItem('/api/usuarios', ${u.id})" title="Remover Operador" class="bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-200 hover:border-rose-600 py-2.5 px-3 rounded-xl text-xs font-bold transition cursor-pointer shadow-2xs">
-              🗑️
-            </button>
-          ` : ''}
-        </div>
-
+  if (pagCont) {
+    const fim = Math.min(filtrados.length, inicio + paginados.length);
+    pagCont.innerHTML = `
+      <div class="flex items-center gap-2">
+        <span>Exibindo <strong>${inicio + 1}–${fim}</strong> de <strong>${filtrados.length}</strong> operador(es)</span>
+        <select onchange="aoMudarItensPorPaginaUsuarios(this.value)" class="border border-slate-200 rounded-lg px-2 py-1 bg-white font-bold text-slate-700 cursor-pointer">
+          <option value="10" ${ITENS_POR_PAGINA_USUARIOS === 10 ? 'selected' : ''}>10 / pág</option>
+          <option value="25" ${ITENS_POR_PAGINA_USUARIOS === 25 ? 'selected' : ''}>25 / pág</option>
+          <option value="50" ${ITENS_POR_PAGINA_USUARIOS === 50 ? 'selected' : ''}>50 / pág</option>
+          <option value="9999" ${ITENS_POR_PAGINA_USUARIOS >= 9999 ? 'selected' : ''}>Todos</option>
+        </select>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <button type="button" onclick="mudarPaginaUsuarios(-1)" ${PAGINA_ATUAL_USUARIOS <= 1 ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg border border-slate-200 bg-white font-bold disabled:opacity-40 cursor-pointer">◀ Anterior</button>
+        <span class="px-2 font-bold">Pág. ${PAGINA_ATUAL_USUARIOS} / ${totalPaginas}</span>
+        <button type="button" onclick="mudarPaginaUsuarios(1)" ${PAGINA_ATUAL_USUARIOS >= totalPaginas ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg border border-slate-200 bg-white font-bold disabled:opacity-40 cursor-pointer">Próxima ▶</button>
       </div>
     `;
-  }).join('');
+  }
 }
 
 
