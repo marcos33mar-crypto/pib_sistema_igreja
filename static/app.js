@@ -8382,6 +8382,9 @@ function renderMembros() {
           <button type="button" onclick="emitirCredencial(${m.id})" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs px-2.5 py-1.5 rounded-lg transition cursor-pointer inline-flex items-center gap-1" title="Gerar carteirinha">
             <span>🪪</span> Carteirinha
           </button>
+          <button type="button" onclick="abrirMenuLGPDMembro(${m.id})" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold text-xs px-2.5 py-1.5 rounded-lg transition cursor-pointer inline-flex items-center gap-1" title="Direitos do Titular (LGPD Art. 18)">
+            <span>🛡️</span> LGPD
+          </button>
           <button type="button" onclick="removerItem('/api/membros', ${m.id})" class="bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold text-xs px-2 py-1.5 rounded-lg transition cursor-pointer" title="Remover Membro">
             ✕
           </button>
@@ -11206,7 +11209,8 @@ async function salvarVisitante(e) {
     data_visita: document.getElementById('vis-data').value,
     culto: document.getElementById('vis-culto').value,
     celula_indicada_id: document.getElementById('vis-celula').value || null,
-    pedido_oracao: document.getElementById('vis-oracao').value
+    pedido_oracao: document.getElementById('vis-oracao').value,
+    lgpd_consentimento: document.getElementById('vis-lgpd-consentimento')?.checked ? 1 : 0
   };
   await apiPost('/api/visitantes', payload);
   e.target.reset();
@@ -15068,6 +15072,202 @@ async function salvarConsideracoesEmprestimo(e, id) {
   } else {
     alert((res && res.mensagem) || 'Erro ao atualizar considerações.');
   }
+}
+
+function abrirModalPoliticaLGPD() {
+  const html = `
+    <div class="p-6 space-y-4 text-xs text-slate-700 leading-relaxed">
+      <div class="border-b border-slate-200 pb-3">
+        <span class="text-[10px] font-extrabold uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">Lei nº 13.709/2018</span>
+        <h3 class="text-lg font-extrabold text-slate-900 mt-1">Política de Privacidade &amp; Conformidade LGPD</h3>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-1.5">
+          <div class="font-extrabold text-slate-900">1. Controlador &amp; Finalidade</div>
+          <p>Os dados pessoais (nome, contato, endereço, histórico eclesiástico e registros de dízimos/ofertas) são tratados exclusivamente pela <strong>Primeira Igreja Batista do Parque</strong> para gestão pastoral, secretaria, escalas e prestação de contas.</p>
+        </div>
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-1.5">
+          <div class="font-extrabold text-slate-900">2. Base Legal &amp; Dados Sensíveis</div>
+          <p>Tratamento fundamentado nos <strong>Arts. 7º e 11 da LGPD</strong> (consentimento específico do titular/responsável legal para vínculo religioso e cumprimento de obrigação legal/contábil).</p>
+        </div>
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-1.5">
+          <div class="font-extrabold text-slate-900">3. Segurança da Informação</div>
+          <p>Credenciais protegidas com criptografia <strong>PBKDF2-SHA256</strong>, sessões em cookies <strong>HttpOnly</strong> assinados via HMAC, controle granular por setor e trilha de auditoria completa.</p>
+        </div>
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-1.5">
+          <div class="font-extrabold text-slate-900">4. Direitos do Titular (Art. 18)</div>
+          <p>Qualquer membro ou visitante pode solicitar à Secretaria: confirmação e acesso aos dados, correção, portabilidade (exportação) ou eliminação/anonimização dos dados pessoais.</p>
+        </div>
+      </div>
+      <div class="flex justify-end pt-2 border-t border-slate-100">
+        <button type="button" onclick="fecharModalCustom()" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold cursor-pointer">Entendi</button>
+      </div>
+    </div>
+  `;
+  abrirModalCustom(html, false, 'medio');
+}
+
+function abrirPainelLGPD() {
+  const membros = STATE.membros || [];
+  const total = membros.length;
+  const comConsent = membros.filter(m => Number(m.lgpd_consentimento) === 1).length;
+  const pendentes = total - comConsent;
+  const vis = STATE.visitantes || [];
+  const visConsent = vis.filter(v => Number(v.lgpd_consentimento) === 1).length;
+  const pct = total > 0 ? Math.round((comConsent / total) * 100) : 0;
+
+  const html = `
+    <div class="p-6 space-y-4 text-xs">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+        <div>
+          <span class="text-[10px] font-extrabold uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">Lei nº 13.709/2018</span>
+          <h3 class="text-lg font-extrabold text-slate-900 mt-1">Painel de Governança LGPD</h3>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="abrirModalPoliticaLGPD()" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer">📜 Política de Privacidade</button>
+          <button type="button" onclick="imprimirTermoConsentimentoLGPD()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold cursor-pointer">🖨️ Imprimir Termo em Branco</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
+          <div class="text-[11px] font-bold text-emerald-700 uppercase">Membros com Consentimento</div>
+          <div class="text-2xl font-black text-emerald-900 mt-1">${comConsent} <span class="text-xs font-bold text-emerald-700">de ${total} (${pct}%)</span></div>
+        </div>
+        <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+          <div class="text-[11px] font-bold text-amber-700 uppercase">Consentimentos Pendentes</div>
+          <div class="text-2xl font-black text-amber-900 mt-1">${pendentes} <span class="text-xs font-bold text-amber-700">membro(s)</span></div>
+        </div>
+        <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-4">
+          <div class="text-[11px] font-bold text-indigo-700 uppercase">Visitantes Autorizados</div>
+          <div class="text-2xl font-black text-indigo-900 mt-1">${visConsent} <span class="text-xs font-bold text-indigo-700">de ${vis.length}</span></div>
+        </div>
+      </div>
+
+      <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 max-h-[42vh] overflow-y-auto">
+        <div class="font-extrabold text-slate-700 mb-2">Titulares &amp; Ações Rápidas (Art. 18 — Portabilidade e Anonimização)</div>
+        <div class="divide-y divide-slate-200">
+          ${membros.slice(0, 60).map(m => `
+            <div class="py-2 flex flex-wrap items-center justify-between gap-2">
+              <div class="min-w-0">
+                <span class="font-bold text-slate-900">${escapeHtml(m.nome)}</span>
+                <span class="ml-2 text-[10px] px-2 py-0.5 rounded-full font-bold ${Number(m.lgpd_consentimento) === 1 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+                  ${Number(m.lgpd_consentimento) === 1 ? '✅ Consentido' : '⚠️ Pendente'}
+                </span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <button type="button" onclick="imprimirTermoConsentimentoLGPD(${m.id})" class="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 font-bold cursor-pointer">🖨️ Termo</button>
+                <button type="button" onclick="exportarDadosLGPDMembro(${m.id})" class="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 font-bold cursor-pointer">📦 Exportar</button>
+                <button type="button" onclick="anonimizarTitularLGPD(${m.id})" class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 font-bold cursor-pointer">🧹 Anonimizar</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+  abrirModalCustom(html, false, 'medio');
+}
+
+function abrirMenuLGPDMembro(id) {
+  const m = (STATE.membros || []).find(x => Number(x.id) === Number(id));
+  if (!m) return;
+  const temConsent = Number(m.lgpd_consentimento) === 1;
+  const html = `
+    <div class="p-6 space-y-4 text-xs">
+      <div class="border-b border-slate-200 pb-3">
+        <span class="text-[10px] font-extrabold uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">LGPD — Direitos do Titular (Art. 18)</span>
+        <h3 class="text-lg font-extrabold text-slate-900 mt-1">${escapeHtml(m.nome)}</h3>
+        <p class="text-slate-500 mt-0.5">
+          Status do Consentimento:
+          <strong class="${temConsent ? 'text-emerald-700' : 'text-amber-700'}">
+            ${temConsent ? `✅ Registrado${m.lgpd_data ? ' em ' + escapeHtml(m.lgpd_data) : ''}` : '⚠️ Pendente de registro'}
+          </strong>
+        </p>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <button type="button" onclick="imprimirTermoConsentimentoLGPD(${m.id})" class="p-3.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-left cursor-pointer">
+          <div class="font-extrabold text-slate-900">🖨️ Imprimir Termo de Consentimento</div>
+          <div class="text-[11px] text-slate-500 mt-0.5">Gera termo nominal para assinatura física do titular.</div>
+        </button>
+        <button type="button" onclick="exportarDadosLGPDMembro(${m.id})" class="p-3.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-left cursor-pointer">
+          <div class="font-extrabold text-indigo-900">📦 Exportar Dados (Portabilidade)</div>
+          <div class="text-[11px] text-indigo-700 mt-0.5">Baixa arquivo JSON completo com todos os registros do titular.</div>
+        </button>
+      </div>
+      <div class="bg-rose-50 border border-rose-200 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div class="font-extrabold text-rose-900">🧹 Anonimizar Titular (Direito ao Esquecimento)</div>
+          <div class="text-[11px] text-rose-700">Remove nome, telefone, e-mail, endereço e nascimento mantendo intactos os valores contábeis.</div>
+        </div>
+        <button type="button" onclick="anonimizarTitularLGPD(${m.id})" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold cursor-pointer">Anonimizar Dados</button>
+      </div>
+    </div>
+  `;
+  abrirModalCustom(html, false, 'normal');
+}
+
+async function exportarDadosLGPDMembro(id) {
+  try {
+    const res = await fetch(`/api/lgpd/exportar-membro?id=${encodeURIComponent(id)}`);
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      alert((data && data.mensagem) || 'Erro ao exportar dados LGPD.');
+      return;
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lgpd_titular_${id}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showLiveToast('📦 Pacote LGPD exportado com sucesso!');
+  } catch (err) {
+    console.error('Erro exportacao LGPD:', err);
+    alert('Falha ao exportar dados do titular.');
+  }
+}
+
+async function anonimizarTitularLGPD(id) {
+  const m = (STATE.membros || []).find(x => Number(x.id) === Number(id));
+  const nome = m ? m.nome : `#${id}`;
+  if (!confirm(`ATENÇÃO LGPD (Art. 18, VI):\nDeseja realmente ANONIMIZAR os dados pessoais de "${nome}"?\n\nNome, telefone, e-mail, endereço e data de nascimento serão apagados permanentemente, preservando apenas os totais contábeis.`)) return;
+  const res = await apiPost('/api/lgpd/anonimizar-membro', { id });
+  if (res && res.ok) {
+    fecharModalCustom();
+    showLiveToast('🧹 Dados pessoais anonimizados conforme a LGPD.');
+    fetchBootstrap();
+  } else {
+    alert((res && res.mensagem) || 'Erro ao anonimizar titular.');
+  }
+}
+
+function imprimirTermoConsentimentoLGPD(id = null) {
+  const m = id ? (STATE.membros || []).find(x => Number(x.id) === Number(id)) : null;
+  const nome = m ? escapeHtml(m.nome) : '____________________________________________________';
+  const tel = m && m.telefone ? escapeHtml(m.telefone) : '___________________________';
+  const html = `
+    <div class="p-8 space-y-5 text-sm text-slate-800 leading-relaxed max-w-2xl mx-auto">
+      <div class="text-center border-b border-slate-300 pb-4">
+        <h2 class="text-lg font-black uppercase">Termo de Consentimento para Tratamento de Dados Pessoais (LGPD)</h2>
+        <p class="text-xs text-slate-500 mt-1">Lei nº 13.709/2018 • Primeira Igreja Batista do Parque</p>
+      </div>
+      <p>Eu, <strong>${nome}</strong> (Telefone: <strong>${tel}</strong>), na qualidade de titular (ou responsável legal), autorizo a <strong>Primeira Igreja Batista do Parque</strong> a realizar o tratamento dos meus dados pessoais fornecidos na ficha cadastral para fins exclusivamente eclesiásticos, de secretaria, comunicação pastoral, escalas ministeriais e registros de contribuições voluntárias.</p>
+      <p>Declaro ciência de que meus dados são protegidos com controle de acesso e criptografia, não sendo comercializados ou compartilhados com terceiros alheios às atividades da igreja, e de que posso exercer a qualquer momento meus direitos previstos no <strong>Art. 18 da LGPD</strong> (acesso, correção, portabilidade ou anonimização/eliminação) junto à Secretaria.</p>
+      <div class="pt-8 grid grid-cols-2 gap-8 text-center text-xs">
+        <div>
+          <div class="border-t border-slate-400 pt-2 font-bold">Assinatura do Titular / Responsável</div>
+        </div>
+        <div>
+          <div class="border-t border-slate-400 pt-2 font-bold">Data: ____ / ____ / ________</div>
+        </div>
+      </div>
+    </div>
+  `;
+  abrirModalCustom(html, true, 'medio');
 }
 
 function closeModal() {

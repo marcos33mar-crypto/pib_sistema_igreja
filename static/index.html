@@ -19750,13 +19750,12 @@
 
 
                 <textarea id="vis-oracao" rows="2" placeholder="Motivo de oração ou interesse em visita pastoral..." class="w-full border border-slate-300 rounded-lg px-3 py-2"></textarea>
-
-
-
-
-
-
-
+              </div>
+              <div class="bg-emerald-50/80 border border-emerald-200 rounded-xl p-2.5 flex items-start gap-2">
+                <input type="checkbox" id="vis-lgpd-consentimento" class="mt-0.5 w-4 h-4 rounded border-emerald-400 text-emerald-600 cursor-pointer" />
+                <label for="vis-lgpd-consentimento" class="text-[11px] text-emerald-950 font-medium cursor-pointer leading-snug">
+                  🛡️ <strong>LGPD:</strong> Visitante autorizou o contato pastoral e o registro dos seus dados na secretaria da igreja.
+                </label>
               </div>
 
 
@@ -21308,6 +21307,9 @@
             <a href="/api/sistema/backup-db" target="_blank" download="igreja_erp_backup.db" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-3.5 py-2.5 rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer text-xs" title="Baixar cópia de segurança completa do banco de dados (SQLite)">
               <span>💾</span> Baixar Backup (.db)
             </a>
+            <button type="button" onclick="abrirPainelLGPD()" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-extrabold px-3.5 py-2.5 rounded-xl border border-emerald-200 transition flex items-center gap-1.5 cursor-pointer text-xs" title="Painel de Conformidade LGPD (Lei nº 13.709/2018)">
+              <span>🛡️</span> Governança LGPD
+            </button>
             <button type="button" onclick="abrirModalRestaurarBackup()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3.5 py-2.5 rounded-xl border border-slate-200 transition flex items-center gap-1.5 cursor-pointer text-xs" title="Restaurar banco de dados a partir de arquivo de backup">
               <span>📥</span> Restaurar Banco
             </button>
@@ -22125,8 +22127,13 @@
         </button>
       </form>
 
-      <div class="mt-5 pt-3.5 border-t border-slate-100 text-center text-[11px] text-slate-400">
-        🛡️ <strong>KAIRÓS</strong> • Somente usuários autorizados têm acesso às informações da igreja
+      <div class="mt-5 pt-3.5 border-t border-slate-100 text-center text-[11px] text-slate-400 space-y-1.5">
+        <div>🛡️ <strong>KAIRÓS</strong> • Somente usuários autorizados têm acesso às informações da igreja</div>
+        <div>
+          <button type="button" onclick="abrirModalPoliticaLGPD()" class="text-indigo-600 hover:text-indigo-800 font-semibold underline cursor-pointer">
+            Política de Privacidade &amp; Conformidade LGPD (Lei nº 13.709/2018)
+          </button>
+        </div>
       </div>
 
 
@@ -22556,7 +22563,7 @@
   </div>
 
   <script src="/qrcode.min.js"></script>
-  <script src="/app.js?v=20261121_v275_acessos_tabela_paginada"></script>
+  <script src="/app.js?v=20261121_v276_lgpd_completo"></script>
   <script>
     window.addEventListener('DOMContentLoaded', function () {
       if (typeof fetchBootstrap !== 'function') {

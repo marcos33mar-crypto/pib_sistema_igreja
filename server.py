@@ -1251,6 +1251,12 @@ def init_db():
 
                 cur.execute(f"ALTER TABLE membros ADD COLUMN {col_name} {col_type}")
 
+        # Garante colunas de consentimento LGPD em visitantes
+        cols_vis = [r["name"] for r in cur.execute("PRAGMA table_info(visitantes)").fetchall()]
+        for col_name, col_type in [("lgpd_consentimento", "INTEGER DEFAULT 0"), ("lgpd_data", "TEXT DEFAULT ''")]:
+            if col_name not in cols_vis:
+                cur.execute(f"ALTER TABLE visitantes ADD COLUMN {col_name} {col_type}")
+
         # Garante colunas estendidas de inventario em patrimonio (quantidade, situacao, NF, etc.)
         cols_pat = [r["name"] for r in cur.execute("PRAGMA table_info(patrimonio)").fetchall()]
         novas_cols_pat = [
@@ -4026,6 +4032,43 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
             return
 
 
+
+        if path == "/api/lgpd/exportar-membro":
+            auth_u = self.get_authenticated_user()
+            if not auth_u:
+                return self.send_json({"ok": False, "mensagem": "Autenticação necessária."}, 401)
+            qs = parse_qs(parsed.query)
+            try:
+                mem_id = int(qs.get("id", [0])[0])
+            except Exception:
+                mem_id = 0
+            if not mem_id:
+                return self.send_json({"ok": False, "mensagem": "ID do titular inválido."}, 400)
+            with db_lock:
+                conn = get_db()
+                cur = conn.cursor()
+                membro = cur.execute("SELECT * FROM membros WHERE id=?", (mem_id,)).fetchone()
+                if not membro:
+                    conn.close()
+                    return self.send_json({"ok": False, "mensagem": "Titular não encontrado."}, 404)
+                vinculos = [dict(r) for r in cur.execute("SELECT * FROM vinculos_familiares WHERE membro_id=? OR familiar_id=?", (mem_id, mem_id)).fetchall()]
+                financeiro = [dict(r) for r in cur.execute("SELECT id, data, tipo, categoria, valor, forma_pagamento, descricao FROM financeiro WHERE membro_id=? ORDER BY data DESC", (mem_id,)).fetchall()]
+                escalas = [dict(r) for r in cur.execute("SELECT * FROM escalas WHERE membro_id=?", (mem_id,)).fetchall()]
+                voluntarios = [dict(r) for r in cur.execute("SELECT * FROM voluntarios WHERE membro_id=?", (mem_id,)).fetchall()]
+                operador_nm = str(auth_u.get("nome") or "Operador")
+                log_auditoria(conn, operador_nm, "LGPD", "Exportação de Dados do Titular", f"Exportou pacote LGPD (Art. 18) do titular #{mem_id} ({membro['nome']}).")
+                conn.commit()
+                conn.close()
+            return self.send_json({
+                "ok": True,
+                "base_legal": "Lei nº 13.709/2018 (LGPD) - Art. 18, incisos II e V (Acesso e Portabilidade)",
+                "gerado_em": agora_brasilia().strftime("%Y-%m-%d %H:%M:%S"),
+                "titular": dict(membro),
+                "vinculos_familiares": vinculos,
+                "historico_financeiro": financeiro,
+                "escalas": escalas,
+                "voluntariado": voluntarios
+            })
 
         if path == "/api/atas":
             if not self.get_authenticated_user():
@@ -6843,34 +6886,24 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                     quem_convidou = (body.get("quem_convidou") or "").strip()
 
+                    vis_lgpd = 1 if body.get("lgpd_consentimento") else 0
+                    vis_lgpd_dt = agora_brasilia().strftime("%Y-%m-%d %H:%M:%S") if vis_lgpd else ""
                     cur.execute(
-
                         """INSERT INTO visitantes
-
-                        (nome, telefone, data_visita, culto, pedido_oracao, status_acompanhamento, celula_indicada_id, registrado_por, quem_convidou)
-
-                        VALUES (?, ?, ?, ?, ?, 'Novo Visitante', ?, ?, ?)""",
-
+                        (nome, telefone, data_visita, culto, pedido_oracao, status_acompanhamento, celula_indicada_id, registrado_por, quem_convidou, lgpd_consentimento, lgpd_data)
+                        VALUES (?, ?, ?, ?, ?, 'Novo Visitante', ?, ?, ?, ?, ?)""",
                         (
-
                             nome,
-
                             body.get("telefone", ""),
-
                             agora,
-
                             body.get("culto", "Culto de Domingo"),
-
                             body.get("pedido_oracao", ""),
-
                             body.get("celula_indicada_id") or None,
-
                             operador,
-
                             quem_convidou,
-
+                            vis_lgpd,
+                            vis_lgpd_dt,
                         ),
-
                     )
 
                     log_auditoria(conn, operador, "Recepção", "Check-in Visitante", f"Registrou visitante '{nome}' (Convidado por: {quem_convidou or 'Recepção'})")
@@ -7898,6 +7931,32 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     conn_new.close()
                     broadcast_event("sync", {"setor": "Sistema", "operador": operador, "mensagem": "Banco de dados restaurado com sucesso."})
                     return self.send_json({"ok": True, "mensagem": "Banco de dados restaurado com sucesso!"})
+
+                elif path == "/api/lgpd/anonimizar-membro":
+                    mem_id = int(body.get("id", 0))
+                    if not mem_id:
+                        conn.close()
+                        return self.send_json({"ok": False, "mensagem": "ID do titular inválido."}, 400)
+                    row_m = cur.execute("SELECT id, nome FROM membros WHERE id=?", (mem_id,)).fetchone()
+                    if not row_m:
+                        conn.close()
+                        return self.send_json({"ok": False, "mensagem": "Titular não encontrado."}, 404)
+                    alias_anon = f"Titular Anonimizado #{mem_id}"
+                    cur.execute(
+                        """UPDATE membros SET
+                            nome=?, telefone='', email='', endereco='', data_nascimento='',
+                            data_batismo='', status='Inativo', observacoes='Dados anonimizados conforme Art. 18, VI da LGPD.',
+                            lgpd_consentimento=0, lgpd_data=''
+                        WHERE id=?""",
+                        (alias_anon, mem_id)
+                    )
+                    # Preserva valores contábeis/financeiros substituindo apenas eventual identificação nominal
+                    cur.execute("DELETE FROM vinculos_familiares WHERE membro_id=? OR familiar_id=?", (mem_id, mem_id))
+                    log_auditoria(conn, operador, "LGPD", "Anonimização de Titular", f"Anonimizou dados pessoais do membro #{mem_id} conforme Art. 18, VI da LGPD.")
+                    conn.commit()
+                    conn.close()
+                    broadcast_event("sync", {"setor": "LGPD", "operador": operador, "mensagem": f"Dados do titular #{mem_id} anonimizados (LGPD)."})
+                    return self.send_json({"ok": True, "mensagem": f"Dados pessoais do titular #{mem_id} anonimizados com sucesso, preservando a integridade contábil."})
 
                 elif path == "/api/patrimonio/emprestimo/atualizar-observacoes":
                     emp_id = int(body.get("id", 0))
