@@ -3910,6 +3910,13 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
         self.send_header("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
 
+        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+
+        self.send_header("X-Permitted-Cross-Domain-Policies", "none")
+
+        if str(self.headers.get("X-Forwarded-Proto", "")).lower() == "https":
+            self.send_header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+
         super().end_headers()
 
     def get_allowed_cors_origin(self):
