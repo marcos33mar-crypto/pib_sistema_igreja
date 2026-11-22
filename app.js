@@ -15270,6 +15270,110 @@ function imprimirTermoConsentimentoLGPD(id = null) {
   abrirModalCustom(html, true, 'medio');
 }
 
+function imprimirPlanoContasMatriz() {
+  const ano = typeof ANO_MATRIZ_ATIVO !== 'undefined' ? ANO_MATRIZ_ATIVO : new Date().getFullYear();
+  const rows = (STATE.matriz_tesouraria || []).filter(r => Number(r.ano) === Number(ano));
+  const fallback = rows.length > 0 ? rows : (STATE.matriz_tesouraria || []).filter(r => Number(r.ano) === 2026);
+
+  const organizarPorFluxo = (tipoFluxo) => {
+    const grupos = [];
+    const mapa = new Map();
+    const vistos = new Set();
+    fallback
+      .filter(r => String(r.tipo_fluxo || '').toUpperCase() === tipoFluxo)
+      .forEach(r => {
+        const g = String(r.grupo || 'Outros').trim();
+        const rub = String(r.rubrica || '').trim();
+        if (!rub) return;
+        const chave = `${g}|||${rub}`;
+        if (vistos.has(chave)) return;
+        vistos.add(chave);
+        if (!mapa.has(g)) {
+          const obj = { grupo: g, rubricas: [] };
+          mapa.set(g, obj);
+          grupos.push(obj);
+        }
+        mapa.get(g).rubricas.push(rub);
+      });
+    return grupos;
+  };
+
+  const gruposEntrada = organizarPorFluxo('ENTRADA');
+  const gruposSaida = organizarPorFluxo('SAIDA');
+  const totalEntradas = gruposEntrada.reduce((acc, g) => acc + g.rubricas.length, 0);
+  const totalSaidas = gruposSaida.reduce((acc, g) => acc + g.rubricas.length, 0);
+  const totalGrupos = gruposEntrada.length + gruposSaida.length;
+  const totalContas = totalEntradas + totalSaidas;
+
+  const renderSecao = (titulo, prefixo, corClasse, naturezaLabel, grupos) => {
+    if (!grupos.length) return '';
+    return `
+      <div class="space-y-2">
+        <div class="px-3 py-2 rounded-lg font-black text-xs uppercase tracking-wider ${corClasse}">
+          ${prefixo}. ${titulo} (${grupos.reduce((a, g) => a + g.rubricas.length, 0)} contas)
+        </div>
+        <table class="w-full border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-100 border-b border-slate-300 text-[11px] font-bold text-slate-600 text-left">
+              <th class="py-1.5 px-2.5 w-24">Código</th>
+              <th class="py-1.5 px-2.5">Descrição da Conta / Rubrica</th>
+              <th class="py-1.5 px-2.5 w-28 text-right">Natureza</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${grupos.map((g, gi) => {
+              const codGrupo = `${prefixo}.${gi + 1}`;
+              return `
+                <tr class="bg-slate-50 border-y border-slate-200 font-extrabold text-slate-900">
+                  <td class="py-1.5 px-2.5 font-mono">${codGrupo}</td>
+                  <td class="py-1.5 px-2.5 uppercase">${escapeHtml(g.grupo)}</td>
+                  <td class="py-1.5 px-2.5 text-right text-[10px] text-slate-500">Grupo</td>
+                </tr>
+                ${g.rubricas.map((rub, ri) => {
+                  const codRub = `${codGrupo}.${String(ri + 1).padStart(2, '0')}`;
+                  return `
+                    <tr class="border-b border-slate-100 hover:bg-slate-50/60">
+                      <td class="py-1.5 px-2.5 pl-5 font-mono text-slate-500">${codRub}</td>
+                      <td class="py-1.5 px-2.5 text-slate-800">${escapeHtml(rub)}</td>
+                      <td class="py-1.5 px-2.5 text-right font-semibold ${prefixo === '1' ? 'text-emerald-700' : 'text-rose-700'}">${naturezaLabel}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  };
+
+  const agoraStr = new Date().toLocaleString('pt-BR');
+  const html = `
+    <div class="p-6 space-y-5 bg-white text-slate-900">
+      <div class="flex flex-wrap items-start justify-between gap-4 border-b-2 border-slate-800 pb-4">
+        <div>
+          <div class="text-[11px] font-extrabold uppercase tracking-wider text-indigo-700">Primeira Igreja Batista do Parque • Tesouraria</div>
+          <h2 class="text-xl font-black text-slate-900 mt-0.5">Plano de Contas — Exercício ${ano}</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Estrutura extraída da Planilha Mensal Interativa · ${totalGrupos} grupo(s) · ${totalContas} conta(s)</p>
+        </div>
+        <div class="text-right text-[11px] text-slate-500">
+          <div><strong>Emissão:</strong> ${agoraStr}</div>
+          <div><strong>Entradas:</strong> ${totalEntradas} contas · <strong>Saídas:</strong> ${totalSaidas} contas</div>
+        </div>
+      </div>
+
+      ${renderSecao('RECEITAS / ENTRADAS', '1', 'bg-emerald-50 text-emerald-900 border border-emerald-200', 'Receita', gruposEntrada)}
+      ${renderSecao('DESPESAS / SAÍDAS', '2', 'bg-rose-50 text-rose-900 border border-rose-200', 'Despesa', gruposSaida)}
+
+      <div class="pt-4 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500">
+        <span>Kairós • Sistema de Gestão Eclesiástica</span>
+        <span>Total Geral: ${totalContas} rubricas organizadas</span>
+      </div>
+    </div>
+  `;
+  abrirModalCustom(html, true, 'medio');
+}
+
 function closeModal() {
   if (typeof pararLeituraAta === 'function') pararLeituraAta();
   const overlay = document.getElementById('modal-overlay');
