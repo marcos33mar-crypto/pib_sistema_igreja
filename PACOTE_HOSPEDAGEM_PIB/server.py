@@ -2929,6 +2929,45 @@ def validar_token_sessao(token):
         return None
 
 
+LOGIN_RATE_LIMIT = {}
+login_rate_lock = threading.Lock()
+
+
+def verificar_rate_limit_login(ip_addr, chave):
+    agora = time.time()
+    key = (str(ip_addr or "local"), str(chave or ""))
+    with login_rate_lock:
+        rec = LOGIN_RATE_LIMIT.get(key)
+        if not rec:
+            return False, 0
+        if rec.get("bloqueado_ate", 0) > agora:
+            return True, int(rec["bloqueado_ate"] - agora)
+        if agora - rec.get("janela_inicio", 0) > 300:
+            LOGIN_RATE_LIMIT.pop(key, None)
+            return False, 0
+        return False, 0
+
+
+def registrar_falha_login(ip_addr, chave):
+    agora = time.time()
+    key = (str(ip_addr or "local"), str(chave or ""))
+    with login_rate_lock:
+        rec = LOGIN_RATE_LIMIT.get(key)
+        if not rec or (agora - rec.get("janela_inicio", 0) > 300):
+            rec = {"tentativas": 0, "janela_inicio": agora, "bloqueado_ate": 0}
+        rec["tentativas"] += 1
+        if rec["tentativas"] >= 5:
+            rec["bloqueado_ate"] = agora + 300
+        LOGIN_RATE_LIMIT[key] = rec
+        return rec["tentativas"], rec["bloqueado_ate"] > agora
+
+
+def limpar_falha_login(ip_addr, chave):
+    key = (str(ip_addr or "local"), str(chave or ""))
+    with login_rate_lock:
+        LOGIN_RATE_LIMIT.pop(key, None)
+
+
 def build_bootstrap_data(req_handler=None):
 
     auth_user = req_handler.get_authenticated_user() if (req_handler and hasattr(req_handler, "get_authenticated_user")) else None
@@ -2954,10 +2993,8 @@ def build_bootstrap_data(req_handler=None):
                 usuarios.append({
                     "id": u.get("id"),
                     "nome": u.get("nome"),
-                    "cargo": u.get("cargo"),
                     "perfil": u.get("perfil"),
                     "ativo": u.get("ativo", 1),
-                    "senha_alterada": u.get("senha_alterada", 0),
                 })
 
         if not is_auth and not modo_assembleia:
@@ -3865,7 +3902,28 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
         self.send_header("Expires", "0")
 
+        self.send_header("X-Content-Type-Options", "nosniff")
+
+        self.send_header("X-Frame-Options", "DENY")
+
+        self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
+
+        self.send_header("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+
         super().end_headers()
+
+    def get_allowed_cors_origin(self):
+        origin = str(self.headers.get("Origin", "") or "").strip()
+        if not origin:
+            return ""
+        host = str(self.headers.get("Host", "") or "").strip()
+        permitidas = {"https://pib-parque-sp.onrender.com"}
+        if host:
+            permitidas.add(f"https://{host}")
+            permitidas.add(f"http://{host}")
+        if origin in permitidas or origin.startswith("http://localhost:") or origin.startswith("http://127.0.0.1:"):
+            return origin
+        return ""
 
 
 
@@ -3906,7 +3964,10 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
             self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
 
-            self.send_header("Access-Control-Allow-Origin", "*")
+            cors_origin = self.get_allowed_cors_origin()
+            if cors_origin:
+                self.send_header("Access-Control-Allow-Origin", cors_origin)
+                self.send_header("Vary", "Origin")
 
             if extra_headers:
                 for hk, hv in extra_headers:
@@ -3952,7 +4013,10 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
         self.send_response(200)
 
-        self.send_header("Access-Control-Allow-Origin", "*")
+        cors_origin = self.get_allowed_cors_origin()
+        if cors_origin:
+            self.send_header("Access-Control-Allow-Origin", cors_origin)
+            self.send_header("Vary", "Origin")
 
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 
@@ -4388,7 +4452,10 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
             self.send_header("X-Accel-Buffering", "no")
 
-            self.send_header("Access-Control-Allow-Origin", "*")
+            cors_origin = self.get_allowed_cors_origin()
+            if cors_origin:
+                self.send_header("Access-Control-Allow-Origin", cors_origin)
+                self.send_header("Vary", "Origin")
 
             self.end_headers()
 
@@ -7761,6 +7828,13 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     email = str(body.get("email", "")).strip().lower()
                     login = str(body.get("login", "")).strip().lower()
                     senha = str(body.get("senha", "")).strip()
+                    ip_cli = str(self.headers.get("X-Forwarded-For", "") or self.client_address[0]).split(",")[0].strip()
+                    chave_rate = str(user_id or email or login or "anon")
+
+                    bloqueado, seg_rest = verificar_rate_limit_login(ip_cli, chave_rate)
+                    if bloqueado:
+                        conn.close()
+                        return self.send_json({"ok": False, "mensagem": f"Muitas tentativas incorretas. Aguarde {max(1, seg_rest)}s para tentar novamente."}, 429)
 
                     if not senha:
                         conn.close()
@@ -7783,10 +7857,9 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                         return self.send_json({"ok": False, "mensagem": "Por favor, selecione ou informe o seu usuário."}, 400)
 
                     if not row:
+                        registrar_falha_login(ip_cli, chave_rate)
                         conn.close()
                         return self.send_json({"ok": False, "mensagem": "Operador não encontrado ou inativo no sistema."}, 404)
-
-
 
                     senha_db = str(row["senha"]).strip() if row["senha"] is not None else ""
                     senha_alterada = int(row["senha_alterada"] or 0)
@@ -7795,11 +7868,16 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     senha_valida = verificar_senha_segura(senha_digitada, senha_db, senha_alterada)
 
                     if not senha_valida:
-                        log_auditoria(conn, row["nome"], "Segurança", "Tentativa de Acesso Inválida", f"Senha incorreta informada para {row['nome']}.")
+                        tentativas, bloqueou_agora = registrar_falha_login(ip_cli, chave_rate)
+                        log_auditoria(conn, row["nome"], "Segurança", "Tentativa de Acesso Inválida", f"Senha incorreta informada para {row['nome']} (tentativa {tentativas}/5, IP {ip_cli}).")
                         conn.commit()
                         conn.close()
+                        if bloqueou_agora:
+                            return self.send_json({"ok": False, "mensagem": "Muitas tentativas incorretas (5/5). Acesso bloqueado temporariamente por 5 minutos."}, 429)
                         msg_aviso = "Senha incorreta! Digite a senha cadastrada para o seu usuário." if senha_alterada == 1 else "Senha incorreta! Digite a senha inicial 123456 para seu primeiro acesso."
                         return self.send_json({"ok": False, "mensagem": msg_aviso}, 401)
+
+                    limpar_falha_login(ip_cli, chave_rate)
 
                     if not senha_db.startswith("pbkdf2$"):
                         cur.execute("UPDATE usuarios SET senha=? WHERE id=?", (gerar_hash_senha(senha_digitada), row["id"]))
