@@ -15511,6 +15511,21 @@ async function confirmarImportacaoExtrato() {
   }
 }
 
+function alternarSidebarDesktop() {
+  const compacto = document.body.classList.toggle('sidebar-compacto');
+  try {
+    localStorage.setItem('kairos_sidebar_compacto', compacto ? '1' : '0');
+  } catch (e) {}
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    if (localStorage.getItem('kairos_sidebar_compacto') === '1') {
+      document.body.classList.add('sidebar-compacto');
+    }
+  } catch (e) {}
+});
+
 function closeModal() {
   if (typeof pararLeituraAta === 'function') pararLeituraAta();
   const overlay = document.getElementById('modal-overlay');
