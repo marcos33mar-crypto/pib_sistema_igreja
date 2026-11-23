@@ -5515,6 +5515,14 @@ function renderMatrizTesouraria() {
                 >
                   ⚙️
                 </button>
+                <button
+                  type="button"
+                  onclick="excluirRubricaMatriz(${item.id}, '${rubEsc}')"
+                  class="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white border border-rose-200 transition cursor-pointer"
+                  title="Excluir conta/rubrica da planilha"
+                >
+                  🗑️
+                </button>
               </div>
             </td>
           </tr>
@@ -15621,9 +15629,12 @@ function abrirModalEditarDadosContaMatriz(rowId) {
             <span>Atualizar também os lançamentos já vinculados no Livro-Caixa</span>
           </label>
         </div>
-        <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
-          <button type="button" onclick="fecharModalCustom()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer">Cancelar</button>
-          <button type="submit" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold cursor-pointer">💾 Salvar Conta</button>
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="fecharModalCustom(); excluirRubricaMatriz(${item.id}, '${escapeHtml(item.rubrica).replace(/'/g, "\\'")}');" class="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 font-bold cursor-pointer transition">🗑️ Excluir Conta</button>
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="fecharModalCustom()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer">Cancelar</button>
+            <button type="submit" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold cursor-pointer">💾 Salvar Conta</button>
+          </div>
         </div>
       </form>
     </div>
