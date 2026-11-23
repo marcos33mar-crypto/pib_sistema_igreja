@@ -1909,6 +1909,12 @@ def localizar_rubrica_matriz_para_lancamento(cur, data_lanc, tipo, categoria, de
         (ano, tipo),
     ).fetchall()
 
+    if " — " in (categoria or ""):
+        part_g, part_r = [p.strip().lower() for p in str(categoria).split(" — ", 1)]
+        for r in rows:
+            if r["grupo"].strip().lower() == part_g and r["rubrica"].strip().lower() == part_r:
+                return r, ano, mes, col, r["grupo"], r["rubrica"]
+
     row_encontrada = None
     grupo_alvo = "Entradas" if tipo == "ENTRADA" else "Despesas Operacionais"
     rubrica_insercao = descricao or categoria or "Lançamento Geral"
