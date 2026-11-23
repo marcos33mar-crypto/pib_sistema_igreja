@@ -1634,6 +1634,17 @@
     #tes-subtab-planilha table tbody tr:not([class*="bg-"]) td:first-child {
       background-color: #ffffff;
     }
+
+    /* ===== ESCALA PROPORCIONAL & MODO APRESENTAÇÃO NA PROJEÇÃO ===== */
+    #tab-projecao:fullscreen,
+    #tab-projecao:-webkit-full-screen {
+      background: #f1f5f9 !important;
+      padding: 1rem 1.5rem !important;
+      overflow-y: auto !important;
+    }
+    #tab-projecao:fullscreen .projecao-controles-extras {
+      opacity: 0.92;
+    }
 </style>
 
 
@@ -10310,6 +10321,13 @@
           </div>
 
           <div id="projecao-botoes-topo" class="flex flex-wrap items-center gap-2">
+            <select id="sel-zoom-projecao" onchange="alterarZoomProjecao(this.value)" title="Ajustar tamanho dos textos e gráficos na projeção" class="bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 text-xs font-extrabold px-2.5 py-2 rounded-xl cursor-pointer transition">
+              <option value="auto">🔍 Escala: Auto</option>
+              <option value="1">100%</option>
+              <option value="1.25">125%</option>
+              <option value="1.5">150%</option>
+              <option value="1.75">175%</option>
+            </select>
             <button type="button" onclick="abrirModalQRCodeAssembleia()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs">
               📱 QR Code
             </button>
@@ -22720,7 +22738,7 @@
   </div>
 
   <script src="/qrcode.min.js"></script>
-  <script src="/app.js?v=20261123_v282_layout_adaptativo"></script>
+  <script src="/app.js?v=20261123_v283_projecao_zoom"></script>
   <script>
     window.addEventListener('DOMContentLoaded', function () {
       if (typeof fetchBootstrap !== 'function') {

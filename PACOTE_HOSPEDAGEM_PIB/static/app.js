@@ -3958,6 +3958,40 @@ function filtrarBuscaSlideMinisterios(termo) {
   renderSlideMinisterios();
 }
 
+function aplicarZoomProjecao() {
+  let pref = 'auto';
+  try { pref = localStorage.getItem('kairos_projecao_zoom') || 'auto'; } catch (e) {}
+  const sel = document.getElementById('sel-zoom-projecao');
+  if (sel && sel.value !== pref) sel.value = pref;
+
+  let fator = 1;
+  if (pref === 'auto') {
+    const w = window.innerWidth || 1366;
+    const isFs = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+    if (isFs) {
+      fator = w >= 1900 ? 1.45 : (w >= 1500 ? 1.3 : 1.18);
+    } else {
+      fator = w >= 1900 ? 1.22 : (w >= 1600 ? 1.12 : 1);
+    }
+  } else {
+    fator = Math.max(0.8, Math.min(2.0, parseFloat(pref) || 1));
+  }
+
+  ['painel-slide-tesouraria', 'painel-slide-ministerios'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.zoom = fator === 1 ? '' : String(fator);
+  });
+}
+
+function alterarZoomProjecao(val) {
+  try { localStorage.setItem('kairos_projecao_zoom', val || 'auto'); } catch (e) {}
+  aplicarZoomProjecao();
+}
+
+document.addEventListener('fullscreenchange', aplicarZoomProjecao);
+document.addEventListener('webkitfullscreenchange', aplicarZoomProjecao);
+window.addEventListener('resize', aplicarZoomProjecao);
+
 function abrirSlideTelaCheia() {
   const elem = document.getElementById('tab-projecao');
   if (!elem) return;
@@ -3974,6 +4008,7 @@ function abrirSlideTelaCheia() {
       document.exitFullscreen();
     }
   }
+  setTimeout(aplicarZoomProjecao, 150);
 }
 
 function renderSlideMinisterios() {
@@ -15524,6 +15559,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.body.classList.add('sidebar-compacto');
     }
   } catch (e) {}
+  if (typeof aplicarZoomProjecao === 'function') aplicarZoomProjecao();
 });
 
 function closeModal() {
