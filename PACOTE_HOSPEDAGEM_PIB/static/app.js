@@ -5507,6 +5507,14 @@ function renderMatrizTesouraria() {
                 >
                   ${PLANILHA_MENSAL_DESBLOQUEADA ? '✏️ Editar' : '🔒'}
                 </button>
+                <button
+                  type="button"
+                  onclick="abrirModalEditarDadosContaMatriz(${item.id})"
+                  class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 transition cursor-pointer"
+                  title="Renomear conta, alterar grupo ou tipo"
+                >
+                  ⚙️
+                </button>
               </div>
             </td>
           </tr>
@@ -15561,6 +15569,86 @@ document.addEventListener('DOMContentLoaded', () => {
   } catch (e) {}
   if (typeof aplicarZoomProjecao === 'function') aplicarZoomProjecao();
 });
+
+function abrirModalEditarDadosContaMatriz(rowId) {
+  const item = (STATE.matriz_tesouraria || []).find(r => Number(r.id) === Number(rowId));
+  if (!item) {
+    alert('Conta não encontrada na planilha.');
+    return;
+  }
+  if (!PLANILHA_MENSAL_DESBLOQUEADA) {
+    return abrirModalDesbloqueioPlanilha(
+      () => abrirModalEditarDadosContaMatriz(rowId),
+      `Editar dados da conta "${item.rubrica}"`
+    );
+  }
+  const gruposExistentes = Array.from(new Set((STATE.matriz_tesouraria || []).map(r => r.grupo).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const html = `
+    <div class="p-6 space-y-4 text-xs">
+      <div class="border-b border-slate-200 pb-3">
+        <span class="text-[10px] font-extrabold uppercase tracking-wider bg-indigo-100 text-indigo-800 px-2.5 py-0.5 rounded-full">Plano de Contas • Planilha Mensal</span>
+        <h3 class="text-lg font-extrabold text-slate-900 mt-1">Editar Conta / Rubrica</h3>
+        <p class="text-slate-500">Todos os valores já lançados de JAN a DEZ serão preservados.</p>
+      </div>
+      <form onsubmit="salvarEdicaoContaMatriz(event, ${item.id})" class="space-y-3.5">
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Nome da Conta / Rubrica *</label>
+          <input type="text" id="edit-mat-rubrica" required value="${escapeHtml(item.rubrica)}" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white text-sm font-semibold text-slate-900" />
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">Grupo *</label>
+            <input type="text" id="edit-mat-grupo" list="edit-mat-grupos-opts" required value="${escapeHtml(item.grupo)}" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white font-semibold" />
+            <datalist id="edit-mat-grupos-opts">
+              ${gruposExistentes.map(g => `<option value="${escapeHtml(g)}"></option>`).join('')}
+            </datalist>
+          </div>
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">Tipo de Fluxo</label>
+            <select id="edit-mat-tipo" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white font-bold">
+              <option value="ENTRADA" ${item.tipo_fluxo === 'ENTRADA' ? 'selected' : ''}>🟢 Entrada (Receita)</option>
+              <option value="SAIDA" ${item.tipo_fluxo !== 'ENTRADA' ? 'selected' : ''}>🔴 Saída (Despesa)</option>
+            </select>
+          </div>
+        </div>
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+          <label class="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+            <input type="checkbox" id="edit-mat-replicar" checked class="w-4 h-4 rounded" />
+            <span>Aplicar alteração em todos os exercícios (2020–2035)</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+            <input type="checkbox" id="edit-mat-fin" checked class="w-4 h-4 rounded" />
+            <span>Atualizar também os lançamentos já vinculados no Livro-Caixa</span>
+          </label>
+        </div>
+        <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="fecharModalCustom()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer">Cancelar</button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold cursor-pointer">💾 Salvar Conta</button>
+        </div>
+      </form>
+    </div>
+  `;
+  abrirModalCustom(html, false, 'normal');
+}
+
+async function salvarEdicaoContaMatriz(e, rowId) {
+  e.preventDefault();
+  const res = await apiPost('/api/matriz/rubrica/atualizar', {
+    id: rowId,
+    rubrica: document.getElementById('edit-mat-rubrica')?.value || '',
+    grupo: document.getElementById('edit-mat-grupo')?.value || '',
+    tipo_fluxo: document.getElementById('edit-mat-tipo')?.value || 'SAIDA',
+    replicar_todos_anos: document.getElementById('edit-mat-replicar')?.checked ?? true,
+    atualizar_financeiro: document.getElementById('edit-mat-fin')?.checked ?? true
+  });
+  if (res && res.ok) {
+    fecharModalCustom();
+    showLiveToast('✅ Conta da planilha atualizada com sucesso!');
+    fetchBootstrap();
+  } else {
+    alert((res && res.mensagem) || 'Erro ao atualizar conta da planilha.');
+  }
+}
 
 function closeModal() {
   if (typeof pararLeituraAta === 'function') pararLeituraAta();

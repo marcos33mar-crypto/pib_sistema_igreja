@@ -4979,6 +4979,64 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                     return self.send_json({"ok": True})
 
+                elif path == "/api/matriz/rubrica/atualizar":
+                    row_id = int(body.get("id", 0))
+                    nova_rubrica = (body.get("rubrica") or "").strip()
+                    novo_grupo = (body.get("grupo") or "").strip()
+                    novo_tipo = "ENTRADA" if str(body.get("tipo_fluxo", "")).upper() == "ENTRADA" else "SAIDA"
+                    replicar_todos = bool(body.get("replicar_todos_anos", True))
+                    atualizar_fin = bool(body.get("atualizar_financeiro", True))
+
+                    if not row_id or not nova_rubrica or not novo_grupo:
+                        conn.close()
+                        return self.send_json({"ok": False, "mensagem": "Informe o nome da conta e o grupo."}, 400)
+
+                    atual = cur.execute("SELECT id, ano, tipo_fluxo, grupo, rubrica FROM matriz_tesouraria WHERE id=?", (row_id,)).fetchone()
+                    if not atual:
+                        conn.close()
+                        return self.send_json({"ok": False, "mensagem": "Conta não encontrada na planilha."}, 404)
+
+                    old_tipo = atual["tipo_fluxo"]
+                    old_grupo = atual["grupo"]
+                    old_rub = atual["rubrica"]
+
+                    if replicar_todos:
+                        cur.execute(
+                            "UPDATE matriz_tesouraria SET tipo_fluxo=?, grupo=?, rubrica=? WHERE tipo_fluxo=? AND grupo=? AND rubrica=?",
+                            (novo_tipo, novo_grupo, nova_rubrica, old_tipo, old_grupo, old_rub),
+                        )
+                    else:
+                        cur.execute(
+                            "UPDATE matriz_tesouraria SET tipo_fluxo=?, grupo=?, rubrica=? WHERE id=?",
+                            (novo_tipo, novo_grupo, nova_rubrica, row_id),
+                        )
+
+                    if atualizar_fin:
+                        old_cat = f"{old_grupo} — {old_rub}"
+                        new_cat = f"{novo_grupo} — {nova_rubrica}"
+                        if replicar_todos:
+                            cur.execute(
+                                "UPDATE financeiro SET tipo=?, categoria=? WHERE categoria=? OR (tipo=? AND LOWER(TRIM(categoria))=LOWER(TRIM(?)))",
+                                (novo_tipo, new_cat, old_cat, old_tipo, old_rub),
+                            )
+                        else:
+                            cur.execute(
+                                "UPDATE financeiro SET tipo=?, categoria=? WHERE substr(data_lancamento,1,4)=? AND (categoria=? OR (tipo=? AND LOWER(TRIM(categoria))=LOWER(TRIM(?))))",
+                                (novo_tipo, new_cat, str(atual["ano"]), old_cat, old_tipo, old_rub),
+                            )
+
+                    log_auditoria(
+                        conn,
+                        operador,
+                        "Tesouraria",
+                        "Edição de Conta na Planilha",
+                        f"Alterou '{old_rub}' ({old_grupo}) para '{nova_rubrica}' ({novo_grupo} / {novo_tipo}).",
+                    )
+                    conn.commit()
+                    conn.close()
+                    broadcast_event("sync", {"setor": "Tesouraria", "operador": operador, "mensagem": f"{operador} atualizou a conta '{nova_rubrica}' na Planilha Mensal."})
+                    return self.send_json({"ok": True, "mensagem": "Conta atualizada com sucesso preservando todos os valores mensais!"})
+
 
 
                 # B2. GARANTIR ESTRUTURA DE PLANILHA PARA QUALQUER ANO DIGITADO
