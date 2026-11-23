@@ -3379,7 +3379,7 @@ function switchTab(tabName) {
   } else {
     if (subMenuTes) subMenuTes.classList.remove('hidden');
     if (setaTes) setaTes.style.transform = 'rotate(0deg)';
-    ['planilha', 'orcamento', 'diarios', 'fluxocaixa', 'contaspagar'].forEach(st => {
+    ['planilha', 'orcamento', 'diarios', 'fluxocaixa', 'contaspagar', 'extrato'].forEach(st => {
       const subnav = document.getElementById('subnav-tes-' + st);
       if (subnav) {
         if (st === (TESOURARIA_SUBTAB || 'planilha')) {
@@ -3467,7 +3467,7 @@ function switchTesourariaSubtab(subtab) {
   }
   TESOURARIA_SUBTAB = subtab;
 
-  ['planilha', 'orcamento', 'diarios', 'fluxocaixa', 'contaspagar'].forEach(st => {
+  ['planilha', 'orcamento', 'diarios', 'fluxocaixa', 'contaspagar', 'extrato'].forEach(st => {
     const sec = document.getElementById('tes-subtab-' + st);
     const subnav = document.getElementById('subnav-tes-' + st);
     const btn = document.getElementById('subtab-btn-' + st);
@@ -15372,6 +15372,143 @@ function imprimirPlanoContasMatriz() {
     </div>
   `;
   abrirModalCustom(html, true, 'medio');
+}
+
+let EXTRATO_ITENS_ANALISADOS = [];
+let EXTRATO_BANCO_ATUAL = 'Itaú';
+
+async function analisarExtratoBancario(e) {
+  e.preventDefault();
+  const fileInput = document.getElementById('ext-arquivo');
+  const file = fileInput?.files?.[0];
+  if (!file) return;
+  EXTRATO_BANCO_ATUAL = document.getElementById('ext-banco')?.value || 'Itaú';
+  const btn = document.getElementById('btn-analisar-extrato');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳</span> Buscando estabelecimentos...';
+  }
+  try {
+    const texto = await file.text();
+    const res = await apiPost('/api/tesouraria/extrato/analisar', {
+      arquivo_nome: file.name,
+      conteudo_texto: texto,
+      banco: EXTRATO_BANCO_ATUAL
+    });
+    if (res && res.ok) {
+      EXTRATO_ITENS_ANALISADOS = res.itens || [];
+      renderTabelaExtratoAnalisado();
+      const box = document.getElementById('ext-resultado-box');
+      if (box) box.classList.remove('hidden');
+      showLiveToast(`🔍 ${EXTRATO_ITENS_ANALISADOS.length} lançamento(s) analisado(s) do extrato!`);
+    } else {
+      alert((res && res.mensagem) || 'Não foi possível ler o extrato.');
+    }
+  } catch (err) {
+    console.error('Erro ao analisar extrato:', err);
+    alert('Falha ao ler ou analisar o extrato bancário.');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span>🔍</span> Analisar &amp; Buscar Nomes';
+    }
+  }
+}
+
+function alternarTodosItensExtrato(marcar) {
+  EXTRATO_ITENS_ANALISADOS.forEach((it, i) => {
+    it.selecionar = Boolean(marcar);
+    const cb = document.getElementById(`ext-cb-${i}`);
+    if (cb) cb.checked = it.selecionar;
+  });
+}
+
+function renderTabelaExtratoAnalisado() {
+  const tbody = document.getElementById('ext-tbody-itens');
+  const resumo = document.getElementById('ext-resumo-qtd');
+  if (resumo) resumo.textContent = String(EXTRATO_ITENS_ANALISADOS.length);
+  if (!tbody) return;
+
+  const contas2026 = (STATE.matriz_tesouraria || []).filter(r => Number(r.ano) === 2026);
+  const fonteBadge = (f) => {
+    if (f === 'Memória') return '<span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">🧠 Memória</span>';
+    if (f === 'Receita (CNPJ)') return '<span class="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 text-[10px] font-bold">🏛️ Receita CNPJ</span>';
+    if (f === 'Busca Web') return '<span class="px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 text-[10px] font-bold">🌐 Busca Web</span>';
+    return '<span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold">📄 Extrato</span>';
+  };
+
+  tbody.innerHTML = EXTRATO_ITENS_ANALISADOS.map((it, i) => {
+    const contasTipo = contas2026.filter(r => String(r.tipo_fluxo) === it.tipo);
+    const valAtual = `${it.grupo}|||${it.rubrica}`;
+    const opts = contasTipo.map(r => {
+      const v = `${r.grupo}|||${r.rubrica}`;
+      return `<option value="${escapeHtml(v)}" ${v === valAtual ? 'selected' : ''}>${escapeHtml(r.grupo)} — ${escapeHtml(r.rubrica)}</option>`;
+    }).join('');
+    return `
+      <tr class="${it.duplicado ? 'bg-amber-50/60' : 'hover:bg-slate-50'}">
+        <td class="py-2 px-2">
+          <input type="checkbox" id="ext-cb-${i}" ${it.selecionar ? 'checked' : ''} onchange="EXTRATO_ITENS_ANALISADOS[${i}].selecionar = this.checked" class="cursor-pointer" />
+        </td>
+        <td class="py-2 px-2 whitespace-nowrap font-mono">${escapeHtml(it.data)}</td>
+        <td class="py-2 px-2 whitespace-nowrap">
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${it.tipo === 'ENTRADA' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+            ${it.tipo === 'ENTRADA' ? '🟢 Entrada' : '🔴 Saída'}
+          </span>
+        </td>
+        <td class="py-2 px-2 text-slate-500 max-w-[210px] truncate" title="${escapeHtml(it.descricao_original)}">
+          ${escapeHtml(it.descricao_original)}
+          ${it.duplicado ? '<span class="block text-[10px] font-bold text-amber-700">⚠️ Já lançado anteriormente</span>' : ''}
+        </td>
+        <td class="py-2 px-2 min-w-[220px]">
+          <div class="flex items-center gap-1.5 mb-1">${fonteBadge(it.fonte)}</div>
+          <input type="text" value="${escapeHtml(it.nome_real)}" oninput="EXTRATO_ITENS_ANALISADOS[${i}].nome_real = this.value" class="w-full border border-slate-300 rounded-lg px-2 py-1 text-xs font-semibold text-slate-900 bg-white" />
+        </td>
+        <td class="py-2 px-2 min-w-[230px]">
+          <select onchange="const p=this.value.split('|||'); EXTRATO_ITENS_ANALISADOS[${i}].grupo=p[0]||''; EXTRATO_ITENS_ANALISADOS[${i}].rubrica=p[1]||'';" class="w-full border border-slate-300 rounded-lg px-2 py-1 text-xs bg-white">
+            ${opts}
+          </select>
+        </td>
+        <td class="py-2 px-2 text-right font-mono font-bold whitespace-nowrap ${it.tipo === 'ENTRADA' ? 'text-emerald-700' : 'text-rose-700'}">
+          ${formatBRL(it.valor)}
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function confirmarImportacaoExtrato() {
+  const selecionados = EXTRATO_ITENS_ANALISADOS.filter(x => x.selecionar);
+  if (selecionados.length === 0) {
+    alert('Selecione ao menos um lançamento para importar.');
+    return;
+  }
+  const btn = document.getElementById('btn-confirmar-extrato');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳</span> Lançando...';
+  }
+  try {
+    const res = await apiPost('/api/tesouraria/extrato/confirmar', {
+      banco: EXTRATO_BANCO_ATUAL,
+      itens: EXTRATO_ITENS_ANALISADOS
+    });
+    if (res && res.ok) {
+      showLiveToast(`✅ ${res.mensagem}`);
+      EXTRATO_ITENS_ANALISADOS = [];
+      const box = document.getElementById('ext-resultado-box');
+      if (box) box.classList.add('hidden');
+      const fileInput = document.getElementById('ext-arquivo');
+      if (fileInput) fileInput.value = '';
+      fetchBootstrap();
+    } else {
+      alert((res && res.mensagem) || 'Erro ao confirmar importação do extrato.');
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span>✅</span> Confirmar &amp; Lançar Selecionados';
+    }
+  }
 }
 
 function closeModal() {

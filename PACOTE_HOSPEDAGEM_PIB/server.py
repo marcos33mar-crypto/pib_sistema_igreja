@@ -1272,6 +1272,28 @@ def init_db():
             if col_name not in cols_pat:
                 cur.execute(f"ALTER TABLE patrimonio ADD COLUMN {col_name} {col_type}")
 
+        cur.execute(
+            """CREATE TABLE IF NOT EXISTS extrato_apelidos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                termo_chave TEXT UNIQUE NOT NULL,
+                nome_real TEXT NOT NULL,
+                grupo TEXT DEFAULT '',
+                rubrica TEXT DEFAULT '',
+                fonte TEXT DEFAULT 'Manual',
+                atualizado_em TEXT DEFAULT ''
+            )"""
+        )
+        cur.execute(
+            """CREATE TABLE IF NOT EXISTS extrato_importados (
+                chave_unica TEXT PRIMARY KEY,
+                banco TEXT DEFAULT '',
+                data_lancamento TEXT DEFAULT '',
+                valor REAL DEFAULT 0,
+                descricao TEXT DEFAULT '',
+                importado_em TEXT DEFAULT ''
+            )"""
+        )
+
 
 
         # Garante flexibilidade de membros e digitacao livre nas escalas
@@ -2172,6 +2194,163 @@ def localizar_rubrica_matriz_para_lancamento(cur, data_lanc, tipo, categoria, de
         rubrica_insercao = descricao or categoria or "Despesa Diversa"
 
     return row_encontrada, ano, mes, col, grupo_alvo, rubrica_insercao
+
+
+def limpar_descricao_extrato(texto):
+    s = str(texto or "").upper().strip()
+    s = re.sub(r"\b(PIX\s+TRANSF|PIX\s+ENVIADO|PIX\s+RECEBIDO|PIX\s+QRCODE|TED|DOC|DEB\s+AUT|DEBITO\s+AUTOMATICO|COMPRA\s+CARTAO|COMPRA\s+DEBITO|PAGAMENTO\s+BOLETO|PAGTO|BOLETO|SISPAG|INT|MOBILE)\b", " ", s)
+    s = re.sub(r"\b(PAG\*|MP\s*\*|EBN\*|PAYPAL\s*\*|MERCADOPAGO\*|IFD\*|99\*|UBER\*)\s*", " ", s)
+    s = re.sub(r"\b\d{2}/\d{2}(?:/\d{2,4})?\b", " ", s)
+    s = re.sub(r"\b\d{6,}\b", " ", s)
+    s = re.sub(r"[^A-ZÀ-ÿ0-9\s&./-]", " ", s)
+    s = re.sub(r"\s+", " ", s).strip(" -./")
+    return s
+
+
+def parsear_extrato_texto(conteudo, nome_arquivo=""):
+    txt = str(conteudo or "").replace("\r\n", "\n").replace("\r", "\n")
+    ext = (nome_arquivo or "").lower()
+    itens = []
+    if ext.endswith(".ofx") or "<OFX>" in txt.upper() or "<STMTTRN>" in txt.upper():
+        blocos = re.findall(r"<STMTTRN>(.*?)</STMTTRN>", txt, flags=re.IGNORECASE | re.DOTALL)
+        if not blocos:
+            blocos = txt.split("<STMTTRN>")[1:]
+        for b in blocos:
+            def tag_val(tag):
+                m = re.search(rf"<{tag}>([^<\n]+)", b, flags=re.IGNORECASE)
+                return m.group(1).strip() if m else ""
+            dt_raw = re.sub(r"\D", "", tag_val("DTPOSTED"))
+            if len(dt_raw) >= 8:
+                data_iso = f"{dt_raw[0:4]}-{dt_raw[4:6]}-{dt_raw[6:8]}"
+            else:
+                continue
+            amt_raw = tag_val("TRNAMT").replace(",", ".")
+            try:
+                amt = float(amt_raw)
+            except Exception:
+                continue
+            if amt == 0:
+                continue
+            tipo = "ENTRADA" if amt > 0 else "SAIDA"
+            memo = tag_val("MEMO") or tag_val("NAME") or "Lançamento Bancário"
+            fitid = tag_val("FITID")
+            itens.append({
+                "data": data_iso,
+                "tipo": tipo,
+                "valor": round(abs(amt), 2),
+                "descricao": memo,
+                "fitid": fitid,
+            })
+        return itens
+
+    # Parser CSV / TXT (separador ; ou ,)
+    linhas = [l.strip() for l in txt.split("\n") if l.strip()]
+    if not linhas:
+        return itens
+    sep = ";" if sum(l.count(";") for l in linhas[:5]) >= sum(l.count(",") for l in linhas[:5]) else ","
+    for linha in linhas:
+        partes = [p.strip().strip('"') for p in linha.split(sep)]
+        if len(partes) < 3:
+            continue
+        data_iso = ""
+        for p in partes[:3]:
+            m_br = re.match(r"^(\d{2})/(\d{2})/(\d{4})$", p)
+            m_iso = re.match(r"^(\d{4})-(\d{2})-(\d{2})$", p)
+            if m_br:
+                data_iso = f"{m_br.group(3)}-{m_br.group(2)}-{m_br.group(1)}"
+                break
+            if m_iso:
+                data_iso = p
+                break
+        if not data_iso:
+            continue
+        val = None
+        for p in reversed(partes):
+            num_s = p.replace("R$", "").replace(" ", "").strip()
+            if re.match(r"^[+-]?\d{1,3}(\.\d{3})*(,\d{1,2})?$", num_s):
+                num_s = num_s.replace(".", "").replace(",", ".")
+            elif re.match(r"^[+-]?\d+(\.\d{1,2})?$", num_s):
+                pass
+            else:
+                continue
+            try:
+                v_f = float(num_s)
+                if v_f != 0:
+                    val = v_f
+                    break
+            except Exception:
+                pass
+        if val is None:
+            continue
+        desc = max([p for p in partes if not re.match(r"^[\d.,/+\-R$\s]+$", p)] or [partes[1]], key=len)
+        itens.append({
+            "data": data_iso,
+            "tipo": "ENTRADA" if val > 0 else "SAIDA",
+            "valor": round(abs(val), 2),
+            "descricao": desc,
+            "fitid": "",
+        })
+    return itens
+
+
+def buscar_estabelecimento_extrato(cur, desc_original, cache_ext):
+    termo_limpo = limpar_descricao_extrato(desc_original)
+    if not termo_limpo:
+        return desc_original, "Extrato", "", ""
+
+    # 1. Memória da Igreja
+    row_ap = cur.execute(
+        "SELECT nome_real, grupo, rubrica FROM extrato_apelidos WHERE termo_chave=? OR ? LIKE '%' || termo_chave || '%' ORDER BY LENGTH(termo_chave) DESC LIMIT 1",
+        (termo_limpo, termo_limpo),
+    ).fetchone()
+    if row_ap:
+        return row_ap["nome_real"], "Memória", row_ap["grupo"] or "", row_ap["rubrica"] or ""
+
+    if termo_limpo in cache_ext:
+        return cache_ext[termo_limpo]
+
+    # 2. Consulta CNPJ na BrasilAPI (Receita Federal)
+    m_cnpj = re.search(r"\b(\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2})\b", str(desc_original or ""))
+    if m_cnpj:
+        cnpj_num = re.sub(r"\D", "", m_cnpj.group(1))
+        if len(cnpj_num) == 14:
+            try:
+                req = urllib.request.Request(f"https://brasilapi.com.br/api/cnpj/v1/{cnpj_num}", headers={"User-Agent": "KairosERP/1.0"})
+                with urllib.request.urlopen(req, timeout=3) as resp:
+                    j = json.loads(resp.read().decode("utf-8"))
+                    nome_real = (j.get("nome_fantasia") or j.get("razao_social") or "").strip()
+                    if nome_real:
+                        res = (nome_real.title(), "Receita (CNPJ)", "", "")
+                        cache_ext[termo_limpo] = res
+                        return res
+            except Exception:
+                pass
+
+    # 3. Busca na Internet (DuckDuckGo HTML)
+    if len(termo_limpo) >= 4:
+        try:
+            q = urllib.parse.quote_plus(f"{termo_limpo} empresa estabelecimento")
+            req = urllib.request.Request(
+                f"https://html.duckduckgo.com/html/?q={q}",
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
+            )
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                html_res = resp.read().decode("utf-8", errors="ignore")
+                m_tit = re.search(r'class="result__a"[^>]*>(.*?)</a>', html_res, flags=re.IGNORECASE | re.DOTALL)
+                if m_tit:
+                    tit = re.sub(r"<[^>]+>", "", m_tit.group(1)).strip()
+                    tit = html.unescape(tit) if "html" in globals() else tit
+                    tit = tit.split(" - ")[0].split(" | ")[0].strip()
+                    if tit and len(tit) >= 3:
+                        res = (tit[:90], "Busca Web", "", "")
+                        cache_ext[termo_limpo] = res
+                        return res
+        except Exception:
+            pass
+
+    res = (termo_limpo.title(), "Extrato", "", "")
+    cache_ext[termo_limpo] = res
+    return res
 
 
 def reconciliar_lancamentos_com_matriz(conn):
@@ -8022,6 +8201,96 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     conn_new.close()
                     broadcast_event("sync", {"setor": "Sistema", "operador": operador, "mensagem": "Banco de dados restaurado com sucesso."})
                     return self.send_json({"ok": True, "mensagem": "Banco de dados restaurado com sucesso!"})
+
+                elif path == "/api/tesouraria/extrato/analisar":
+                    conteudo = body.get("conteudo_texto", "")
+                    nome_arq = body.get("arquivo_nome", "")
+                    banco = (body.get("banco") or "Itaú").strip()
+                    itens_brutos = parsear_extrato_texto(conteudo, nome_arq)
+                    if not itens_brutos:
+                        conn.close()
+                        return self.send_json({"ok": False, "mensagem": "Nenhuma movimentação válida encontrada no arquivo (.ofx ou .csv)."}, 400)
+                    cache_ext = {}
+                    resultado = []
+                    for idx, it in enumerate(itens_brutos[:250]):
+                        termo_limpo = limpar_descricao_extrato(it["descricao"])
+                        chave_unica = it["fitid"] or f"{banco}|{it['data']}|{it['tipo']}|{it['valor']:.2f}|{termo_limpo}"
+                        ja_imp = cur.execute("SELECT 1 FROM extrato_importados WHERE chave_unica=?", (chave_unica,)).fetchone()
+                        ja_fin = cur.execute(
+                            "SELECT 1 FROM financeiro WHERE data_lancamento=? AND tipo=? AND ABS(valor - ?) < 0.01 AND status != 'Cancelado'",
+                            (it["data"], it["tipo"], it["valor"]),
+                        ).fetchone()
+                        duplicado = bool(ja_imp or ja_fin)
+                        nome_real, fonte, g_ap, r_ap = buscar_estabelecimento_extrato(cur, it["descricao"], cache_ext)
+                        if not (g_ap and r_ap):
+                            _, _, _, _, g_ap, r_ap = localizar_rubrica_matriz_para_lancamento(
+                                cur, it["data"], it["tipo"], nome_real, f"{it['descricao']} {nome_real}"
+                            )
+                        resultado.append({
+                            "idx": idx,
+                            "selecionar": not duplicado,
+                            "duplicado": duplicado,
+                            "data": it["data"],
+                            "tipo": it["tipo"],
+                            "valor": it["valor"],
+                            "descricao_original": it["descricao"],
+                            "termo_limpo": termo_limpo,
+                            "nome_real": nome_real,
+                            "fonte": fonte,
+                            "grupo": g_ap,
+                            "rubrica": r_ap,
+                            "chave_unica": chave_unica,
+                        })
+                    conn.close()
+                    return self.send_json({"ok": True, "banco": banco, "itens": resultado})
+
+                elif path == "/api/tesouraria/extrato/confirmar":
+                    banco = (body.get("banco") or "Itaú").strip()
+                    itens = body.get("itens") or []
+                    selecionados = [x for x in itens if x.get("selecionar")]
+                    if not selecionados:
+                        conn.close()
+                        return self.send_json({"ok": False, "mensagem": "Selecione ao menos um item para importar."}, 400)
+                    agora = agora_brasilia().strftime("%Y-%m-%d %H:%M:%S")
+                    qtd = 0
+                    for x in selecionados:
+                        data_l = str(x.get("data") or "")
+                        tipo_l = "ENTRADA" if str(x.get("tipo")).upper() == "ENTRADA" else "SAIDA"
+                        val_l = round(float(x.get("valor") or 0), 2)
+                        if not data_l or val_l <= 0:
+                            continue
+                        nome_real = (x.get("nome_real") or x.get("descricao_original") or "Lançamento Extrato").strip()
+                        desc_orig = (x.get("descricao_original") or "").strip()
+                        grupo = (x.get("grupo") or ("Entradas" if tipo_l == "ENTRADA" else "Despesas Operacionais")).strip()
+                        rubrica = (x.get("rubrica") or "").strip()
+                        cat_final = f"{grupo} — {rubrica}" if rubrica else grupo
+                        desc_final = nome_real if nome_real.lower() == desc_orig.lower() else f"{nome_real} ({desc_orig})"
+                        cur.execute(
+                            """INSERT INTO financeiro (data_lancamento, tipo, categoria, descricao, valor, forma_pagamento, status, lancado_por)
+                               VALUES (?, ?, ?, ?, ?, ?, 'Pago', ?)""",
+                            (data_l, tipo_l, cat_final, desc_final, val_l, banco, operador),
+                        )
+                        sincronizar_lancamento_na_matriz(cur, data_l, tipo_l, cat_final, desc_final, val_l)
+                        termo_chave = limpar_descricao_extrato(desc_orig)
+                        if termo_chave:
+                            cur.execute(
+                                """INSERT INTO extrato_apelidos (termo_chave, nome_real, grupo, rubrica, fonte, atualizado_em)
+                                   VALUES (?, ?, ?, ?, ?, ?)
+                                   ON CONFLICT(termo_chave) DO UPDATE SET nome_real=excluded.nome_real, grupo=excluded.grupo, rubrica=excluded.rubrica, atualizado_em=excluded.atualizado_em""",
+                                (termo_chave, nome_real, grupo, rubrica, x.get("fonte") or "Manual", agora),
+                            )
+                        chave_u = str(x.get("chave_unica") or "")
+                        if chave_u:
+                            cur.execute(
+                                "INSERT OR IGNORE INTO extrato_importados (chave_unica, banco, data_lancamento, valor, descricao, importado_em) VALUES (?, ?, ?, ?, ?, ?)",
+                                (chave_u, banco, data_l, val_l, desc_orig, agora),
+                            )
+                        qtd += 1
+                    log_auditoria(conn, operador, "Tesouraria", "Importação de Extrato Bancário", f"Importou {qtd} lançamentos do extrato ({banco}).")
+                    conn.commit()
+                    conn.close()
+                    broadcast_event("sync", {"setor": "Tesouraria", "operador": operador, "mensagem": f"{operador} importou {qtd} lançamentos do extrato ({banco})."})
+                    return self.send_json({"ok": True, "importados": qtd, "mensagem": f"{qtd} lançamento(s) importado(s) no Livro-Caixa e Planilha Mensal!"})
 
                 elif path == "/api/lgpd/anonimizar-membro":
                     mem_id = int(body.get("id", 0))
