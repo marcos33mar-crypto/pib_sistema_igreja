@@ -21588,17 +21588,19 @@ function renderFluxoDeCaixa() {
     }
   }
 
-  // 2. Gráfico Visual Mensal de Barras (Entradas vs Saídas + Saldo Acumulado)
+  // 2. Gráfico Visual Mensal de Barras (Entradas vs Saídas vs Saldo do Período + Saldo Acumulado)
   const grafCont = document.getElementById('fc-grafico-mensal-container');
   if (grafCont) {
-    const maxVal = Math.max(1, ...entMes, ...saiMes);
+    const maxVal = Math.max(1, ...entMes, ...saiMes, ...geracaoLiquidaMes.map(v => Math.abs(Number(v || 0))));
     grafCont.innerHTML = NOMES_MESES.map((nomeMes, idx) => {
       const eVal = Number(entMes[idx] || 0);
       const sVal = Number(saiMes[idx] || 0);
-      const liqVal = geracaoLiquidaMes[idx];
+      const liqVal = Number(geracaoLiquidaMes[idx] || 0);
       const acumVal = saldoFechamentoMes[idx];
       const hEnt = Math.max(4, Math.round((eVal / maxVal) * 88));
       const hSai = Math.max(4, Math.round((sVal / maxVal) * 88));
+      const hSaldo = Math.max(4, Math.round((Math.abs(liqVal) / maxVal) * 88));
+      const corSaldoBar = liqVal >= 0 ? 'from-indigo-600 to-indigo-400' : 'from-amber-600 to-amber-400';
       const estaNoFiltro = mesesIndices.includes(idx);
 
       return `
@@ -21607,14 +21609,16 @@ function renderFluxoDeCaixa() {
             <span>${nomeMes}</span>
             <span class="${liqVal >= 0 ? 'text-emerald-600' : 'text-rose-600'}">${liqVal >= 0 ? '▲' : '▼'}</span>
           </div>
-          <div class="h-24 flex items-end justify-center gap-2 border-b border-slate-200 pb-1 px-1">
-            <div class="w-4 bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-t-md transition-all" style="height:${eVal > 0 ? hEnt : 3}px" title="Entradas ${nomeMes}: ${formatBRL(eVal)}"></div>
-            <div class="w-4 bg-gradient-to-t from-rose-600 to-rose-400 rounded-t-md transition-all" style="height:${sVal > 0 ? hSai : 3}px" title="Saídas ${nomeMes}: ${formatBRL(sVal)}"></div>
+          <div class="h-24 flex items-end justify-center gap-1.5 border-b border-slate-200 pb-1 px-1">
+            <div class="w-3 bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-t-md transition-all" style="height:${eVal > 0 ? hEnt : 3}px" title="Entradas ${nomeMes}: ${formatBRL(eVal)}"></div>
+            <div class="w-3 bg-gradient-to-t from-rose-600 to-rose-400 rounded-t-md transition-all" style="height:${sVal > 0 ? hSai : 3}px" title="Saídas ${nomeMes}: ${formatBRL(sVal)}"></div>
+            <div class="w-3 bg-gradient-to-t ${corSaldoBar} rounded-t-md transition-all" style="height:${liqVal !== 0 ? hSaldo : 3}px" title="Saldo do Período ${nomeMes}: ${formatBRL(liqVal)}"></div>
           </div>
           <div class="mt-1.5 space-y-0.5 text-[10px] font-mono">
             <div class="flex justify-between text-emerald-700 font-bold" title="Entradas"><span>E:</span><span>${formatNum(eVal)}</span></div>
             <div class="flex justify-between text-rose-700 font-bold" title="Saídas"><span>S:</span><span>${formatNum(sVal)}</span></div>
-            <div class="flex justify-between pt-0.5 border-t border-slate-200/80 font-extrabold ${acumVal >= 0 ? 'text-indigo-700' : 'text-rose-700'}" title="Saldo Final Acumulado">
+            <div class="flex justify-between ${liqVal >= 0 ? 'text-indigo-700' : 'text-amber-700'} font-bold" title="Saldo do Período (E - S)"><span>SP:</span><span>${formatNum(liqVal)}</span></div>
+            <div class="flex justify-between pt-0.5 border-t border-slate-200/80 font-extrabold ${acumVal >= 0 ? 'text-slate-800' : 'text-rose-700'}" title="Saldo Final Acumulado">
               <span>Cx:</span><span>${formatNum(acumVal)}</span>
             </div>
           </div>
