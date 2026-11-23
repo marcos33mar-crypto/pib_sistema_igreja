@@ -3969,12 +3969,12 @@ function aplicarZoomProjecao() {
     const w = window.innerWidth || 1366;
     const isFs = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
     if (isFs) {
-      fator = w >= 1900 ? 1.45 : (w >= 1500 ? 1.3 : 1.18);
+      fator = w >= 1900 ? 1.75 : (w >= 1500 ? 1.55 : 1.38);
     } else {
-      fator = w >= 1900 ? 1.22 : (w >= 1600 ? 1.12 : 1);
+      fator = w >= 1900 ? 1.35 : (w >= 1600 ? 1.22 : (w >= 1280 ? 1.08 : 1));
     }
   } else {
-    fator = Math.max(0.8, Math.min(2.0, parseFloat(pref) || 1));
+    fator = Math.max(0.8, Math.min(2.5, parseFloat(pref) || 1));
   }
 
   ['painel-slide-tesouraria', 'painel-slide-ministerios'].forEach(id => {

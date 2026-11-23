@@ -1639,8 +1639,16 @@
     #tab-projecao:fullscreen,
     #tab-projecao:-webkit-full-screen {
       background: #f1f5f9 !important;
-      padding: 1rem 1.5rem !important;
+      padding: 0.5rem 0.75rem !important;
       overflow-y: auto !important;
+      width: 100vw !important;
+      height: 100vh !important;
+    }
+    #tab-projecao:fullscreen #painel-slide-tesouraria,
+    #tab-projecao:fullscreen #painel-slide-ministerios,
+    #tab-projecao:-webkit-full-screen #painel-slide-tesouraria,
+    #tab-projecao:-webkit-full-screen #painel-slide-ministerios {
+      padding: 0.9rem 1.1rem !important;
     }
     #tab-projecao:fullscreen .projecao-controles-extras {
       opacity: 0.92;
@@ -10327,6 +10335,8 @@
               <option value="1.25">125%</option>
               <option value="1.5">150%</option>
               <option value="1.75">175%</option>
+              <option value="2">200%</option>
+              <option value="2.25">225%</option>
             </select>
             <button type="button" onclick="abrirModalQRCodeAssembleia()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs">
               📱 QR Code
@@ -22738,7 +22748,7 @@
   </div>
 
   <script src="/qrcode.min.js"></script>
-  <script src="/app.js?v=20261123_v283_projecao_zoom"></script>
+  <script src="/app.js?v=20261123_v284_projecao_maior"></script>
   <script>
     window.addEventListener('DOMContentLoaded', function () {
       if (typeof fetchBootstrap !== 'function') {
