@@ -21448,14 +21448,15 @@ function stepAnoMatriz(delta) {
 
 function obterSaldoInicialFluxoCaixa(ano) {
   const anoRef = Number(ano) || Number(ANO_MATRIZ_ATIVO) || 2026;
+  const saldosPadrao = { 2025: 117264.69, 2026: 122342.25 };
   try {
     const salvo = localStorage.getItem('kairos_saldo_inicial_fc_' + anoRef);
     if (salvo !== null && salvo !== '') {
       const v = parseFloat(salvo);
-      if (!isNaN(v)) return v;
+      if (!isNaN(v) && (v !== 0 || !(anoRef in saldosPadrao))) return v;
     }
   } catch (e) {}
-  return 0;
+  return saldosPadrao[anoRef] !== undefined ? saldosPadrao[anoRef] : 0;
 }
 
 function salvarSaldoInicialFluxoCaixa(valor) {
