@@ -1970,6 +1970,14 @@ const PERMISSOES_POR_PERFIL = {
 
 
 
+  LIDER_MINISTERIO: ['tesouraria'],
+
+
+
+
+
+
+
   RECEPCAO: ['recepcao'],
 
 
@@ -3461,6 +3469,8 @@ function switchTab(tabName) {
 
 function switchTesourariaSubtab(subtab) {
   if (subtab === 'operacional') subtab = 'diarios';
+  const isLiderMin = String(CURRENT_OPERATOR?.perfil || '').toUpperCase() === 'LIDER_MINISTERIO';
+  if (isLiderMin) subtab = 'orcamento';
   if (subtab === 'pedidos') {
     switchTab('pedidos');
     return;
@@ -4216,6 +4226,7 @@ function populateSelects() {
   setHTML('fin-membro', memOptionsOptional);
   setHTML('filtro-escala-ministerio', `<option value="">Todos os 15 Ministérios</option>` + minOptionsRequired);
   setHTML('rel-ministerio', `<option value="">Todos os 15 Ministérios</option>` + minOptionsRequired);
+  setHTML('usr-ministerio-id', `<option value="">-- Selecione o ministério --</option>` + minOptionsRequired);
 
   // Popula anos do sistema (Exercício e Análise Orçamentária)
   const anos = getAnosDisponiveis();
@@ -4768,11 +4779,17 @@ function renderOrcamento15Ministerios() {
   if (elTotOrcLbl) elTotOrcLbl.textContent = String(anoOrc);
   if (elTotExecLbl) elTotExecLbl.textContent = String(anoExec);
 
+  const isLiderMin = String(CURRENT_OPERATOR?.perfil || '').toUpperCase() === 'LIDER_MINISTERIO';
+  const minIdLider = Number(CURRENT_OPERATOR?.ministerio_id || 0);
+  const listaMinOrc = (isLiderMin && minIdLider > 0)
+    ? (STATE.ministerios || []).filter(m => Number(m.id) === minIdLider)
+    : (STATE.ministerios || []);
+
   let totReal = 0;
   let totOrc = 0;
   let totExec = 0;
 
-  let html = (STATE.ministerios || []).map(m => {
+  let html = listaMinOrc.map(m => {
     const rVal = getRealizadoMinisterio(m, anoReal);
     const oVal = getOrcamentoMinisterio(m, anoOrc);
     const baseCalcVal = getOrcamentoMinisterio(m, anoBaseCalc);
@@ -4783,6 +4800,12 @@ function renderOrcamento15Ministerios() {
     totReal += rVal;
     totOrc += oVal;
     totExec += exVal;
+
+    const acaoColHtml = isLiderMin
+      ? `<span class="text-[11px] text-slate-400 font-semibold">Somente leitura</span>`
+      : `<button onclick="editarMinisterioModal(${m.id})" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-2.5 py-1 rounded-lg transition cursor-pointer">
+            ✏️ Editar Orçamento / %
+          </button>`;
 
     return `
       <tr class="hover:bg-indigo-50/40 transition bg-white">
@@ -4801,9 +4824,7 @@ function renderOrcamento15Ministerios() {
         <td class="py-3 px-3 text-right font-mono font-bold ${saldo >= 0 ? 'text-emerald-600' : 'text-rose-600'}">${formatBRL(saldo)}</td>
         <td class="py-3 px-3 text-slate-600 italic">${m.descricao || '—'}</td>
         <td class="py-3 px-3 text-right">
-          <button onclick="editarMinisterioModal(${m.id})" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-2.5 py-1 rounded-lg transition cursor-pointer">
-            ✏️ Editar Orçamento / %
-          </button>
+          ${acaoColHtml}
         </td>
       </tr>
     `;
@@ -4812,17 +4833,19 @@ function renderOrcamento15Ministerios() {
   const totSaldo = totOrc - totExec;
   const aumGeral = totReal > 0 ? (((totOrc - totReal) / totReal) * 100).toFixed(1) : '0.0';
 
-  html += `
-    <tr class="bg-slate-900 text-white font-extrabold">
-      <td class="py-3 px-3">TOTAL GERAL CONSOLIDADO</td>
-      <td class="py-3 px-3 text-right font-mono">${formatBRL(totReal)}</td>
-      <td class="py-3 px-3 text-right font-mono text-indigo-300">${formatBRL(totOrc)}</td>
-      <td class="py-3 px-3 text-center font-mono text-amber-300">${Number(aumGeral) > 0 ? '+' : ''}${aumGeral}%</td>
-      <td class="py-3 px-3 text-right font-mono text-rose-300">${formatBRL(totExec)}</td>
-      <td class="py-3 px-3 text-right font-mono text-emerald-300">${formatBRL(totSaldo)}</td>
-      <td class="py-3 px-3" colspan="2"></td>
-    </tr>
-  `;
+  if (!isLiderMin) {
+    html += `
+      <tr class="bg-slate-900 text-white font-extrabold">
+        <td class="py-3 px-3">TOTAL GERAL CONSOLIDADO</td>
+        <td class="py-3 px-3 text-right font-mono">${formatBRL(totReal)}</td>
+        <td class="py-3 px-3 text-right font-mono text-indigo-300">${formatBRL(totOrc)}</td>
+        <td class="py-3 px-3 text-center font-mono text-amber-300">${Number(aumGeral) > 0 ? '+' : ''}${aumGeral}%</td>
+        <td class="py-3 px-3 text-right font-mono text-rose-300">${formatBRL(totExec)}</td>
+        <td class="py-3 px-3 text-right font-mono text-emerald-300">${formatBRL(totSaldo)}</td>
+        <td class="py-3 px-3" colspan="2"></td>
+      </tr>
+    `;
+  }
 
   tbody.innerHTML = html;
 
@@ -6145,6 +6168,26 @@ function aplicarPermissoesDeSetor() {
   if (!permitidas.includes(ACTIVE_TAB)) {
     const destinoValido = permitidas.find(p => p !== 'projecao') || permitidas[0] || 'dashboard';
     switchTab(destinoValido);
+  }
+
+  const isLiderMin = String(CURRENT_OPERATOR?.perfil || '').toUpperCase() === 'LIDER_MINISTERIO';
+  ['planilha', 'orcamento', 'diarios', 'fluxocaixa', 'contaspagar', 'extrato'].forEach(st => {
+    const btn = document.getElementById('subtab-btn-' + st);
+    if (!btn) return;
+    if (isLiderMin && st !== 'orcamento') {
+      btn.classList.add('hidden');
+    } else {
+      btn.classList.remove('hidden');
+    }
+  });
+  const simCard = document.getElementById('orc-simulador-reajuste-card');
+  if (simCard) {
+    if (isLiderMin) simCard.classList.add('hidden');
+    else simCard.classList.remove('hidden');
+  }
+  if (isLiderMin) {
+    if (ACTIVE_TAB !== 'tesouraria') switchTab('tesouraria');
+    switchTesourariaSubtab('orcamento');
   }
 }
 
@@ -11760,6 +11803,12 @@ async function salvarUsuario(e) {
   const cAce = !!document.getElementById('ctrl-acessos')?.checked;
 
   const perfil = document.getElementById('usr-perfil')?.value || 'CUSTOM';
+  const ministerio_id = perfil === 'LIDER_MINISTERIO' ? (Number(document.getElementById('usr-ministerio-id')?.value) || null) : null;
+  if (perfil === 'LIDER_MINISTERIO' && !ministerio_id) {
+    showLiveToast('⚠️ Selecione o ministério ao qual este líder pertence.');
+    document.getElementById('usr-ministerio-id')?.focus();
+    return;
+  }
 
   const setores = [];
   if (cDash) setores.push('dashboard');
@@ -11827,6 +11876,7 @@ async function salvarUsuario(e) {
       email,
       cargo,
       perfil,
+      ministerio_id,
       setores_permitidos: setores.join(','),
       relatorios_permitidos,
       senha: senhaInp
@@ -11848,6 +11898,7 @@ async function salvarUsuario(e) {
       email,
       cargo,
       perfil,
+      ministerio_id,
       setores_permitidos: setores.join(','),
       relatorios_permitidos,
       senha: senhaInp || '123456'
@@ -11908,6 +11959,13 @@ function carregarUsuarioNoFormulario(userId) {
 
   const perfilSelect = document.getElementById('usr-perfil');
   if (perfilSelect) perfilSelect.value = u.perfil || 'CUSTOM';
+  const boxMinUsr = document.getElementById('box-usr-ministerio');
+  const selMinUsr = document.getElementById('usr-ministerio-id');
+  if (selMinUsr) selMinUsr.value = u.ministerio_id || '';
+  if (boxMinUsr) {
+    if (u.perfil === 'LIDER_MINISTERIO') boxMinUsr.classList.remove('hidden');
+    else boxMinUsr.classList.add('hidden');
+  }
 
   // Desmarca tudo primeiro para carregar rigorosamente as permissões do usuário
   desmarcarTodasOpcoesFormulario();
@@ -12004,6 +12062,8 @@ function fecharFormularioUsuario() {
   if (inpId) inpId.value = '';
   const form = document.querySelector('#box-cadastro-operador form');
   if (form) form.reset();
+  const boxMinUsr = document.getElementById('box-usr-ministerio');
+  if (boxMinUsr) boxMinUsr.classList.add('hidden');
   desmarcarTodasOpcoesFormulario();
 }
 
@@ -12037,6 +12097,11 @@ function desmarcarTodosRelatoriosForm() {
 
 function aoMudarPerfilOperador() {
   const perfil = document.getElementById('usr-perfil')?.value;
+  const boxMinUsr = document.getElementById('box-usr-ministerio');
+  if (boxMinUsr) {
+    if (perfil === 'LIDER_MINISTERIO') boxMinUsr.classList.remove('hidden');
+    else boxMinUsr.classList.add('hidden');
+  }
   if (!perfil || perfil === 'CUSTOM') {
     // Modo Personalizado: mantém as escolhas manuais ou desmarcadas
     atualizarContadorModulosForm();
@@ -12149,6 +12214,20 @@ function aoMudarPerfilOperador() {
     if (cRec) cRec.checked = true;
     if (cAce) cAce.checked = false;
     relCbs.forEach(cb => { cb.checked = (cb.value === 'rel_visitantes'); });
+  } else if (perfil === 'LIDER_MINISTERIO') {
+    if (cDash) cDash.checked = false;
+    if (cFin) cFin.checked = true;
+    if (cPed) cPed.checked = false;
+    if (cRel) cRel.checked = false;
+    if (cProj) cProj.checked = false;
+    if (cSec) cSec.checked = false;
+    if (cAtas) cAtas.checked = false;
+    if (cMin) cMin.checked = false;
+    if (cCel) cCel.checked = false;
+    if (cPat) cPat.checked = false;
+    if (cRec) cRec.checked = false;
+    if (cAce) cAce.checked = false;
+    relCbs.forEach(cb => { cb.checked = false; });
   }
 
   atualizarContadorModulosForm();

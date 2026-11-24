@@ -1688,6 +1688,10 @@ def init_db():
 
             cur.execute("ALTER TABLE usuarios ADD COLUMN senha TEXT DEFAULT '123456'")
 
+        if "ministerio_id" not in cols_usr:
+
+            cur.execute("ALTER TABLE usuarios ADD COLUMN ministerio_id INTEGER DEFAULT NULL")
+
             cur.execute("UPDATE usuarios SET senha = '123456' WHERE senha IS NULL OR senha = ''")
 
 
@@ -3083,10 +3087,12 @@ def obter_segredo_sistema(conn, chave):
 
 def criar_token_sessao(conn, user_row):
     secret = obter_segredo_sistema(conn, "session_secret")
+    raw_min_id = user_row["ministerio_id"] if "ministerio_id" in user_row.keys() else None
     payload = {
         "id": int(user_row["id"]),
         "nome": str(user_row["nome"] or ""),
         "perfil": str(user_row["perfil"] or "").upper(),
+        "ministerio_id": int(raw_min_id) if raw_min_id else None,
         "exp": int(time.time()) + 43200,
     }
     raw_b64 = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode("utf-8")).decode("ascii")
@@ -3636,6 +3642,29 @@ def build_bootstrap_data(req_handler=None):
                 "clientes_conectados": 0,
                 "timestamp": agora_brasilia().strftime("%d/%m/%Y %H:%M:%S"),
             }
+
+        if is_auth and str(auth_user.get("perfil") or "").upper() == "LIDER_MINISTERIO":
+            min_id_alvo = auth_user.get("ministerio_id")
+            if not min_id_alvo:
+                usr_match = next((u for u in usuarios_raw if int(u.get("id") or 0) == int(auth_user.get("id") or 0)), None)
+                min_id_alvo = usr_match.get("ministerio_id") if usr_match else None
+            min_id_int = int(min_id_alvo) if min_id_alvo else 0
+            ministerios = [m for m in ministerios if int(m.get("id") or 0) == min_id_int]
+            ministerios_orcamentos = [o for o in ministerios_orcamentos if int(o.get("ministerio_id") or 0) == min_id_int]
+            financeiro = [f for f in financeiro if int(f.get("ministerio_id") or 0) == min_id_int]
+            requisicoes = [r for r in requisicoes if int(r.get("ministerio_id") or 0) == min_id_int]
+            usuarios = [u for u in usuarios if int(u.get("id") or 0) == int(auth_user.get("id") or 0)]
+            matriz_rows = []
+            celulas = []
+            membros = []
+            vinculos = []
+            visitantes = []
+            escalas = []
+            patrimonio = []
+            patrimonio_emprestimos = []
+            auditoria = []
+            atas = []
+            contas_pagar = []
 
         return {
             "autenticado": is_auth,
@@ -7920,6 +7949,16 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                             setores_permitidos = "recepcao"
 
+                        elif perfil == "LIDER_MINISTERIO":
+
+                            setores_permitidos = "tesouraria"
+
+                    if perfil == "LIDER_MINISTERIO" and not ministerio_id:
+
+                        conn.close()
+
+                        return self.send_json({"ok": False, "mensagem": "Selecione o ministério ao qual este líder pertence."}, 400)
+
 
 
                     relatorios_permitidos = body.get("relatorios_permitidos", "*")
@@ -7973,6 +8012,8 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                     perfil = body.get("perfil", "FINANCEIRO")
 
+                    ministerio_id = body.get("ministerio_id") or None
+
                     setores_permitidos = body.get("setores_permitidos", "")
 
                     relatorios_permitidos = body.get("relatorios_permitidos", "*")
@@ -8025,6 +8066,16 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                             setores_permitidos = "recepcao"
 
+                        elif perfil == "LIDER_MINISTERIO":
+
+                            setores_permitidos = "tesouraria"
+
+                    if perfil == "LIDER_MINISTERIO" and not ministerio_id:
+
+                        conn.close()
+
+                        return self.send_json({"ok": False, "mensagem": "Selecione o ministério ao qual este líder pertence."}, 400)
+
 
 
                     try:
@@ -8034,12 +8085,13 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                             valida_pwd, _ = validar_padrao_senha(senha)
 
                             nova_senha_alterada = 1 if valida_pwd and senha != "123456" else 0
+                            senha_hash = gerar_hash_senha(senha)
 
                             cur.execute(
 
-                                """UPDATE usuarios SET nome=?, email=?, cargo=?, perfil=?, setores_permitidos=?, senha=?, relatorios_permitidos=?, senha_alterada=? WHERE id=?""",
+                                """UPDATE usuarios SET nome=?, email=?, cargo=?, perfil=?, ministerio_id=?, setores_permitidos=?, senha=?, relatorios_permitidos=?, senha_alterada=? WHERE id=?""",
 
-                                (nome, email, cargo, perfil, setores_permitidos, senha, relatorios_permitidos, nova_senha_alterada, user_id),
+                                (nome, email, cargo, perfil, ministerio_id, setores_permitidos, senha_hash, relatorios_permitidos, nova_senha_alterada, user_id),
 
                             )
 
@@ -8047,9 +8099,9 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                             cur.execute(
 
-                                """UPDATE usuarios SET nome=?, email=?, cargo=?, perfil=?, setores_permitidos=?, relatorios_permitidos=? WHERE id=?""",
+                                """UPDATE usuarios SET nome=?, email=?, cargo=?, perfil=?, ministerio_id=?, setores_permitidos=?, relatorios_permitidos=? WHERE id=?""",
 
-                                (nome, email, cargo, perfil, setores_permitidos, relatorios_permitidos, user_id),
+                                (nome, email, cargo, perfil, ministerio_id, setores_permitidos, relatorios_permitidos, user_id),
 
                             )
 
@@ -8092,16 +8144,16 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                     row = None
                     if user_id is not None and str(user_id).isdigit() and int(user_id) > 0:
-                        row = cur.execute("SELECT id, nome, perfil, setores_permitidos, senha, relatorios_permitidos, senha_alterada FROM usuarios WHERE id=? AND ativo=1", (int(user_id),)).fetchone()
+                        row = cur.execute("SELECT id, nome, perfil, ministerio_id, setores_permitidos, senha, relatorios_permitidos, senha_alterada FROM usuarios WHERE id=? AND ativo=1", (int(user_id),)).fetchone()
                     elif email:
-                        row = cur.execute("SELECT id, nome, perfil, setores_permitidos, senha, relatorios_permitidos, senha_alterada FROM usuarios WHERE LOWER(email)=? AND ativo=1", (email,)).fetchone()
+                        row = cur.execute("SELECT id, nome, perfil, ministerio_id, setores_permitidos, senha, relatorios_permitidos, senha_alterada FROM usuarios WHERE LOWER(email)=? AND ativo=1", (email,)).fetchone()
                     elif login:
                         if login.isdigit():
-                            row = cur.execute("SELECT id, nome, perfil, setores_permitidos, senha, relatorios_permitidos, senha_alterada FROM usuarios WHERE id=? AND ativo=1", (int(login),)).fetchone()
+                            row = cur.execute("SELECT id, nome, perfil, ministerio_id, setores_permitidos, senha, relatorios_permitidos, senha_alterada FROM usuarios WHERE id=? AND ativo=1", (int(login),)).fetchone()
                         elif "@" in login:
-                            row = cur.execute("SELECT id, nome, perfil, setores_permitidos, senha, relatorios_permitidos, senha_alterada FROM usuarios WHERE LOWER(email)=? AND ativo=1", (login,)).fetchone()
+                            row = cur.execute("SELECT id, nome, perfil, ministerio_id, setores_permitidos, senha, relatorios_permitidos, senha_alterada FROM usuarios WHERE LOWER(email)=? AND ativo=1", (login,)).fetchone()
                         else:
-                            row = cur.execute("SELECT id, nome, perfil, setores_permitidos, senha, relatorios_permitidos, senha_alterada FROM usuarios WHERE (LOWER(nome) LIKE ? OR LOWER(email)=?) AND ativo=1", (f"%{login}%", login)).fetchone()
+                            row = cur.execute("SELECT id, nome, perfil, ministerio_id, setores_permitidos, senha, relatorios_permitidos, senha_alterada FROM usuarios WHERE (LOWER(nome) LIKE ? OR LOWER(email)=?) AND ativo=1", (f"%{login}%", login)).fetchone()
                     else:
                         conn.close()
                         return self.send_json({"ok": False, "mensagem": "Por favor, selecione ou informe o seu usuário."}, 400)
@@ -8153,6 +8205,8 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                         "nome": row["nome"],
 
                         "perfil": row["perfil"],
+
+                        "ministerio_id": row["ministerio_id"],
 
                         "setores_permitidos": row["setores_permitidos"] or "",
 

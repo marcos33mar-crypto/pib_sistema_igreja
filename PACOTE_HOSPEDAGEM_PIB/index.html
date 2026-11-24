@@ -5902,7 +5902,7 @@
             </div>
 
             <!-- BARRA DE CÁLCULO EM PORCENTAGEM (%) PARA O PRÓXIMO ANO (INDIVIDUAL OU EM LOTE) -->
-            <div class="mb-4 p-3.5 rounded-2xl bg-gradient-to-r from-indigo-50/90 via-slate-50 to-emerald-50/70 border border-indigo-200/80 flex flex-col lg:flex-row lg:items-center justify-between gap-3 no-print">
+            <div id="orc-simulador-reajuste-card" class="mb-4 p-3.5 rounded-2xl bg-gradient-to-r from-indigo-50/90 via-slate-50 to-emerald-50/70 border border-indigo-200/80 flex flex-col lg:flex-row lg:items-center justify-between gap-3 no-print">
               <div class="flex items-start sm:items-center gap-2.5">
                 <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-base font-black shrink-0 shadow-xs">
                   %
@@ -21618,9 +21618,20 @@
                     <option value="PATRIMONIO">🏛️ CONTROLE DE PATRIMÔNIO (Inventário, Bens & Conservação)</option>
                     <option value="SECRETARIA">👥 SECRETARIA (Membros & Células)</option>
                     <option value="MINISTERIO">📅 MINISTÉRIO (Escalas & Voluntários)</option>
+                    <option value="LIDER_MINISTERIO">🏛️ LÍDER DE MINISTÉRIO (Orçamento do Próprio Ministério)</option>
                     <option value="RECEPCAO">🤝 RECEPÇÃO (Visitantes & Boas-Vindas)</option>
                     <option value="ADMIN">👑 ADMIN (Visão e Controle Total de Todos os Setores)</option>
                   </select>
+                </div>
+
+                <div id="box-usr-ministerio" class="hidden p-3.5 rounded-xl bg-indigo-50 border border-indigo-200">
+                  <label class="font-bold text-indigo-900 block mb-1 text-xs">Ministério Vinculado ao Líder *</label>
+                  <select id="usr-ministerio-id" class="w-full border border-indigo-300 rounded-xl px-3.5 py-2.5 bg-white font-bold text-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <option value="">-- Selecione o ministério --</option>
+                  </select>
+                  <p class="text-[11px] text-indigo-800 mt-1.5 font-medium leading-snug">
+                    🔒 Isolamento LGPD: este líder verá exclusivamente o orçamento, o executado e o saldo do ministério selecionado.
+                  </p>
                 </div>
               </div>
 
@@ -22749,7 +22760,7 @@
   </div>
 
   <script src="/qrcode.min.js"></script>
-  <script src="/app.js?v=20261123_v288_editar_icone"></script>
+  <script src="/app.js?v=20261123_v289_lider_ministerio"></script>
   <script>
     window.addEventListener('DOMContentLoaded', function () {
       if (typeof fetchBootstrap !== 'function') {
