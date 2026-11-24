@@ -3114,16 +3114,90 @@ def validar_token_sessao(token):
         with db_lock:
             conn = get_db()
             secret = obter_segredo_sistema(conn, "session_secret")
+            esp = hmac.new(secret.encode("utf-8"), raw_b64.encode("ascii"), hashlib.sha256).hexdigest()
+            if not hmac.compare_digest(sig, esp):
+                conn.close()
+                return None
+            payload = json.loads(base64.urlsafe_b64decode(raw_b64.encode("ascii")).decode("utf-8"))
+            if int(payload.get("exp", 0)) < int(time.time()):
+                conn.close()
+                return None
+            uid = int(payload.get("id") or 0)
+            row_u = conn.execute(
+                "SELECT id, nome, perfil, ministerio_id, setores_permitidos, ativo FROM usuarios WHERE id=?",
+                (uid,),
+            ).fetchone()
             conn.close()
-        esp = hmac.new(secret.encode("utf-8"), raw_b64.encode("ascii"), hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(sig, esp):
+        if not row_u or int(row_u["ativo"] or 0) != 1:
             return None
-        payload = json.loads(base64.urlsafe_b64decode(raw_b64.encode("ascii")).decode("utf-8"))
-        if int(payload.get("exp", 0)) < int(time.time()):
-            return None
-        return payload
+        return {
+            "id": int(row_u["id"]),
+            "nome": str(row_u["nome"] or ""),
+            "perfil": str(row_u["perfil"] or "").upper(),
+            "ministerio_id": int(row_u["ministerio_id"]) if row_u["ministerio_id"] else None,
+            "setores_permitidos": str(row_u["setores_permitidos"] or ""),
+            "exp": int(payload.get("exp", 0)),
+        }
     except Exception:
         return None
+
+
+def obter_setores_usuario(auth_u):
+    if not auth_u:
+        return set()
+    perfil = str(auth_u.get("perfil") or "").upper()
+    if perfil == "ADMIN":
+        return {"*"}
+    if perfil == "LIDER_MINISTERIO":
+        return {"tesouraria"}
+    raw_setores = [s.strip().lower() for s in str(auth_u.get("setores_permitidos") or "").split(",") if s.strip()]
+    if raw_setores:
+        return set(raw_setores)
+    defaults = {
+        "FINANCEIRO": {"tesouraria", "pedidos", "projecao", "relatorios"},
+        "TESOURARIA": {"tesouraria", "pedidos", "projecao", "relatorios"},
+        "PATRIMONIO": {"patrimonio"},
+        "SECRETARIA": {"secretaria", "recepcao", "celulas", "ministerios", "atas"},
+        "MINISTERIO": {"pedidos", "ministerios", "celulas", "ministerios_painel"},
+        "RECEPCAO": {"recepcao"},
+        "ASSEMBLEIA": {"projecao"},
+    }
+    return defaults.get(perfil, set())
+
+
+def usuario_tem_permissao_rota(auth_u, method, path):
+    if not auth_u:
+        return False
+    perfil = str(auth_u.get("perfil") or "").upper()
+    if perfil == "ADMIN":
+        return True
+    if path in ("/api/logout", "/api/usuarios/alterar-senha", "/api/bootstrap", "/api/sync-check", "/api/events"):
+        return True
+    if perfil == "LIDER_MINISTERIO":
+        return False
+    setores = obter_setores_usuario(auth_u)
+
+    if path in ("/api/usuarios", "/api/usuarios/editar", "/api/usuarios/resetar-senha"):
+        return "acessos" in setores
+    if path in ("/api/lgpd/exportar-membro", "/api/lgpd/anonimizar-membro") or path.startswith("/api/membros"):
+        return "secretaria" in setores
+    if path.startswith("/api/atas"):
+        return ("atas" in setores) or ("secretaria" in setores)
+    if path.startswith("/api/matriz") or path.startswith("/api/financeiro") or path.startswith("/api/tesouraria") or path.startswith("/api/contas-pagar") or path == "/api/ministerios/orcamento":
+        return "tesouraria" in setores
+    if path in ("/api/requisicoes/avaliar", "/api/requisicoes/config-alertas") or (method == "DELETE" and path == "/api/requisicoes"):
+        return ("pedidos" in setores) or ("tesouraria" in setores)
+    if path.startswith("/api/requisicoes"):
+        return ("pedidos" in setores) or ("tesouraria" in setores) or ("ministerios" in setores)
+    if path.startswith("/api/escalas") or path.startswith("/api/voluntarios") or path == "/api/ministerios":
+        return ("ministerios" in setores) or ("secretaria" in setores)
+    if path.startswith("/api/celulas"):
+        return ("celulas" in setores) or ("secretaria" in setores)
+    if path.startswith("/api/visitantes"):
+        return ("recepcao" in setores) or ("secretaria" in setores)
+    if path.startswith("/api/patrimonio"):
+        return "patrimonio" in setores
+    return False
 
 
 LOGIN_RATE_LIMIT = {}
@@ -4328,6 +4402,8 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
             auth_u = self.get_authenticated_user()
             if not auth_u:
                 return self.send_json({"ok": False, "mensagem": "Autenticação necessária."}, 401)
+            if not usuario_tem_permissao_rota(auth_u, "GET", path):
+                return self.send_json({"ok": False, "mensagem": "Permissão insuficiente para exportar dados de membros."}, 403)
             qs = parse_qs(parsed.query)
             try:
                 mem_id = int(qs.get("id", [0])[0])
@@ -4362,8 +4438,11 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
             })
 
         if path == "/api/atas":
-            if not self.get_authenticated_user():
+            auth_u = self.get_authenticated_user()
+            if not auth_u:
                 return self.send_json({"ok": False, "mensagem": "Autenticação necessária."}, 401)
+            if not usuario_tem_permissao_rota(auth_u, "GET", path):
+                return self.send_json({"ok": False, "mensagem": "Permissão insuficiente para acessar atas."}, 403)
 
             qs = parse_qs(parsed.query)
 
@@ -4785,12 +4864,17 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
             if not (auth_u and auth_u.get("perfil") == "ADMIN") and not self.has_valid_backup_key():
                 return self.send_json({"ok": False, "mensagem": "Acesso não autorizado."}, 401)
         elif path not in rotas_publicas_post:
-            if not self.get_authenticated_user():
+            auth_u = self.get_authenticated_user()
+            if not auth_u:
                 return self.send_json({"ok": False, "mensagem": "Sessão expirada ou não autenticada. Faça login novamente."}, 401)
+            if not usuario_tem_permissao_rota(auth_u, "POST", path):
+                return self.send_json({"ok": False, "mensagem": "Você não possui permissão de acesso para esta operação."}, 403)
+        else:
+            auth_u = None
 
         body = self.read_json_body()
 
-        operador = body.get("operador", "Administrador")
+        operador = str(auth_u.get("nome") or body.get("operador") or "Administrador") if auth_u else str(body.get("operador", "Administrador"))
 
 
 
@@ -8244,6 +8328,12 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                     user_id = int(body.get("id", 0))
 
+                    if not auth_u or (int(auth_u.get("id") or 0) != user_id and str(auth_u.get("perfil") or "").upper() != "ADMIN"):
+
+                        conn.close()
+
+                        return self.send_json({"ok": False, "mensagem": "Sem permissão para alterar a senha de outro operador."}, 403)
+
                     nova_senha = str(body.get("nova_senha", "")).strip()
 
                     confirmacao = str(body.get("confirmacao", "")).strip()
@@ -8696,18 +8786,22 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
     def do_DELETE(self):
 
-        if not self.get_authenticated_user():
+        auth_u = self.get_authenticated_user()
+        if not auth_u:
             return self.send_json({"ok": False, "mensagem": "Sessão expirada ou não autenticada."}, 401)
 
         parsed = urlparse(self.path)
 
         path = parsed.path
 
+        if not usuario_tem_permissao_rota(auth_u, "DELETE", path):
+            return self.send_json({"ok": False, "mensagem": "Você não possui permissão para excluir registros neste setor."}, 403)
+
         qs = parse_qs(parsed.query)
 
         item_id = int(qs.get("id", [0])[0])
 
-        operador = qs.get("operador", ["Administrador"])[0]
+        operador = str(auth_u.get("nome") or qs.get("operador", ["Administrador"])[0])
 
 
 
