@@ -2129,6 +2129,14 @@ const TITULOS_ABAS = {
 
 
 
+  manual: ['📘 Manual do Sistema', 'Guia rápido de operação e referência dos módulos do Kairós'],
+
+
+
+
+
+
+
   dashboard: ['Visão Geral & Painel Executivo', 'Painel de bordo consolidado com indicadores ao vivo e auditoria em tempo real'],
 
 
@@ -6167,7 +6175,7 @@ function aplicarPermissoesDeSetor() {
     }
   });
 
-  if (!permitidas.includes(ACTIVE_TAB)) {
+  if (ACTIVE_TAB !== 'manual' && !permitidas.includes(ACTIVE_TAB)) {
     const destinoValido = permitidas.find(p => p !== 'projecao') || permitidas[0] || 'dashboard';
     switchTab(destinoValido);
   }
@@ -6188,7 +6196,7 @@ function aplicarPermissoesDeSetor() {
     else simCard.classList.remove('hidden');
   }
   if (isLiderMin) {
-    if (ACTIVE_TAB !== 'tesouraria') switchTab('tesouraria');
+    if (ACTIVE_TAB !== 'tesouraria' && ACTIVE_TAB !== 'manual') switchTab('tesouraria');
     switchTesourariaSubtab('orcamento');
   }
 }
