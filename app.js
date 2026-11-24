@@ -5505,7 +5505,7 @@ function renderMatrizTesouraria() {
                   class="text-[10px] font-bold px-2 py-0.5 rounded ${PLANILHA_MENSAL_DESBLOQUEADA ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200' : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200'} transition cursor-pointer"
                   title="${PLANILHA_MENSAL_DESBLOQUEADA ? 'Editar conta nos 12 meses' : '🔒 Desbloquear com senha para editar'}"
                 >
-                  ${PLANILHA_MENSAL_DESBLOQUEADA ? '✏️ Editar' : '🔒'}
+                  ${PLANILHA_MENSAL_DESBLOQUEADA ? '✏️' : '🔒'}
                 </button>
                 <button
                   type="button"
