@@ -734,6 +734,8 @@ def init_db():
 
                 ministerio_id INTEGER,
 
+                membro_id INTEGER,
+
                 ativo INTEGER DEFAULT 1,
 
                 setores_permitidos TEXT DEFAULT '',
@@ -1691,6 +1693,10 @@ def init_db():
         if "ministerio_id" not in cols_usr:
 
             cur.execute("ALTER TABLE usuarios ADD COLUMN ministerio_id INTEGER DEFAULT NULL")
+
+        if "membro_id" not in cols_usr:
+
+            cur.execute("ALTER TABLE usuarios ADD COLUMN membro_id INTEGER DEFAULT NULL")
 
             cur.execute("UPDATE usuarios SET senha = '123456' WHERE senha IS NULL OR senha = ''")
 
@@ -7899,6 +7905,8 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                     ministerio_id = body.get("ministerio_id") or None
 
+                    membro_id = body.get("membro_id") or None
+
                     setores_permitidos = body.get("setores_permitidos", "")
 
                     senha = body.get("senha", "").strip() or "123456"
@@ -7916,6 +7924,16 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                         conn.close()
 
                         return self.send_json({"ok": False, "mensagem": "Por favor, informe o e-mail ou identificador de acesso."}, 400)
+
+                    membro_row = None
+                    if membro_id and str(membro_id).isdigit():
+                        membro_row = cur.execute("SELECT id, nome FROM membros WHERE id=?", (int(membro_id),)).fetchone()
+                    if not membro_row:
+                        membro_row = cur.execute("SELECT id, nome FROM membros WHERE LOWER(TRIM(nome))=LOWER(TRIM(?))", (nome,)).fetchone()
+                    if not membro_row:
+                        conn.close()
+                        return self.send_json({"ok": False, "mensagem": "Para cadastrar um usuário no Kairós, a pessoa precisa estar cadastrada no Rol de Membros."}, 400)
+                    membro_id = int(membro_row["id"])
 
 
 
@@ -7972,11 +7990,11 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                         cur.execute(
 
-                            """INSERT INTO usuarios (nome, email, cargo, perfil, ministerio_id, ativo, setores_permitidos, senha, relatorios_permitidos, senha_alterada)
+                            """INSERT INTO usuarios (nome, email, cargo, perfil, ministerio_id, membro_id, ativo, setores_permitidos, senha, relatorios_permitidos, senha_alterada)
 
-                            VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?)""",
+                            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)""",
 
-                            (nome, email, cargo, perfil, ministerio_id, setores_permitidos, senha_hash, relatorios_permitidos, nova_senha_alterada),
+                            (nome, email, cargo, perfil, ministerio_id, membro_id, setores_permitidos, senha_hash, relatorios_permitidos, nova_senha_alterada),
 
                         )
 
@@ -8013,6 +8031,8 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     perfil = body.get("perfil", "FINANCEIRO")
 
                     ministerio_id = body.get("ministerio_id") or None
+
+                    membro_id = body.get("membro_id") or None
 
                     setores_permitidos = body.get("setores_permitidos", "")
 
@@ -8089,9 +8109,9 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                             cur.execute(
 
-                                """UPDATE usuarios SET nome=?, email=?, cargo=?, perfil=?, ministerio_id=?, setores_permitidos=?, senha=?, relatorios_permitidos=?, senha_alterada=? WHERE id=?""",
+                                """UPDATE usuarios SET nome=?, email=?, cargo=?, perfil=?, ministerio_id=?, membro_id=COALESCE(?, membro_id), setores_permitidos=?, senha=?, relatorios_permitidos=?, senha_alterada=? WHERE id=?""",
 
-                                (nome, email, cargo, perfil, ministerio_id, setores_permitidos, senha_hash, relatorios_permitidos, nova_senha_alterada, user_id),
+                                (nome, email, cargo, perfil, ministerio_id, membro_id, setores_permitidos, senha_hash, relatorios_permitidos, nova_senha_alterada, user_id),
 
                             )
 
@@ -8099,9 +8119,9 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                             cur.execute(
 
-                                """UPDATE usuarios SET nome=?, email=?, cargo=?, perfil=?, ministerio_id=?, setores_permitidos=?, relatorios_permitidos=? WHERE id=?""",
+                                """UPDATE usuarios SET nome=?, email=?, cargo=?, perfil=?, ministerio_id=?, membro_id=COALESCE(?, membro_id), setores_permitidos=?, relatorios_permitidos=? WHERE id=?""",
 
-                                (nome, email, cargo, perfil, ministerio_id, setores_permitidos, relatorios_permitidos, user_id),
+                                (nome, email, cargo, perfil, ministerio_id, membro_id, setores_permitidos, relatorios_permitidos, user_id),
 
                             )
 

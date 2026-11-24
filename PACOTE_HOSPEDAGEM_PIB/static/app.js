@@ -11868,6 +11868,17 @@ async function salvarUsuario(e) {
     return;
   }
 
+  const membroVinculado = (STATE.membros || []).find(m =>
+    (document.getElementById('usr-membro-id')?.value && Number(m.id) === Number(document.getElementById('usr-membro-id').value)) ||
+    (m.nome || '').trim().toLowerCase() === nome.toLowerCase()
+  );
+  if (!editId && !membroVinculado) {
+    alert('⚠️ Para cadastrar um usuário no Kairós, a pessoa precisa estar cadastrada no Rol de Membros.\n\nCadastre a pessoa primeiro na aba "Membros" e depois selecione-a aqui.');
+    document.getElementById('usr-nome')?.focus();
+    return;
+  }
+  const membro_id = membroVinculado ? Number(membroVinculado.id) : null;
+
   if (editId) {
     // Modo Edição
     const res = await apiPost('/api/usuarios/editar', {
@@ -11877,6 +11888,7 @@ async function salvarUsuario(e) {
       cargo,
       perfil,
       ministerio_id,
+      membro_id,
       setores_permitidos: setores.join(','),
       relatorios_permitidos,
       senha: senhaInp
@@ -11894,11 +11906,12 @@ async function salvarUsuario(e) {
   } else {
     // Modo Novo Cadastro
     const res = await apiPost('/api/usuarios', {
-      nome,
+      nome: membroVinculado.nome,
       email,
       cargo,
       perfil,
       ministerio_id,
+      membro_id,
       setores_permitidos: setores.join(','),
       relatorios_permitidos,
       senha: senhaInp || '123456'
@@ -11928,6 +11941,9 @@ function carregarUsuarioNoFormulario(userId) {
 
   const inpNome = document.getElementById('usr-nome');
   if (inpNome) inpNome.value = u.nome;
+  const inpMembroId = document.getElementById('usr-membro-id');
+  if (inpMembroId) inpMembroId.value = u.membro_id || '';
+  aoMudarNomeMembroNoCadastro();
 
   const inpEmail = document.getElementById('usr-email');
   if (inpEmail) inpEmail.value = u.email;
@@ -12019,6 +12035,9 @@ function abrirFormularioNovoUsuario() {
 
   const inpNome = document.getElementById('usr-nome');
   if (inpNome) inpNome.value = '';
+  const inpMembroId = document.getElementById('usr-membro-id');
+  if (inpMembroId) inpMembroId.value = '';
+  aoMudarNomeMembroNoCadastro();
   const inpEmail = document.getElementById('usr-email');
   if (inpEmail) inpEmail.value = '';
   const inpCargo = document.getElementById('usr-cargo');
@@ -12062,6 +12081,13 @@ function fecharFormularioUsuario() {
   if (inpId) inpId.value = '';
   const form = document.querySelector('#box-cadastro-operador form');
   if (form) form.reset();
+  const inpMembroId = document.getElementById('usr-membro-id');
+  if (inpMembroId) inpMembroId.value = '';
+  const statusMembro = document.getElementById('usr-membro-status');
+  if (statusMembro) {
+    statusMembro.className = 'text-[11px] text-slate-500 mt-1 font-medium';
+    statusMembro.textContent = '🔒 Somente pessoas cadastradas no Rol de Membros podem receber acesso ao Kairós.';
+  }
   const boxMinUsr = document.getElementById('box-usr-ministerio');
   if (boxMinUsr) boxMinUsr.classList.add('hidden');
   desmarcarTodasOpcoesFormulario();
@@ -15092,13 +15118,45 @@ function filtrarMinisteriosPainel() {
 
 function aoMudarNomeMembroNoCadastro() {
   const nome = (document.getElementById('usr-nome')?.value || '').trim().toLowerCase();
-  if (!nome) return;
+  const inpMembroId = document.getElementById('usr-membro-id');
+  const statusEl = document.getElementById('usr-membro-status');
+  const editId = document.getElementById('usr-edit-id')?.value;
+
+  if (!nome) {
+    if (inpMembroId) inpMembroId.value = '';
+    if (statusEl) {
+      statusEl.className = 'text-[11px] text-slate-500 mt-1 font-medium';
+      statusEl.textContent = '🔒 Somente pessoas cadastradas no Rol de Membros podem receber acesso ao Kairós.';
+    }
+    return;
+  }
+
   const membro = (STATE.membros || []).find(m => (m.nome || '').trim().toLowerCase() === nome);
-  if (!membro) return;
+  if (inpMembroId) inpMembroId.value = membro ? String(membro.id) : '';
+
+  if (!membro) {
+    if (statusEl) {
+      if (editId) {
+        statusEl.className = 'text-[11px] text-amber-700 mt-1 font-semibold';
+        statusEl.textContent = 'ℹ️ Usuário legado sem vínculo automático no Rol de Membros.';
+      } else {
+        statusEl.className = 'text-[11px] text-rose-600 mt-1 font-bold';
+        statusEl.textContent = '⚠️ Pessoa não encontrada no Rol de Membros. Cadastre primeiro em Membros.';
+      }
+    }
+    return;
+  }
+
+  if (statusEl) {
+    statusEl.className = 'text-[11px] text-emerald-700 mt-1 font-bold';
+    statusEl.textContent = `✅ Membro localizado no Rol (${membro.cargo_eclesiastico || 'Membro'}).`;
+  }
   const emailEl = document.getElementById('usr-email');
   const cargoEl = document.getElementById('usr-cargo');
   if (emailEl && !emailEl.value.trim() && membro.email) emailEl.value = membro.email;
-  if (cargoEl && !cargoEl.value.trim() && (membro.cargo || membro.funcao)) cargoEl.value = membro.cargo || membro.funcao;
+  if (cargoEl && !cargoEl.value.trim() && (membro.cargo_eclesiastico || membro.cargo || membro.funcao)) {
+    cargoEl.value = membro.cargo_eclesiastico || membro.cargo || membro.funcao;
+  }
 }
 
 function abrirModalRestaurarBackup() {

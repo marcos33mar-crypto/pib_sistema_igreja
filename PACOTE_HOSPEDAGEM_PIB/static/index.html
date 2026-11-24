@@ -21572,6 +21572,7 @@
 
           <form onsubmit="salvarUsuario(event)" class="space-y-6 text-xs">
             <input type="hidden" id="usr-edit-id" value="" />
+            <input type="hidden" id="usr-membro-id" value="" />
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
@@ -21582,9 +21583,9 @@
                 </h4>
 
                 <div>
-                  <label class="font-bold text-slate-700 block mb-1">Nome do Usuário *</label>
-                  <input type="text" id="usr-nome" list="lista-membros-datalist" oninput="aoMudarNomeMembroNoCadastro()" onchange="aoMudarNomeMembroNoCadastro()" required placeholder="Digite o nome ou selecione um membro..." class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium" autocomplete="off" />
-                  <p class="text-[10px] text-slate-400 mt-1">Conectado ao rol de 115 membros com preenchimento automático.</p>
+                  <label class="font-bold text-slate-700 block mb-1">Nome do Usuário (Obrigatório constar no Rol de Membros) *</label>
+                  <input type="text" id="usr-nome" list="lista-membros-datalist" oninput="aoMudarNomeMembroNoCadastro()" onchange="aoMudarNomeMembroNoCadastro()" required placeholder="Digite e selecione um membro cadastrado..." class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium" autocomplete="off" />
+                  <p id="usr-membro-status" class="text-[11px] text-slate-500 mt-1 font-medium">🔒 Somente pessoas cadastradas no Rol de Membros podem receber acesso ao Kairós.</p>
                 </div>
 
                 <div>
@@ -22760,7 +22761,7 @@
   </div>
 
   <script src="/qrcode.min.js"></script>
-  <script src="/app.js?v=20261123_v289_lider_ministerio"></script>
+  <script src="/app.js?v=20261123_v290_usuario_membro"></script>
   <script>
     window.addEventListener('DOMContentLoaded', function () {
       if (typeof fetchBootstrap !== 'function') {
