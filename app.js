@@ -2032,6 +2032,8 @@ function temPermissaoSetor(tabName, operador = CURRENT_OPERATOR) {
 
   if (!operador || !operador.id) return false;
 
+  if (tabName === 'manual') return true;
+
   if (operador.perfil === 'ADMIN') return true;
 
   const permitidas = getPermissoesOperador(operador);
@@ -6158,7 +6160,7 @@ function aplicarPermissoesDeSetor() {
 
   document.querySelectorAll('#sidebar-nav .nav-item').forEach(btn => {
     const tab = btn.getAttribute('data-tab');
-    if (permitidas.includes(tab)) {
+    if (tab === 'manual' || permitidas.includes(tab)) {
       btn.classList.remove('disabled-sector');
     } else {
       btn.classList.add('disabled-sector');

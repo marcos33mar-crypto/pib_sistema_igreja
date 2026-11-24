@@ -2562,6 +2562,10 @@
 
       </button>
 
+      <button onclick="switchTab('manual')" data-tab="manual" class="nav-item w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 transition">
+        <span class="flex items-center gap-3 whitespace-nowrap">📘 Manual do Sistema</span>
+      </button>
+
 
 
 
@@ -21941,19 +21945,106 @@
 
       </section>
 
+      <!-- SEÇÃO 13: MANUAL RESUMIDO DO SISTEMA -->
+      <section id="tab-manual" class="tab-section hidden space-y-5">
+        <div class="bg-gradient-to-r from-indigo-900 via-slate-900 to-indigo-950 text-white rounded-3xl p-6 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-2xl shrink-0">
+              📘
+            </div>
+            <div>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-300">Guia Rápido de Operação</span>
+              <h2 class="text-xl sm:text-2xl font-black">Manual Resumido do Sistema Kairós</h2>
+              <p class="text-xs sm:text-sm text-slate-300 mt-0.5">Referência prática dos módulos, fluxos financeiros, secretaria, ministérios e controle de acessos.</p>
+            </div>
+          </div>
+          <button type="button" onclick="window.print()" class="bg-white/15 hover:bg-white/25 text-white text-xs font-bold px-4 py-2.5 rounded-xl border border-white/20 transition cursor-pointer shrink-0 no-print">
+            🖨️ Imprimir Manual
+          </button>
+        </div>
 
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          <!-- 1. Acesso e Segurança -->
+          <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs space-y-2.5">
+            <div class="flex items-center gap-2.5 border-b border-slate-100 pb-2.5">
+              <span class="text-lg">🔐</span>
+              <h3 class="font-extrabold text-slate-900 text-sm">1. Acesso, Senhas e Perfis</h3>
+            </div>
+            <ul class="space-y-1.5 text-slate-600 leading-relaxed list-disc pl-4">
+              <li><strong>Login Individual:</strong> Selecione seu nome na tela inicial (ou informe seu e-mail) e digite sua senha.</li>
+              <li><strong>Primeiro Acesso:</strong> Novos usuários com senha inicial <code class="bg-slate-100 px-1.5 py-0.5 rounded font-bold">123456</code> devem cadastrar uma senha pessoal forte no primeiro login.</li>
+              <li><strong>Regra de Cadastro:</strong> Para criar um operador em <strong>Acessos</strong>, a pessoa precisa estar previamente cadastrada no <strong>Rol de Membros</strong> (cargo e e-mail são preenchidos automaticamente).</li>
+              <li><strong>Líder de Ministério:</strong> Perfil exclusivo que visualiza apenas o orçamento, o executado e o saldo do próprio ministério, preservando a privacidade (LGPD) dos demais setores.</li>
+            </ul>
+          </div>
 
+          <!-- 2. Financeiro -->
+          <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs space-y-2.5">
+            <div class="flex items-center gap-2.5 border-b border-slate-100 pb-2.5">
+              <span class="text-lg">💰</span>
+              <h3 class="font-extrabold text-slate-900 text-sm">2. Financeiro (Tesouraria)</h3>
+            </div>
+            <ul class="space-y-1.5 text-slate-600 leading-relaxed list-disc pl-4">
+              <li><strong>Planilha Mensal:</strong> Visão anual de receitas e despesas por mês (JAN–DEZ). Clique em <em>Desbloquear Edição</em> e informe a senha autorizada para alterar valores, incluir novas contas ou excluir contas.</li>
+              <li><strong>Orçamento / Ministérios:</strong> Acompanhamento de Realizado, Orçado, Executado e Saldo por ministério, com simulador de reajuste percentual (%).</li>
+              <li><strong>Lançamentos Diários &amp; Contas a Pagar:</strong> Registro de entradas/saídas do dia a dia, vencimentos e baixas de pagamento.</li>
+              <li><strong>Fluxo de Caixa &amp; Extrato:</strong> Saldo acumulado e conferência de movimentações bancárias.</li>
+            </ul>
+          </div>
 
+          <!-- 3. Pedidos e Assembleia -->
+          <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs space-y-2.5">
+            <div class="flex items-center gap-2.5 border-b border-slate-100 pb-2.5">
+              <span class="text-lg">🧾</span>
+              <h3 class="font-extrabold text-slate-900 text-sm">3. Requisições e Projeção Assembleia</h3>
+            </div>
+            <ul class="space-y-1.5 text-slate-600 leading-relaxed list-disc pl-4">
+              <li><strong>Pedidos de Verba:</strong> Líderes e ministérios registram solicitações com valor estimado, justificativa e anexo.</li>
+              <li><strong>Aprovação Financeira:</strong> A tesouraria avalia, aprova ou recusa pedidos e acompanha o impacto no orçamento do ministério.</li>
+              <li><strong>Projeção Assembleia:</strong> Modo de apresentação em telão com dados financeiros consolidados e sem exposição de dados sensíveis de membros.</li>
+            </ul>
+          </div>
 
+          <!-- 4. Membros, Recepção e Células -->
+          <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs space-y-2.5">
+            <div class="flex items-center gap-2.5 border-b border-slate-100 pb-2.5">
+              <span class="text-lg">👥</span>
+              <h3 class="font-extrabold text-slate-900 text-sm">4. Membros, Recepção e Células</h3>
+            </div>
+            <ul class="space-y-1.5 text-slate-600 leading-relaxed list-disc pl-4">
+              <li><strong>Membros:</strong> Cadastro completo do Rol de Membros, cargo eclesiástico, vínculos ministeriais, aniversariantes e ficha individual.</li>
+              <li><strong>Recepção:</strong> Registro rápido de visitantes nos cultos, acompanhamento e integração para células.</li>
+              <li><strong>Células:</strong> Gestão de grupos pequenos, líderes, bairros e membros vinculados.</li>
+            </ul>
+          </div>
 
+          <!-- 5. Ministérios e Escalas -->
+          <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs space-y-2.5">
+            <div class="flex items-center gap-2.5 border-b border-slate-100 pb-2.5">
+              <span class="text-lg">📅</span>
+              <h3 class="font-extrabold text-slate-900 text-sm">5. Ministérios e Escalas</h3>
+            </div>
+            <ul class="space-y-1.5 text-slate-600 leading-relaxed list-disc pl-4">
+              <li><strong>Montar Escala:</strong> No topo da tela, selecione ministério, data do culto, horário e voluntário para agendar o serviço.</li>
+              <li><strong>Quadro Interativo:</strong> Logo abaixo, visualize e filtre a escala por ministério, acompanhando confirmações e funções.</li>
+              <li><strong>Voluntários:</strong> Vincule membros às equipes ministeriais com suas respectivas funções.</li>
+            </ul>
+          </div>
 
-
-
-
-
-
-
-
+          <!-- 6. Patrimônio, Atas e Relatórios -->
+          <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs space-y-2.5">
+            <div class="flex items-center gap-2.5 border-b border-slate-100 pb-2.5">
+              <span class="text-lg">🏛️</span>
+              <h3 class="font-extrabold text-slate-900 text-sm">6. Patrimônio, Atas e Relatórios</h3>
+            </div>
+            <ul class="space-y-1.5 text-slate-600 leading-relaxed list-disc pl-4">
+              <li><strong>Patrimônio:</strong> Inventário de bens da igreja por ministério/localização e controle de empréstimos e devoluções.</li>
+              <li><strong>Atas:</strong> Registro de reuniões administrativas e assembleias com pauta, livro/folha e anexo em PDF.</li>
+              <li><strong>Relatórios:</strong> Emissão de Balancete, DRE, Livro Caixa, Rol de Membros, Escalas e Prestação de Contas em PDF/impressão.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
 
     </main>
 
@@ -22761,7 +22852,7 @@
   </div>
 
   <script src="/qrcode.min.js"></script>
-  <script src="/app.js?v=20261124_v291_cargo_auto"></script>
+  <script src="/app.js?v=20261124_v292_manual_sistema"></script>
   <script>
     window.addEventListener('DOMContentLoaded', function () {
       if (typeof fetchBootstrap !== 'function') {
