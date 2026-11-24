@@ -12037,11 +12037,17 @@ function abrirFormularioNovoUsuario() {
   if (inpNome) inpNome.value = '';
   const inpMembroId = document.getElementById('usr-membro-id');
   if (inpMembroId) inpMembroId.value = '';
-  aoMudarNomeMembroNoCadastro();
   const inpEmail = document.getElementById('usr-email');
-  if (inpEmail) inpEmail.value = '';
+  if (inpEmail) {
+    inpEmail.value = '';
+    inpEmail.dataset.autoEmail = '';
+  }
   const inpCargo = document.getElementById('usr-cargo');
-  if (inpCargo) inpCargo.value = '';
+  if (inpCargo) {
+    inpCargo.value = '';
+    inpCargo.dataset.autoCargo = '';
+  }
+  aoMudarNomeMembroNoCadastro();
   const inpSenha = document.getElementById('usr-senha');
   if (inpSenha) {
     inpSenha.value = '';
@@ -15121,9 +15127,19 @@ function aoMudarNomeMembroNoCadastro() {
   const inpMembroId = document.getElementById('usr-membro-id');
   const statusEl = document.getElementById('usr-membro-status');
   const editId = document.getElementById('usr-edit-id')?.value;
+  const emailEl = document.getElementById('usr-email');
+  const cargoEl = document.getElementById('usr-cargo');
 
   if (!nome) {
     if (inpMembroId) inpMembroId.value = '';
+    if (!editId && emailEl && emailEl.value.trim() === (emailEl.dataset.autoEmail || '')) {
+      emailEl.value = '';
+      emailEl.dataset.autoEmail = '';
+    }
+    if (!editId && cargoEl && cargoEl.value.trim() === (cargoEl.dataset.autoCargo || '')) {
+      cargoEl.value = '';
+      cargoEl.dataset.autoCargo = '';
+    }
     if (statusEl) {
       statusEl.className = 'text-[11px] text-slate-500 mt-1 font-medium';
       statusEl.textContent = '🔒 Somente pessoas cadastradas no Rol de Membros podem receber acesso ao Kairós.';
@@ -15135,6 +15151,14 @@ function aoMudarNomeMembroNoCadastro() {
   if (inpMembroId) inpMembroId.value = membro ? String(membro.id) : '';
 
   if (!membro) {
+    if (!editId && emailEl && emailEl.value.trim() === (emailEl.dataset.autoEmail || '')) {
+      emailEl.value = '';
+      emailEl.dataset.autoEmail = '';
+    }
+    if (!editId && cargoEl && cargoEl.value.trim() === (cargoEl.dataset.autoCargo || '')) {
+      cargoEl.value = '';
+      cargoEl.dataset.autoCargo = '';
+    }
     if (statusEl) {
       if (editId) {
         statusEl.className = 'text-[11px] text-amber-700 mt-1 font-semibold';
@@ -15147,15 +15171,35 @@ function aoMudarNomeMembroNoCadastro() {
     return;
   }
 
+  const cargoBase = (membro.cargo_eclesiastico || membro.cargo || membro.funcao || '').trim();
+  const funcoesMin = (membro.ministerios || [])
+    .map(v => [v.funcao, v.ministerio_nome].filter(Boolean).join(' - '))
+    .filter(Boolean);
+  let cargoSugerido = cargoBase;
+  if (funcoesMin.length > 0) {
+    cargoSugerido = (cargoBase && cargoBase.toLowerCase() !== 'membro')
+      ? `${cargoBase} (${funcoesMin[0]})`
+      : funcoesMin[0];
+  }
+
   if (statusEl) {
     statusEl.className = 'text-[11px] text-emerald-700 mt-1 font-bold';
-    statusEl.textContent = `✅ Membro localizado no Rol (${membro.cargo_eclesiastico || 'Membro'}).`;
+    statusEl.textContent = `✅ Membro localizado no Rol (${cargoSugerido || 'Membro'}).`;
   }
-  const emailEl = document.getElementById('usr-email');
-  const cargoEl = document.getElementById('usr-cargo');
-  if (emailEl && !emailEl.value.trim() && membro.email) emailEl.value = membro.email;
-  if (cargoEl && !cargoEl.value.trim() && (membro.cargo_eclesiastico || membro.cargo || membro.funcao)) {
-    cargoEl.value = membro.cargo_eclesiastico || membro.cargo || membro.funcao;
+
+  if (emailEl && membro.email) {
+    const podePreencherEmail = !emailEl.value.trim() || (!editId && emailEl.value.trim() === (emailEl.dataset.autoEmail || ''));
+    if (podePreencherEmail) {
+      emailEl.value = membro.email;
+      emailEl.dataset.autoEmail = membro.email;
+    }
+  }
+  if (cargoEl && cargoSugerido) {
+    const podePreencherCargo = !cargoEl.value.trim() || (!editId && cargoEl.value.trim() === (cargoEl.dataset.autoCargo || ''));
+    if (podePreencherCargo) {
+      cargoEl.value = cargoSugerido;
+      cargoEl.dataset.autoCargo = cargoSugerido;
+    }
   }
 }
 
