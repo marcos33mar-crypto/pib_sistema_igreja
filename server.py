@@ -4759,6 +4759,10 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
         if path == "/api/events":
+            qs_ev = parse_qs(parsed.query)
+            modo_assem_ev = qs_ev.get("modo", [""])[0] == "assembleia" or qs_ev.get("view", [""])[0] == "assembleia" or qs_ev.get("qrcode", [""])[0] == "1"
+            if not self.get_authenticated_user() and not modo_assem_ev:
+                return self.send_json({"ok": False, "mensagem": "Autenticação necessária para sincronização em tempo real."}, 401)
 
             self.send_response(200)
 

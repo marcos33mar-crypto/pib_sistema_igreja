@@ -2670,6 +2670,9 @@ async function fetchBootstrap() {
         localStorage.removeItem('pib_sessao_autenticada');
       } catch (e) {}
       CURRENT_OPERATOR = null;
+  if (typeof closeSSE === 'function') {
+    closeSSE();
+  }
       if (typeof abrirTelaLogin === 'function') abrirTelaLogin();
     }
 
@@ -2828,6 +2831,9 @@ async function fetchBootstrap() {
       renderAll();
     } else {
       CURRENT_OPERATOR = null;
+  if (typeof closeSSE === 'function') {
+    closeSSE();
+  }
       renderOperatorSelector();
       if (typeof popularSelectOperadoresLogin === 'function') {
         popularSelectOperadoresLogin();
@@ -2975,6 +2981,9 @@ function fecharTelaLogin() {
     tela.classList.add('hidden');
     tela.style.display = 'none';
   }
+  if (CURRENT_OPERATOR && typeof initSSE === 'function') {
+    initSSE();
+  }
 }
 
 function popularSelectOperadoresLogin(operadorIdPreselecionado = null) {
@@ -3052,6 +3061,9 @@ function sairDoSistema() {
   } catch (e) {}
 
   CURRENT_OPERATOR = null;
+  if (typeof closeSSE === 'function') {
+    closeSSE();
+  }
 
   // Fecha eventuais modais abertos
   if (typeof closeModal === 'function') {
@@ -3125,6 +3137,9 @@ function encerrarProjecaoAssembleia() {
   } catch (e) {}
 
   CURRENT_OPERATOR = null;
+  if (typeof closeSSE === 'function') {
+    closeSSE();
+  }
 
   // Fecha modais e oculta completamente o conteúdo da projeção
   if (typeof closeModal === 'function') {
@@ -6078,8 +6093,24 @@ async function salvarFinanceiro(e) {
 }
 
 
+function closeSSE() {
+  if (window._kairosEvtSource) {
+    try { window._kairosEvtSource.close(); } catch (e) {}
+    window._kairosEvtSource = null;
+  }
+  const ind = document.getElementById('sse-indicator');
+  if (ind) ind.className = 'w-2.5 h-2.5 rounded-full bg-slate-400';
+}
+
 function initSSE() {
-  const evtSource = new EventSource('/api/events');
+  if (!CURRENT_OPERATOR) return;
+  if (window._kairosEvtSource && window._kairosEvtSource.readyState !== 2) {
+    return;
+  }
+  const isAssem = Boolean(window._sessaoAssembleiaAtiva || CURRENT_OPERATOR.id === 'assembleia_ao_vivo');
+  const evtUrl = isAssem ? '/api/events?modo=assembleia' : '/api/events';
+  const evtSource = new EventSource(evtUrl);
+  window._kairosEvtSource = evtSource;
 
   evtSource.addEventListener('sync', (e) => {
     try {
@@ -6094,16 +6125,16 @@ function initSSE() {
     } catch (err) {
       fetchBootstrap();
     }
-    renderDashboard();
-    renderBadgesAndKPIs();
   });
 
   evtSource.addEventListener('presence', (e) => {
     try {
       const payload = JSON.parse(e.data);
+      const qtd = Math.max(1, Number(payload.clientes_conectados) || 1);
+      STATE.clientes_conectados = qtd;
       const badge = document.getElementById('online-count-badge');
       if (badge) {
-        badge.textContent = `${payload.clientes_conectados} tela(s) ativa(s)`;
+        badge.textContent = `${qtd} tela(s) ativa(s)`;
       }
     } catch (err) {}
   });
@@ -6117,6 +6148,12 @@ function initSSE() {
     const ind = document.getElementById('sse-indicator');
     if (ind) ind.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-dot';
   };
+}
+
+if (!window._kairosUnloadBound) {
+  window._kairosUnloadBound = true;
+  window.addEventListener('pagehide', closeSSE);
+  window.addEventListener('beforeunload', closeSSE);
 }
 
 // Reconexão e restauração imediata de sessão ao retornar à aba após inatividade/hibernação
@@ -16062,14 +16099,6 @@ function inicializarSistema() {
 
 
   fetchBootstrap();
-
-
-
-
-
-
-
-  initSSE();
 
   // Heartbeat automático em segundo plano para manter a Visão Geral sempre atualizada
   if (!window._pibAutoSyncInterval) {
