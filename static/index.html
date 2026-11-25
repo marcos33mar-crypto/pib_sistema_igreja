@@ -1654,6 +1654,10 @@
 
 
 
+  <style id="kairos-boot-mask">
+    body.kairos-booting { background: #020617 !important; }
+    body.kairos-booting > *:not(#tela-login) { visibility: hidden !important; }
+  </style>
 </head>
 
 
@@ -1662,7 +1666,7 @@
 
 
 
-<body class="min-h-screen flex">
+<body class="min-h-screen flex kairos-booting">
 
 
 
@@ -22445,10 +22449,10 @@
     try {
       var q = window.location.search || '';
       var isAssem = q.indexOf('modo=assembleia') !== -1 || q.indexOf('view=assembleia') !== -1 || q.indexOf('qrcode=1') !== -1;
-      var hasSess = sessionStorage.getItem('pib_sessao_autenticada') === 'true' || localStorage.getItem('pib_sessao_autenticada') === 'true';
-      if (isAssem || hasSess) {
+      if (isAssem) {
         var tl = document.getElementById('tela-login');
         if (tl) tl.classList.add('hidden');
+        document.body.classList.remove('kairos-booting');
       }
     } catch (e) {}
   </script>
@@ -22864,7 +22868,7 @@
   </div>
 
   <script src="/qrcode.min.js"></script>
-  <script src="/app.js?v=20261124_v295_login_imediato"></script>
+  <script src="/app.js?v=20261124_v296_boot_mask"></script>
   <script>
     window.addEventListener('DOMContentLoaded', function () {
       if (typeof fetchBootstrap !== 'function') {

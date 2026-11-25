@@ -2966,6 +2966,7 @@ function limparSelecaoLogin() {
 }
 
 function fecharTelaLogin() {
+  document.body.classList.remove('kairos-booting');
   const tela = document.getElementById('tela-login');
   if (tela) {
     tela.classList.add('hidden');
