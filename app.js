@@ -3421,7 +3421,7 @@ function switchTab(tabName) {
   } else {
     if (subMenuTes) subMenuTes.classList.remove('hidden');
     if (setaTes) setaTes.style.transform = 'rotate(0deg)';
-    ['planilha', 'orcamento', 'diarios', 'fluxocaixa', 'contaspagar', 'extrato'].forEach(st => {
+    ['planilha', 'orcamento', 'diarios', 'fluxocaixa', 'contaspagar', 'extrato', 'notas-a1'].forEach(st => {
       const subnav = document.getElementById('subnav-tes-' + st);
       if (subnav) {
         if (st === (TESOURARIA_SUBTAB || 'planilha')) {
@@ -3511,7 +3511,7 @@ function switchTesourariaSubtab(subtab) {
   }
   TESOURARIA_SUBTAB = subtab;
 
-  ['planilha', 'orcamento', 'diarios', 'fluxocaixa', 'contaspagar', 'extrato'].forEach(st => {
+  ['planilha', 'orcamento', 'diarios', 'fluxocaixa', 'contaspagar', 'extrato', 'notas-a1'].forEach(st => {
     const sec = document.getElementById('tes-subtab-' + st);
     const subnav = document.getElementById('subnav-tes-' + st);
     const btn = document.getElementById('subtab-btn-' + st);
@@ -6227,7 +6227,7 @@ function aplicarPermissoesDeSetor() {
   }
 
   const isLiderMin = String(CURRENT_OPERATOR?.perfil || '').toUpperCase() === 'LIDER_MINISTERIO';
-  ['planilha', 'orcamento', 'diarios', 'fluxocaixa', 'contaspagar', 'extrato'].forEach(st => {
+  ['planilha', 'orcamento', 'diarios', 'fluxocaixa', 'contaspagar', 'extrato', 'notas-a1'].forEach(st => {
     const btn = document.getElementById('subtab-btn-' + st);
     if (!btn) return;
     if (isLiderMin && st !== 'orcamento') {
