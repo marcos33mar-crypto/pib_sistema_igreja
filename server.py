@@ -4508,6 +4508,12 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
         if path == "/api/atas/anexo":
 
+            auth_u = self.get_authenticated_user()
+            if not auth_u:
+                return self.send_json({"ok": False, "mensagem": "Autenticação necessária."}, 401)
+            if not usuario_tem_permissao_rota(auth_u, "GET", path):
+                return self.send_json({"ok": False, "mensagem": "Permissão insuficiente para baixar anexo de ata."}, 403)
+
             qs = parse_qs(parsed.query)
 
             try:
@@ -4637,6 +4643,12 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
         if path == "/api/requisicoes/anexo-pdf":
+
+            auth_u = self.get_authenticated_user()
+            if not auth_u:
+                return self.send_json({"ok": False, "mensagem": "Autenticação necessária."}, 401)
+            if not usuario_tem_permissao_rota(auth_u, "GET", path):
+                return self.send_json({"ok": False, "mensagem": "Permissão insuficiente para baixar anexo da requisição."}, 403)
 
             qs = parse_qs(parsed.query)
 

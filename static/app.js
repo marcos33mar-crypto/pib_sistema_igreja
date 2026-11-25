@@ -11534,6 +11534,7 @@ function renderUsuarios(termoBusca = FILTRO_USUARIOS_TERMO, tipoFiltro = FILTRO_
     PATRIMONIO: '🏛️ Patrimônio',
     SECRETARIA: '👥 Secretaria',
     MINISTERIO: '📅 Ministério',
+    LIDER_MINISTERIO: '🏛️ Líder de Ministério',
     RECEPCAO: '🤝 Recepção',
     CUSTOM: '⚙️ Personalizado'
   };
@@ -11634,6 +11635,9 @@ function renderUsuarios(termoBusca = FILTRO_USUARIOS_TERMO, tipoFiltro = FILTRO_
             const resumoSetores = u.perfil === 'ADMIN'
               ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">👑 Acesso Total (12 setores)</span>'
               : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200" title="${setoresLimpos.map(s => setorBadgesMap[s][0]).join(', ')}">${setoresLimpos.length} setor(es)</span>`;
+            const minVinc = (u.perfil === 'LIDER_MINISTERIO' && u.ministerio_id)
+              ? (STATE.ministerios || []).find(m => Number(m.id) === Number(u.ministerio_id))
+              : null;
             return `
               <tr class="hover:bg-slate-50/80 transition-colors">
                 <td class="py-3 px-4">
@@ -11646,7 +11650,10 @@ function renderUsuarios(termoBusca = FILTRO_USUARIOS_TERMO, tipoFiltro = FILTRO_
                   </div>
                 </td>
                 <td class="py-3 px-3 whitespace-nowrap">
-                  <span class="text-[10px] bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-1 rounded-xl font-bold">${descPerfil[u.perfil] || escapeHtml(u.perfil)}</span>
+                  <div class="flex flex-col items-start gap-1">
+                    <span class="text-[10px] bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-1 rounded-xl font-bold">${descPerfil[u.perfil] || escapeHtml(u.perfil)}</span>
+                    ${minVinc ? `<span class="text-[10px] bg-indigo-50 text-indigo-800 border border-indigo-200 px-2 py-0.5 rounded-full font-bold">🏛️ ${escapeHtml(minVinc.nome)}</span>` : ''}
+                  </div>
                 </td>
                 <td class="py-3 px-3 whitespace-nowrap">
                   ${isSenhaAlterada
