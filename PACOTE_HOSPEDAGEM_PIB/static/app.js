@@ -2829,6 +2829,9 @@ async function fetchBootstrap() {
     } else {
       CURRENT_OPERATOR = null;
       renderOperatorSelector();
+      if (typeof popularSelectOperadoresLogin === 'function') {
+        popularSelectOperadoresLogin();
+      }
       const telaLogin = document.getElementById('tela-login');
       const isLoginAberto = telaLogin && !telaLogin.classList.contains('hidden') && telaLogin.style.display !== 'none';
       if (!isLoginAberto) {
@@ -2974,6 +2977,26 @@ function fecharTelaLogin() {
   }
 }
 
+function popularSelectOperadoresLogin(operadorIdPreselecionado = null) {
+  const select = document.getElementById('login-operador-id');
+  if (!select) return;
+  const valorAtual = operadorIdPreselecionado !== null ? String(operadorIdPreselecionado) : (select.value || '');
+  let html = '<option value="">-- Selecione seu Usuário Cadastrado --</option>';
+  if (Array.isArray(STATE.usuarios) && STATE.usuarios.length > 0) {
+    html += STATE.usuarios.filter(u => u.ativo !== 0).map(u => `
+      <option value="${u.id}" ${valorAtual && Number(u.id) === Number(valorAtual) ? 'selected' : ''}>
+        ${u.nome} [${u.perfil}]
+      </option>
+    `).join('');
+  }
+  html += '<option value="manual">✍️ Digitar Outro Usuário / E-mail</option>';
+  html += '<option value="nao_cadastrado">⚠️ Não sou cadastrado / Solicitar Acesso</option>';
+  select.innerHTML = html;
+  if (valorAtual) {
+    select.value = valorAtual;
+  }
+}
+
 function abrirTelaLogin(operadorIdPreselecionado = null) {
   const tela = document.getElementById('tela-login');
   const select = document.getElementById('login-operador-id');
@@ -2986,6 +3009,7 @@ function abrirTelaLogin(operadorIdPreselecionado = null) {
   // Proteção contra sobrescrita durante digitação do operador
   const telaJaAberta = tela && !tela.classList.contains('hidden') && tela.style.display !== 'none';
   if (telaJaAberta && ((senhaInput && senhaInput.value) || (customInput && customInput.value) || document.activeElement === senhaInput || document.activeElement === customInput)) {
+    popularSelectOperadoresLogin(operadorIdPreselecionado);
     return;
   }
 
@@ -2995,23 +3019,7 @@ function abrirTelaLogin(operadorIdPreselecionado = null) {
   if (boxCustom) boxCustom.classList.add('hidden');
   if (boxNaoCad) boxNaoCad.classList.add('hidden');
 
-  if (select) {
-    let html = '<option value="">-- Selecione seu Usuário Cadastrado --</option>';
-    if (Array.isArray(STATE.usuarios) && STATE.usuarios.length > 0) {
-      html += STATE.usuarios.filter(u => u.ativo !== 0).map(u => `
-        <option value="${u.id}" ${operadorIdPreselecionado && Number(u.id) === Number(operadorIdPreselecionado) ? 'selected' : ''}>
-          ${u.nome} [${u.perfil}]
-        </option>
-      `).join('');
-    }
-    html += '<option value="manual">✍️ Digitar Outro Usuário / E-mail</option>';
-    html += '<option value="nao_cadastrado">⚠️ Não sou cadastrado / Solicitar Acesso</option>';
-    select.innerHTML = html;
-
-    if (operadorIdPreselecionado) {
-      select.value = String(operadorIdPreselecionado);
-    }
-  }
+  popularSelectOperadoresLogin(operadorIdPreselecionado);
 
   if (tela) {
     tela.classList.remove('hidden');
