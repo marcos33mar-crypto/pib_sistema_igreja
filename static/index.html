@@ -8270,6 +8270,10 @@
                 <option value="12">Dezembro</option>
               </select>
 
+              <button type="button" onclick="abrirModalNotasFiscaisA1()" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold shadow-xs transition flex items-center gap-1.5 cursor-pointer" title="Consultar NF-e (SEFAZ) e NFS-e (Prefeitura SP) com Certificado Digital A1">
+                <span>🏛️</span> Notas Fiscais (CNPJ / A1)
+              </button>
+
               <!-- Botão Imprimir Relatório de Contas a Pagar -->
               <button type="button" onclick="imprimirRelatorioContasAPagar()" class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold shadow-xs transition flex items-center gap-1.5 cursor-pointer">
                 <span>🖨️</span> Imprimir Relatório
@@ -22597,7 +22601,7 @@
   </div>
 
   <script src="/qrcode.min.js"></script>
-  <script src="/app.js?v=20261124_v299_sync_telas_ativas"></script>
+  <script src="/app.js?v=20261125_v300_fiscal_a1"></script>
   <script>
     window.addEventListener('DOMContentLoaded', function () {
       if (typeof fetchBootstrap !== 'function') {

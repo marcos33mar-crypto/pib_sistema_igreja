@@ -23070,3 +23070,333 @@ function imprimirRelatorioContasAPagar() {
   `);
   win.document.close();
 }
+
+// ============================================================================
+// INTEGRAÇÃO FISCAL A1 (SEFAZ NF-e & PREFEITURA SP NFS-e POR CNPJ)
+// ============================================================================
+let FISCAL_A1_CACHE = { config: null, notas: [], has_crypto: true };
+let FISCAL_A1_MOSTRAR_CONFIG = false;
+
+async function abrirModalNotasFiscaisA1() {
+  abrirModalCustom(`
+    <div class="p-6 text-center space-y-3">
+      <div class="text-3xl animate-pulse">🏛️</div>
+      <h3 class="text-base font-extrabold text-slate-900">Carregando Módulo Fiscal (CNPJ / A1)...</h3>
+      <p class="text-xs text-slate-500">Consultando certificado configurado e notas recolhidas.</p>
+    </div>
+  `, false, 'largo');
+
+  try {
+    const res = await fetch('/api/fiscal/status');
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      abrirModalCustom(`<div class="p-6 text-xs text-rose-700 font-bold">⚠️ ${escapeHtml(data.mensagem || 'Erro ao abrir módulo fiscal.')}</div>`, false, 'medio');
+      return;
+    }
+    FISCAL_A1_CACHE = data;
+    FISCAL_A1_MOSTRAR_CONFIG = !data.config;
+    renderConteudoModalNotasA1();
+  } catch (err) {
+    abrirModalCustom(`<div class="p-6 text-xs text-rose-700 font-bold">⚠️ Falha de comunicação com o servidor fiscal.</div>`, false, 'medio');
+  }
+}
+
+function alternarConfigCertificadoA1() {
+  FISCAL_A1_MOSTRAR_CONFIG = !FISCAL_A1_MOSTRAR_CONFIG;
+  renderConteudoModalNotasA1();
+}
+
+function renderConteudoModalNotasA1() {
+  const cfg = FISCAL_A1_CACHE.config;
+  const notas = FISCAL_A1_CACHE.notas || [];
+  const hoje = new Date();
+  const dtFimPadrao = hoje.toISOString().slice(0, 10);
+  const dtIniObj = new Date(hoje.getTime() - 30 * 86400000);
+  const dtIniPadrao = dtIniObj.toISOString().slice(0, 10);
+
+  const cfgHtml = cfg ? `
+    <div class="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div class="space-y-0.5">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-extrabold">🔐 A1 ATIVO</span>
+          <strong class="text-slate-900">${escapeHtml(cfg.titular || 'Certificado A1')}</strong>
+          <span class="font-mono text-slate-600">CNPJ: ${escapeHtml(cfg.cnpj)}</span>
+          ${cfg.ccm_sp ? `<span class="font-mono text-indigo-700">CCM SP: ${escapeHtml(cfg.ccm_sp)}</span>` : ''}
+        </div>
+        <p class="text-[11px] text-emerald-800">
+          Validade: <strong>${escapeHtml(cfg.validade || '—')}</strong> · Último NSU SEFAZ: <code class="bg-white px-1.5 py-0.5 rounded">${escapeHtml(cfg.ult_nsu || '0')}</code>
+          ${cfg.ultimo_sync ? ` · Última busca: <strong>${escapeHtml(cfg.ultimo_sync)}</strong>` : ''}
+        </p>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <button type="button" onclick="alternarConfigCertificadoA1()" class="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-bold cursor-pointer">
+          ⚙️ Trocar / Configurar A1
+        </button>
+        <button type="button" onclick="removerCertificadoA1()" class="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold cursor-pointer" title="Remover Certificado A1">
+          🗑️
+        </button>
+      </div>
+    </div>
+  ` : `
+    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-xs text-amber-900">
+      <strong>⚠️ Nenhum Certificado A1 configurado:</strong> Envie o arquivo <code>.pfx</code> e a senha do Certificado Digital A1 da igreja abaixo para habilitar a busca automática na SEFAZ (NF-e) e Prefeitura de São Paulo (NFS-e).
+    </div>
+  `;
+
+  const formConfigHtml = FISCAL_A1_MOSTRAR_CONFIG ? `
+    <form onsubmit="salvarCertificadoA1(event)" class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3 text-xs">
+      <div class="font-extrabold text-slate-800 flex items-center justify-between">
+        <span>🔐 Configurar Certificado Digital A1 (.pfx)</span>
+        ${cfg ? `<button type="button" onclick="alternarConfigCertificadoA1()" class="text-slate-500 hover:text-slate-800 font-bold cursor-pointer">✕ Ocultar</button>` : ''}
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Arquivo do Certificado (.pfx / .p12) *</label>
+          <input type="file" id="a1-arquivo-pfx" accept=".pfx,.p12" required class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white text-xs" />
+        </div>
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Senha do Certificado A1 *</label>
+          <input type="password" id="a1-senha-pfx" required placeholder="Senha do arquivo .pfx" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white text-xs" />
+        </div>
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">CNPJ da Igreja (14 dígitos — opcional se constar no A1)</label>
+          <input type="text" id="a1-cnpj" value="${escapeHtml(cfg?.cnpj || '')}" placeholder="00.000.000/0001-00" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white text-xs font-mono" />
+        </div>
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">CCM / Inscrição Municipal SP (opcional para NFS-e SP)</label>
+          <input type="text" id="a1-ccm-sp" value="${escapeHtml(cfg?.ccm_sp || '')}" placeholder="Ex: 12345678" class="w-full border border-slate-300 rounded-xl px-3 py-2 bg-white text-xs font-mono" />
+        </div>
+      </div>
+      <div class="flex items-center justify-between gap-2 pt-1">
+        <span class="text-[11px] text-slate-500">🔒 O arquivo e a senha são criptografados no servidor antes de gravar no banco.</span>
+        <button type="submit" id="btn-salvar-a1" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold cursor-pointer">
+          💾 Validar e Salvar A1
+        </button>
+      </div>
+    </form>
+  ` : '';
+
+  const barraSyncHtml = cfg ? `
+    <div class="bg-indigo-50/70 border border-indigo-200 rounded-2xl p-3.5 flex flex-wrap items-end justify-between gap-3 text-xs">
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="button" onclick="sincronizarNotasFiscaisA1('SEFAZ')" id="btn-sync-sefaz" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold shadow-xs transition cursor-pointer flex items-center gap-1.5">
+          <span>🔍</span> Buscar NF-e (SEFAZ Nacional)
+        </button>
+        <button type="button" onclick="sincronizarNotasFiscaisA1('NFSE_SP')" id="btn-sync-nfse-sp" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-extrabold shadow-xs transition cursor-pointer flex items-center gap-1.5">
+          <span>🏙️</span> Buscar NFS-e (Prefeitura SP)
+        </button>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <div>
+          <label class="block text-[10px] font-bold text-slate-600 uppercase">NFS-e De:</label>
+          <input type="date" id="a1-dt-inicio" value="${dtIniPadrao}" class="border border-slate-300 rounded-lg px-2 py-1 bg-white text-xs font-semibold" />
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold text-slate-600 uppercase">Até:</label>
+          <input type="date" id="a1-dt-fim" value="${dtFimPadrao}" class="border border-slate-300 rounded-lg px-2 py-1 bg-white text-xs font-semibold" />
+        </div>
+      </div>
+    </div>
+  ` : '';
+
+  const linhasHtml = notas.length === 0 ? `
+    <tr>
+      <td colspan="7" class="py-8 text-center text-slate-400 text-xs">
+        Nenhuma nota fiscal recolhida ainda. Configure o Certificado A1 e clique em <strong>Buscar NF-e</strong> ou <strong>Buscar NFS-e (Prefeitura SP)</strong>.
+      </td>
+    </tr>
+  ` : notas.map(n => {
+    const badgeTipo = n.tipo === 'NFSE_SP'
+      ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-100 text-purple-800">NFS-e SP</span>'
+      : '<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-800">NF-e</span>';
+    const badgeStatus = n.status_lancamento === 'Lançada'
+      ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">✅ Lançada</span>'
+      : (n.status_lancamento === 'Ignorada'
+        ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-200 text-slate-600">Ignorada</span>'
+        : '<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800">⏳ Pendente</span>');
+    const acoes = n.status_lancamento === 'Pendente' ? `
+      <div class="inline-flex items-center gap-1">
+        <button type="button" onclick="lancarNotaFiscalA1(${n.id}, 'CONTAS_PAGAR')" class="px-2 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold text-[10px] cursor-pointer" title="Enviar para Contas a Pagar">💳 A Pagar</button>
+        <button type="button" onclick="lancarNotaFiscalA1(${n.id}, 'CAIXA')" class="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-[10px] cursor-pointer" title="Lançar como saída paga no Caixa">💸 Caixa</button>
+        <button type="button" onclick="ignorarNotaFiscalA1(${n.id}, 'Ignorada')" class="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-[10px] cursor-pointer" title="Ignorar nota">✕</button>
+      </div>
+    ` : (n.status_lancamento === 'Ignorada'
+      ? `<button type="button" onclick="ignorarNotaFiscalA1(${n.id}, 'Pendente')" class="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] cursor-pointer">↩️ Reabrir</button>`
+      : `<span class="text-[10px] text-emerald-700 font-bold">Integrada</span>`);
+
+    return `
+      <tr class="hover:bg-slate-50 border-b border-slate-100 text-xs">
+        <td class="py-2.5 px-2 whitespace-nowrap">${badgeTipo}</td>
+        <td class="py-2.5 px-2 whitespace-nowrap font-mono text-slate-600">${escapeHtml(n.data_emissao || '—')}</td>
+        <td class="py-2.5 px-2 whitespace-nowrap font-bold text-slate-800">#${escapeHtml(n.numero || '—')}</td>
+        <td class="py-2.5 px-2 max-w-[210px]">
+          <div class="font-bold text-slate-900 truncate" title="${escapeHtml(n.emitente_nome)}">${escapeHtml(n.emitente_nome || '—')}</div>
+          <div class="text-[10px] font-mono text-slate-400">${escapeHtml(n.emitente_cnpj || '')}</div>
+        </td>
+        <td class="py-2.5 px-2 max-w-[220px]">
+          <div class="text-slate-600 truncate" title="${escapeHtml(n.descricao_itens)}">${escapeHtml(n.descricao_itens || '—')}</div>
+          <div class="text-[10px] text-slate-400 font-mono truncate" title="${escapeHtml(n.chave_acesso)}">${escapeHtml(n.situacao_sefaz || '')}</div>
+        </td>
+        <td class="py-2.5 px-2 text-right font-mono font-extrabold text-slate-900 whitespace-nowrap">${formatBRL(n.valor_total || 0)}</td>
+        <td class="py-2.5 px-2 text-right whitespace-nowrap space-y-1">
+          <div>${badgeStatus}</div>
+          <div>${acoes}</div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  abrirModalCustom(`
+    <div class="p-5 sm:p-6 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+        <div>
+          <span class="text-[10px] font-extrabold uppercase tracking-wider bg-indigo-100 text-indigo-800 px-2.5 py-0.5 rounded-full">SEFAZ SP &amp; Prefeitura SP</span>
+          <h3 class="text-lg font-black text-slate-900 mt-1">🏛️ Notas Fiscais Emitidas para o CNPJ (Certificado A1)</h3>
+        </div>
+      </div>
+
+      ${cfgHtml}
+      ${formConfigHtml}
+      ${barraSyncHtml}
+
+      <div id="a1-sync-feedback" class="hidden text-xs font-bold rounded-xl p-3"></div>
+
+      <div class="overflow-x-auto border border-slate-200 rounded-2xl max-h-[420px] overflow-y-auto">
+        <table class="w-full text-left border-collapse">
+          <thead class="sticky top-0 bg-slate-100 border-b border-slate-200 text-[10px] font-extrabold uppercase text-slate-600">
+            <tr>
+              <th class="py-2.5 px-2">Tipo</th>
+              <th class="py-2.5 px-2">Data</th>
+              <th class="py-2.5 px-2">Nº</th>
+              <th class="py-2.5 px-2">Fornecedor / Prestador</th>
+              <th class="py-2.5 px-2">Descrição / Situação</th>
+              <th class="py-2.5 px-2 text-right">Valor</th>
+              <th class="py-2.5 px-2 text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${linhasHtml}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `, false, 'largo');
+}
+
+async function salvarCertificadoA1(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  const fileInp = document.getElementById('a1-arquivo-pfx');
+  const senhaInp = document.getElementById('a1-senha-pfx')?.value || '';
+  const cnpjInp = document.getElementById('a1-cnpj')?.value || '';
+  const ccmInp = document.getElementById('a1-ccm-sp')?.value || '';
+  const btn = document.getElementById('btn-salvar-a1');
+
+  const file = fileInp?.files?.[0];
+  if (!file) {
+    alert('Selecione o arquivo .pfx do Certificado Digital A1.');
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Validando A1...';
+  }
+
+  const reader = new FileReader();
+  reader.onload = async () => {
+    try {
+      const res = await apiPost('/api/fiscal/configurar-a1', {
+        pfx_base64: reader.result,
+        senha: senhaInp,
+        cnpj: cnpjInp,
+        ccm_sp: ccmInp
+      });
+      if (!res.data || !res.data.ok) {
+        alert(res.data?.mensagem || 'Erro ao validar Certificado A1.');
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = '💾 Validar e Salvar A1';
+        }
+        return;
+      }
+      showLiveToast(`✅ ${res.data.mensagem}`);
+      await abrirModalNotasFiscaisA1();
+    } catch (err) {
+      alert('Erro ao enviar Certificado A1.');
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '💾 Validar e Salvar A1';
+      }
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+async function removerCertificadoA1() {
+  if (!confirm('Remover o Certificado Digital A1 armazenado no servidor?')) return;
+  const res = await apiPost('/api/fiscal/remover-a1', {});
+  if (res.data?.ok) {
+    showLiveToast('🗑️ Certificado A1 removido.');
+    await abrirModalNotasFiscaisA1();
+  }
+}
+
+async function sincronizarNotasFiscaisA1(fonte) {
+  const fb = document.getElementById('a1-sync-feedback');
+  const btnSefaz = document.getElementById('btn-sync-sefaz');
+  const btnSp = document.getElementById('btn-sync-nfse-sp');
+  const dtInicio = document.getElementById('a1-dt-inicio')?.value || '';
+  const dtFim = document.getElementById('a1-dt-fim')?.value || '';
+
+  if (btnSefaz) btnSefaz.disabled = true;
+  if (btnSp) btnSp.disabled = true;
+  if (fb) {
+    fb.className = 'text-xs font-bold rounded-xl p-3 bg-indigo-50 text-indigo-800 border border-indigo-200';
+    fb.textContent = `⏳ Consultando ${fonte === 'NFSE_SP' ? 'Prefeitura de São Paulo (NFS-e)' : 'SEFAZ Nacional (NF-e)'} com Certificado A1...`;
+    fb.classList.remove('hidden');
+  }
+
+  try {
+    const res = await apiPost('/api/fiscal/sincronizar', {
+      fonte,
+      dt_inicio: dtInicio,
+      dt_fim: dtFim
+    });
+    if (res.data?.notas) FISCAL_A1_CACHE.notas = res.data.notas;
+    if (res.data?.config) FISCAL_A1_CACHE.config = res.data.config;
+    renderConteudoModalNotasA1();
+    const fb2 = document.getElementById('a1-sync-feedback');
+    if (fb2) {
+      fb2.className = res.data?.ok
+        ? 'text-xs font-bold rounded-xl p-3 bg-emerald-50 text-emerald-800 border border-emerald-200'
+        : 'text-xs font-bold rounded-xl p-3 bg-rose-50 text-rose-800 border border-rose-200';
+      fb2.textContent = res.data?.mensagem || (res.data?.ok ? 'Consulta concluída.' : 'Erro na consulta.');
+      fb2.classList.remove('hidden');
+    }
+  } catch (err) {
+    if (fb) {
+      fb.className = 'text-xs font-bold rounded-xl p-3 bg-rose-50 text-rose-800 border border-rose-200';
+      fb.textContent = '⚠️ Erro de comunicação ao consultar notas fiscais.';
+    }
+  }
+}
+
+async function lancarNotaFiscalA1(notaId, destino) {
+  const acaoTxt = destino === 'CAIXA' ? 'lançar esta nota como SAÍDA paga no Caixa' : 'enviar esta nota para Contas a Pagar';
+  if (!confirm(`Deseja ${acaoTxt}?`)) return;
+  const res = await apiPost('/api/fiscal/lancar', { nota_id: notaId, destino });
+  if (!res.data || !res.data.ok) {
+    alert(res.data?.mensagem || 'Erro ao lançar nota.');
+    return;
+  }
+  showLiveToast(`✅ ${res.data.mensagem}`);
+  await fetchBootstrap();
+  await abrirModalNotasFiscaisA1();
+}
+
+async function ignorarNotaFiscalA1(notaId, novoStatus) {
+  const res = await apiPost('/api/fiscal/ignorar', { nota_id: notaId, status: novoStatus });
+  if (res.data?.ok) {
+    await abrirModalNotasFiscaisA1();
+  }
+}

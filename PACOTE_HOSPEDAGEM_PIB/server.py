@@ -34,6 +34,11 @@ import subprocess
 
 import threading
 
+try:
+    import fiscal_a1
+except ImportError:
+    fiscal_a1 = None
+
 import time
 
 import base64
@@ -1712,6 +1717,43 @@ def init_db():
 
             cur.execute("ALTER TABLE usuarios ADD COLUMN senha_alterada INTEGER DEFAULT 0")
 
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS config_fiscal_a1 (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                cnpj TEXT NOT NULL,
+                ccm_sp TEXT DEFAULT '',
+                titular TEXT DEFAULT '',
+                validade TEXT DEFAULT '',
+                pfx_enc TEXT NOT NULL,
+                senha_enc TEXT NOT NULL,
+                ult_nsu TEXT DEFAULT '000000000000000',
+                ultimo_sync TEXT DEFAULT '',
+                atualizado_por TEXT DEFAULT '',
+                atualizado_em TEXT DEFAULT ''
+            );
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS notas_fiscais_recebidas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tipo TEXT NOT NULL,
+                chave_acesso TEXT UNIQUE NOT NULL,
+                nsu TEXT DEFAULT '',
+                numero TEXT DEFAULT '',
+                serie TEXT DEFAULT '',
+                data_emissao TEXT DEFAULT '',
+                emitente_cnpj TEXT DEFAULT '',
+                emitente_nome TEXT DEFAULT '',
+                valor_total REAL DEFAULT 0,
+                descricao_itens TEXT DEFAULT '',
+                situacao_sefaz TEXT DEFAULT 'Autorizada',
+                status_lancamento TEXT DEFAULT 'Pendente',
+                financeiro_id INTEGER DEFAULT NULL,
+                conta_pagar_id INTEGER DEFAULT NULL,
+                criado_em TEXT DEFAULT ''
+            );
+        """)
+
 
 
         cur.execute("SELECT COUNT(*) as total FROM usuarios")
@@ -3183,7 +3225,7 @@ def usuario_tem_permissao_rota(auth_u, method, path):
         return "secretaria" in setores
     if path.startswith("/api/atas"):
         return ("atas" in setores) or ("secretaria" in setores)
-    if path.startswith("/api/matriz") or path.startswith("/api/financeiro") or path.startswith("/api/tesouraria") or path.startswith("/api/contas-pagar") or path == "/api/ministerios/orcamento":
+    if path.startswith("/api/matriz") or path.startswith("/api/financeiro") or path.startswith("/api/tesouraria") or path.startswith("/api/contas-pagar") or path.startswith("/api/fiscal") or path == "/api/ministerios/orcamento":
         return "tesouraria" in setores
     if path in ("/api/requisicoes/avaliar", "/api/requisicoes/config-alertas") or (method == "DELETE" and path == "/api/requisicoes"):
         return ("pedidos" in setores) or ("tesouraria" in setores)
@@ -4375,6 +4417,25 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
         if path == "/api/bootstrap":
             self.send_json(build_bootstrap_data(self))
             return
+
+        if path == "/api/fiscal/status":
+            auth_u = self.get_authenticated_user()
+            if not auth_u:
+                return self.send_json({"ok": False, "mensagem": "Autenticação necessária."}, 401)
+            if not usuario_tem_permissao_rota(auth_u, "GET", path):
+                return self.send_json({"ok": False, "mensagem": "Permissão insuficiente para módulo fiscal."}, 403)
+            with db_lock:
+                conn = get_db()
+                cur = conn.cursor()
+                cfg_row = cur.execute("SELECT cnpj, ccm_sp, titular, validade, ult_nsu, ultimo_sync, atualizado_por, atualizado_em FROM config_fiscal_a1 WHERE id=1").fetchone()
+                notas_rows = [dict(r) for r in cur.execute("SELECT * FROM notas_fiscais_recebidas ORDER BY data_emissao DESC, id DESC LIMIT 300").fetchall()]
+                conn.close()
+            return self.send_json({
+                "ok": True,
+                "has_crypto": bool(fiscal_a1 and fiscal_a1.HAS_CRYPTOGRAPHY),
+                "config": dict(cfg_row) if cfg_row else None,
+                "notas": notas_rows,
+            })
 
         if path == "/api/sistema/backup-db":
             auth_u = self.get_authenticated_user()
@@ -8785,6 +8846,216 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     conn.close()
                     broadcast_event("sync", {"setor": "Tesouraria", "operador": operador, "mensagem": f"{operador} reabriu a conta '{row_cp['descricao']}'."})
                     return self.send_json({"ok": True})
+
+                elif path == "/api/fiscal/configurar-a1":
+                    if not fiscal_a1 or not fiscal_a1.HAS_CRYPTOGRAPHY:
+                        conn.close()
+                        return self.send_json({"ok": False, "mensagem": "Módulo criptográfico (cryptography) indisponível no servidor."}, 500)
+                    b64_raw = str(body.get("pfx_base64") or "").strip()
+                    if "," in b64_raw:
+                        b64_raw = b64_raw.split(",", 1)[1]
+                    senha_pfx = str(body.get("senha") or "").strip()
+                    cnpj_inp = fiscal_a1.limpar_digitos(body.get("cnpj") or "")
+                    ccm_sp = fiscal_a1.limpar_digitos(body.get("ccm_sp") or "")
+                    if not b64_raw or not senha_pfx:
+                        conn.close()
+                        return self.send_json({"ok": False, "mensagem": "Envie o arquivo .pfx e a senha do Certificado A1."}, 400)
+                    try:
+                        pfx_bytes = base64.b64decode(b64_raw)
+                        info_a1 = fiscal_a1.validar_e_extrair_a1(pfx_bytes, senha_pfx)
+                    except Exception as e_a1:
+                        conn.close()
+                        return self.send_json({"ok": False, "mensagem": str(e_a1)}, 400)
+
+                    cnpj_final = cnpj_inp if len(cnpj_inp) == 14 else info_a1.get("cnpj_extraido", "")
+                    if len(cnpj_final) != 14:
+                        conn.close()
+                        return self.send_json({"ok": False, "mensagem": "Informe o CNPJ de 14 dígitos da igreja."}, 400)
+
+                    sec_key = obter_segredo_sistema(conn, "backup_key")
+                    pfx_enc = fiscal_a1.cifrar_dado_fiscal(pfx_bytes, sec_key)
+                    senha_enc = fiscal_a1.cifrar_dado_fiscal(senha_pfx, sec_key)
+                    agora_str = agora_brasilia().strftime("%d/%m/%Y %H:%M")
+
+                    cur.execute(
+                        """INSERT INTO config_fiscal_a1 (id, cnpj, ccm_sp, titular, validade, pfx_enc, senha_enc, ult_nsu, ultimo_sync, atualizado_por, atualizado_em)
+                           VALUES (1, ?, ?, ?, ?, ?, ?, COALESCE((SELECT ult_nsu FROM config_fiscal_a1 WHERE id=1), '000000000000000'), COALESCE((SELECT ultimo_sync FROM config_fiscal_a1 WHERE id=1), ''), ?, ?)
+                           ON CONFLICT(id) DO UPDATE SET
+                             cnpj=excluded.cnpj,
+                             ccm_sp=excluded.ccm_sp,
+                             titular=excluded.titular,
+                             validade=excluded.validade,
+                             pfx_enc=excluded.pfx_enc,
+                             senha_enc=excluded.senha_enc,
+                             atualizado_por=excluded.atualizado_por,
+                             atualizado_em=excluded.atualizado_em""",
+                        (cnpj_final, ccm_sp, info_a1["titular"], info_a1["validade_br"], pfx_enc, senha_enc, operador, agora_str),
+                    )
+                    log_auditoria(conn, operador, "Fiscal A1", "Configuração de Certificado A1", f"Configurou Certificado A1 ({info_a1['titular']} - CNPJ {cnpj_final}, validade {info_a1['validade_br']}).")
+                    conn.commit()
+                    conn.close()
+                    return self.send_json({
+                        "ok": True,
+                        "mensagem": f"Certificado A1 configurado com sucesso ({info_a1['titular']} • validade {info_a1['validade_br']}).",
+                        "config": {
+                            "cnpj": cnpj_final,
+                            "ccm_sp": ccm_sp,
+                            "titular": info_a1["titular"],
+                            "validade": info_a1["validade_br"],
+                        },
+                    })
+
+                elif path == "/api/fiscal/remover-a1":
+                    cur.execute("DELETE FROM config_fiscal_a1 WHERE id=1")
+                    log_auditoria(conn, operador, "Fiscal A1", "Remoção de Certificado A1", "Removeu o Certificado Digital A1 armazenado.")
+                    conn.commit()
+                    conn.close()
+                    return self.send_json({"ok": True, "mensagem": "Certificado Digital A1 removido do servidor."})
+
+                elif path == "/api/fiscal/sincronizar":
+                    if not fiscal_a1 or not fiscal_a1.HAS_CRYPTOGRAPHY:
+                        conn.close()
+                        return self.send_json({"ok": False, "mensagem": "Módulo criptográfico (cryptography) indisponível no servidor."}, 500)
+                    cfg = cur.execute("SELECT * FROM config_fiscal_a1 WHERE id=1").fetchone()
+                    if not cfg:
+                        conn.close()
+                        return self.send_json({"ok": False, "mensagem": "Configure primeiro o Certificado Digital A1 (.pfx) da igreja."}, 400)
+
+                    sec_key = obter_segredo_sistema(conn, "backup_key")
+                    try:
+                        pfx_bytes = fiscal_a1.decifrar_dado_fiscal(cfg["pfx_enc"], sec_key)
+                        senha_pfx = fiscal_a1.decifrar_dado_fiscal(cfg["senha_enc"], sec_key).decode("utf-8")
+                        a1_info = fiscal_a1.validar_e_extrair_a1(pfx_bytes, senha_pfx)
+                    except Exception as e_dec:
+                        conn.close()
+                        return self.send_json({"ok": False, "mensagem": f"Falha ao abrir Certificado A1 salvo: {e_dec}"}, 400)
+
+                    fonte = str(body.get("fonte") or "SEFAZ").upper()
+                    dt_inicio = str(body.get("dt_inicio") or "").strip()
+                    dt_fim = str(body.get("dt_fim") or "").strip()
+                    if not dt_fim:
+                        dt_fim = agora_brasilia().strftime("%Y-%m-%d")
+                    if not dt_inicio:
+                        dt_inicio = (agora_brasilia() - timedelta(days=30)).strftime("%Y-%m-%d")
+
+                    conn.close()
+
+                    notas_coletadas = []
+                    avisos = []
+                    novo_nsu = cfg["ult_nsu"] or "000000000000000"
+
+                    if fonte in ("SEFAZ", "AMBAS"):
+                        try:
+                            res_sefaz = fiscal_a1.consultar_sefaz_distribuicao_dfe(cfg["cnpj"], a1_info, ult_nsu=novo_nsu, cuf_autor="35")
+                            notas_coletadas.extend(res_sefaz.get("notas", []))
+                            if res_sefaz.get("ult_nsu"):
+                                novo_nsu = res_sefaz["ult_nsu"]
+                        except Exception as e_sfz:
+                            avisos.append(f"SEFAZ NF-e: {e_sfz}")
+
+                    if fonte in ("NFSE_SP", "AMBAS"):
+                        try:
+                            res_sp = fiscal_a1.consultar_nfse_sp_recebidas(cfg["cnpj"], a1_info, dt_inicio=dt_inicio, dt_fim=dt_fim, ccm_sp=cfg["ccm_sp"] or "")
+                            notas_coletadas.extend(res_sp.get("notas", []))
+                        except Exception as e_sp:
+                            avisos.append(f"Prefeitura SP NFS-e: {e_sp}")
+
+                    conn = get_db()
+                    cur = conn.cursor()
+                    novas = 0
+                    agora_str = agora_brasilia().strftime("%d/%m/%Y %H:%M")
+                    for n in notas_coletadas:
+                        ex = cur.execute("SELECT id, situacao_sefaz FROM notas_fiscais_recebidas WHERE chave_acesso=?", (n["chave_acesso"],)).fetchone()
+                        if not ex:
+                            cur.execute(
+                                """INSERT INTO notas_fiscais_recebidas
+                                   (tipo, chave_acesso, nsu, numero, serie, data_emissao, emitente_cnpj, emitente_nome, valor_total, descricao_itens, situacao_sefaz, status_lancamento, criado_em)
+                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pendente', ?)""",
+                                (n["tipo"], n["chave_acesso"], n["nsu"], n["numero"], n["serie"], n["data_emissao"], n["emitente_cnpj"], n["emitente_nome"], n["valor_total"], n["descricao_itens"], n["situacao_sefaz"], agora_str),
+                            )
+                            novas += 1
+                        elif ex["situacao_sefaz"] == "Resumo" and n["situacao_sefaz"] != "Resumo":
+                            cur.execute(
+                                """UPDATE notas_fiscais_recebidas SET numero=?, serie=?, emitente_nome=?, valor_total=?, descricao_itens=?, situacao_sefaz=? WHERE id=?""",
+                                (n["numero"], n["serie"], n["emitente_nome"], n["valor_total"], n["descricao_itens"], n["situacao_sefaz"], ex["id"]),
+                            )
+
+                    cur.execute("UPDATE config_fiscal_a1 SET ult_nsu=?, ultimo_sync=? WHERE id=1", (novo_nsu, agora_str))
+                    log_auditoria(conn, operador, "Fiscal A1", "Sincronização de Notas Fiscais", f"Consultou {fonte}: {len(notas_coletadas)} nota(s) retornada(s), {novas} nova(s). NSU={novo_nsu}.")
+                    notas_rows = [dict(r) for r in cur.execute("SELECT * FROM notas_fiscais_recebidas ORDER BY data_emissao DESC, id DESC LIMIT 300").fetchall()]
+                    cfg_atual = dict(cur.execute("SELECT cnpj, ccm_sp, titular, validade, ult_nsu, ultimo_sync, atualizado_por, atualizado_em FROM config_fiscal_a1 WHERE id=1").fetchone())
+                    conn.commit()
+                    conn.close()
+
+                    if avisos and not notas_coletadas:
+                        return self.send_json({
+                            "ok": False,
+                            "mensagem": " | ".join(avisos),
+                            "novas": novas,
+                            "config": cfg_atual,
+                            "notas": notas_rows,
+                        }, 400)
+
+                    return self.send_json({
+                        "ok": True,
+                        "mensagem": f"Busca concluída: {novas} nova(s) nota(s) adicionada(s) ({len(notas_coletadas)} encontrada(s) na consulta)." + (f" Avisos: {' | '.join(avisos)}" if avisos else ""),
+                        "novas": novas,
+                        "config": cfg_atual,
+                        "notas": notas_rows,
+                    })
+
+                elif path == "/api/fiscal/lancar":
+                    nota_id = int(body.get("nota_id", 0))
+                    destino = str(body.get("destino") or "CONTAS_PAGAR").upper()
+                    categoria = str(body.get("categoria") or "Despesas Gerais / Compras").strip()
+                    ministerio_id = body.get("ministerio_id") or None
+                    data_venc = str(body.get("data_vencimento") or "").strip()
+
+                    nota = cur.execute("SELECT * FROM notas_fiscais_recebidas WHERE id=?", (nota_id,)).fetchone()
+                    if not nota:
+                        conn.close()
+                        return self.send_json({"ok": False, "mensagem": "Nota fiscal não encontrada."}, 404)
+
+                    desc_lanc = f"NF {nota['numero'] or nota['chave_acesso'][-9:]} - {nota['emitente_nome']} ({nota['descricao_itens'][:80]})"
+                    dt_nota = nota["data_emissao"] or agora_brasilia().strftime("%Y-%m-%d")
+                    valor_nota = float(nota["valor_total"] or 0)
+
+                    if destino == "CAIXA":
+                        cur.execute(
+                            """INSERT INTO financeiro (data_lancamento, tipo, categoria, descricao, valor, forma_pagamento, status, pessoa_nome, ministerio_id, lancado_por)
+                               VALUES (?, 'SAIDA', ?, ?, ?, 'PIX / Transferência', 'Pago', ?, ?, ?)""",
+                            (dt_nota, categoria, desc_lanc, valor_nota, nota["emitente_nome"], ministerio_id, operador),
+                        )
+                        fin_id = cur.lastrowid
+                        sincronizar_lancamento_na_matriz(cur, dt_nota, "SAIDA", categoria, desc_lanc, valor_nota, ministerio_id)
+                        cur.execute("UPDATE notas_fiscais_recebidas SET status_lancamento='Lançada', financeiro_id=? WHERE id=?", (fin_id, nota_id))
+                        msg_ok = f"Nota #{nota['numero']} lançada como SAÍDA paga no Caixa!"
+                    else:
+                        venc_final = data_venc or dt_nota
+                        cur.execute(
+                            """INSERT INTO contas_pagar (descricao, fornecedor, categoria, ministerio_id, valor, data_vencimento, status, observacoes, criado_por, criado_em)
+                               VALUES (?, ?, ?, ?, ?, ?, 'Em Aberto', ?, ?, ?)""",
+                            (desc_lanc, nota["emitente_nome"], categoria, ministerio_id, valor_nota, venc_final, f"Chave: {nota['chave_acesso']}", operador, agora_brasilia().strftime("%d/%m/%Y %H:%M")),
+                        )
+                        cp_id = cur.lastrowid
+                        cur.execute("UPDATE notas_fiscais_recebidas SET status_lancamento='Lançada', conta_pagar_id=? WHERE id=?", (cp_id, nota_id))
+                        msg_ok = f"Nota #{nota['numero']} enviada para Contas a Pagar!"
+
+                    log_auditoria(conn, operador, "Fiscal A1", "Lançamento de Nota Fiscal", msg_ok)
+                    conn.commit()
+                    conn.close()
+                    broadcast_event("sync", {"setor": "Tesouraria", "operador": operador, "mensagem": f"{operador}: {msg_ok}"})
+                    return self.send_json({"ok": True, "mensagem": msg_ok})
+
+                elif path == "/api/fiscal/ignorar":
+                    nota_id = int(body.get("nota_id", 0))
+                    novo_status = str(body.get("status") or "Ignorada")
+                    if novo_status not in ("Ignorada", "Pendente"):
+                        novo_status = "Ignorada"
+                    cur.execute("UPDATE notas_fiscais_recebidas SET status_lancamento=? WHERE id=?", (novo_status, nota_id))
+                    conn.commit()
+                    conn.close()
+                    return self.send_json({"ok": True, "mensagem": f"Status da nota atualizado para {novo_status}."})
 
                 conn.close()
 
