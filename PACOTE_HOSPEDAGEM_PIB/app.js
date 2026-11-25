@@ -6229,11 +6229,14 @@ function aplicarPermissoesDeSetor() {
   const isLiderMin = String(CURRENT_OPERATOR?.perfil || '').toUpperCase() === 'LIDER_MINISTERIO';
   ['planilha', 'orcamento', 'diarios', 'fluxocaixa', 'contaspagar', 'extrato', 'notas-a1'].forEach(st => {
     const btn = document.getElementById('subtab-btn-' + st);
-    if (!btn) return;
-    if (isLiderMin && st !== 'orcamento') {
-      btn.classList.add('hidden');
-    } else {
-      btn.classList.remove('hidden');
+    const navBtn = document.getElementById('subnav-tes-' + st);
+    if (btn) {
+      if (isLiderMin && st !== 'orcamento') btn.classList.add('hidden');
+      else btn.classList.remove('hidden');
+    }
+    if (navBtn) {
+      if (isLiderMin && st !== 'orcamento') navBtn.classList.add('hidden');
+      else navBtn.classList.remove('hidden');
     }
   });
   const simCard = document.getElementById('orc-simulador-reajuste-card');
