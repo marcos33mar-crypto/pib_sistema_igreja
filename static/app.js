@@ -6205,6 +6205,7 @@ function changeOperator() {
     CURRENT_OPERATOR = found;
     PLANILHA_MENSAL_DESBLOQUEADA = false;
     OPERADOR_AUTORIZADO_PLANILHA = null;
+    aplicarPermissoesDeSetor();
     renderAll();
     showLiveToast(`Perfil alternado para: ${found.nome} (${found.perfil})`);
   }
@@ -6260,6 +6261,9 @@ function aplicarPermissoesDeSetor() {
   }
   if (typeof atualizarInterfaceTravaPlanilha === 'function') {
     atualizarInterfaceTravaPlanilha();
+  }
+  if (ACTIVE_TAB === 'tesouraria' && TESOURARIA_SUBTAB === 'planilha' && typeof renderMatrizTesouraria === 'function') {
+    renderMatrizTesouraria();
   }
 }
 
@@ -12059,8 +12063,6 @@ function carregarUsuarioNoFormulario(userId) {
 
   const perfilSelect = document.getElementById('usr-perfil');
   if (perfilSelect) perfilSelect.value = u.perfil || 'CUSTOM';
-  const chkEditarPlanilha = document.getElementById('ctrl-editar-planilha');
-  if (chkEditarPlanilha) chkEditarPlanilha.checked = Number(u.pode_editar_planilha) === 1;
   const boxMinUsr = document.getElementById('box-usr-ministerio');
   const selMinUsr = document.getElementById('usr-ministerio-id');
   if (selMinUsr) selMinUsr.value = u.ministerio_id || '';
@@ -12071,6 +12073,9 @@ function carregarUsuarioNoFormulario(userId) {
 
   // Desmarca tudo primeiro para carregar rigorosamente as permissões do usuário
   desmarcarTodasOpcoesFormulario();
+
+  const chkEditarPlanilha = document.getElementById('ctrl-editar-planilha');
+  if (chkEditarPlanilha) chkEditarPlanilha.checked = Number(u.pode_editar_planilha) === 1;
 
   const permitidas = getPermissoesOperador(u);
   const setSectorCheck = (id, key) => {
