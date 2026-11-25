@@ -3291,6 +3291,7 @@ async function executarLoginSistema(e) {
         email: userDb ? userDb.email : '',
         setores_permitidos: data.setores_permitidos || (userDb ? userDb.setores_permitidos : ''),
         relatorios_permitidos: data.relatorios_permitidos || (userDb ? userDb.relatorios_permitidos : '*'),
+        pode_editar_planilha: data.pode_editar_planilha !== undefined ? Number(data.pode_editar_planilha) : (userDb ? Number(userDb.pode_editar_planilha || 0) : 0),
         senha: senha,
         senha_alterada: data.senha_alterada !== undefined ? data.senha_alterada : (userDb ? userDb.senha_alterada : 1)
       };
@@ -5092,13 +5093,7 @@ let CALLBACK_APOS_DESBLOQUEIO_PLANILHA = null;
 
 function isOperadorAutorizadoPlanilha(u) {
   if (!u) return false;
-  const perfil = String(u.perfil || '').toUpperCase();
-  if (perfil === 'ADMIN' || perfil === 'FINANCEIRO' || perfil === 'TESOURARIA') return true;
-  const setores = String(u.setores_permitidos || '')
-    .split(',')
-    .map(s => s.trim().toLowerCase())
-    .filter(Boolean);
-  return setores.includes('*') || setores.includes('tesouraria') || setores.includes('editar_planilha');
+  return Number(u.pode_editar_planilha || 0) === 1;
 }
 
 function atualizarInterfaceTravaPlanilha() {
@@ -11713,6 +11708,7 @@ function renderUsuarios(termoBusca = FILTRO_USUARIOS_TERMO, tipoFiltro = FILTRO_
                   <div class="flex flex-wrap items-center gap-1.5">
                     ${resumoSetores}
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">📑 ${qtdRels}</span>
+                    ${Number(u.pode_editar_planilha) === 1 ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300">🔑 Edita Planilha</span>' : ''}
                   </div>
                 </td>
                 <td class="py-3 px-4 text-right whitespace-nowrap">
@@ -11945,6 +11941,8 @@ async function salvarUsuario(e) {
   }
   const membro_id = membroVinculado ? Number(membroVinculado.id) : null;
 
+  const pode_editar_planilha = !!document.getElementById('ctrl-editar-planilha')?.checked;
+
   if (editId) {
     // Modo Edição
     const res = await apiPost('/api/usuarios/editar', {
@@ -11957,6 +11955,7 @@ async function salvarUsuario(e) {
       membro_id,
       setores_permitidos: setores.join(','),
       relatorios_permitidos,
+      pode_editar_planilha,
       senha: senhaInp
     });
 
@@ -11980,6 +11979,7 @@ async function salvarUsuario(e) {
       membro_id,
       setores_permitidos: setores.join(','),
       relatorios_permitidos,
+      pode_editar_planilha,
       senha: senhaInp || '123456'
     });
 
@@ -12041,6 +12041,8 @@ function carregarUsuarioNoFormulario(userId) {
 
   const perfilSelect = document.getElementById('usr-perfil');
   if (perfilSelect) perfilSelect.value = u.perfil || 'CUSTOM';
+  const chkEditarPlanilha = document.getElementById('ctrl-editar-planilha');
+  if (chkEditarPlanilha) chkEditarPlanilha.checked = Number(u.pode_editar_planilha) === 1;
   const boxMinUsr = document.getElementById('box-usr-ministerio');
   const selMinUsr = document.getElementById('usr-ministerio-id');
   if (selMinUsr) selMinUsr.value = u.ministerio_id || '';
@@ -12162,6 +12164,8 @@ function fecharFormularioUsuario() {
   }
   const boxMinUsr = document.getElementById('box-usr-ministerio');
   if (boxMinUsr) boxMinUsr.classList.add('hidden');
+  const chkEditarPlanilha = document.getElementById('ctrl-editar-planilha');
+  if (chkEditarPlanilha) chkEditarPlanilha.checked = false;
   desmarcarTodasOpcoesFormulario();
 }
 

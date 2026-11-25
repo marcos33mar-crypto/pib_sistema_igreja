@@ -743,6 +743,8 @@ def init_db():
 
                 ativo INTEGER DEFAULT 1,
 
+                pode_editar_planilha INTEGER DEFAULT 0,
+
                 setores_permitidos TEXT DEFAULT '',
 
                 senha TEXT DEFAULT '123456'
@@ -1716,6 +1718,10 @@ def init_db():
         if "senha_alterada" not in cols_usr:
 
             cur.execute("ALTER TABLE usuarios ADD COLUMN senha_alterada INTEGER DEFAULT 0")
+
+        if "pode_editar_planilha" not in cols_usr:
+
+            cur.execute("ALTER TABLE usuarios ADD COLUMN pode_editar_planilha INTEGER DEFAULT 0")
 
         cur.execute("""
             CREATE TABLE IF NOT EXISTS config_fiscal_a1 (
@@ -5292,15 +5298,11 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                         return self.send_json({"ok": False, "erro": "Por favor, digite a senha de autorização."}, 400)
 
                     rows_usuarios = cur.execute(
-                        "SELECT id, nome, cargo, perfil, setores_permitidos, senha, senha_alterada FROM usuarios WHERE ativo=1 ORDER BY id"
+                        "SELECT id, nome, cargo, perfil, setores_permitidos, senha, senha_alterada, COALESCE(pode_editar_planilha, 0) as pode_editar_planilha FROM usuarios WHERE ativo=1 ORDER BY id"
                     ).fetchall()
 
                     def is_usuario_autorizado_planilha(u):
-                        perfil_u = str(u["perfil"] or "").upper()
-                        if perfil_u in ("ADMIN", "FINANCEIRO", "TESOURARIA"):
-                            return True
-                        setores_u = [s.strip().lower() for s in str(u["setores_permitidos"] or "").split(",") if s.strip()]
-                        return ("*" in setores_u) or ("tesouraria" in setores_u) or ("editar_planilha" in setores_u)
+                        return int(u["pode_editar_planilha"] or 0) == 1
 
                     def conferir_senha_usuario(u, s_dig):
                         return verificar_senha_segura(s_dig, u["senha"], u["senha_alterada"])
@@ -8141,6 +8143,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
                     relatorios_permitidos = body.get("relatorios_permitidos", "*")
+                    pode_editar_planilha = 1 if body.get("pode_editar_planilha") else 0
 
                     valida_pwd, _ = validar_padrao_senha(senha)
 
@@ -8151,11 +8154,11 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                         cur.execute(
 
-                            """INSERT INTO usuarios (nome, email, cargo, perfil, ministerio_id, membro_id, ativo, setores_permitidos, senha, relatorios_permitidos, senha_alterada)
+                            """INSERT INTO usuarios (nome, email, cargo, perfil, ministerio_id, membro_id, ativo, setores_permitidos, senha, relatorios_permitidos, senha_alterada, pode_editar_planilha)
 
-                            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)""",
+                            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)""",
 
-                            (nome, email, cargo, perfil, ministerio_id, membro_id, setores_permitidos, senha_hash, relatorios_permitidos, nova_senha_alterada),
+                            (nome, email, cargo, perfil, ministerio_id, membro_id, setores_permitidos, senha_hash, relatorios_permitidos, nova_senha_alterada, pode_editar_planilha),
 
                         )
 
@@ -8198,6 +8201,7 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     setores_permitidos = body.get("setores_permitidos", "")
 
                     relatorios_permitidos = body.get("relatorios_permitidos", "*")
+                    pode_editar_planilha = 1 if body.get("pode_editar_planilha") else 0
 
                     senha = body.get("senha", "").strip()
 
@@ -8270,9 +8274,9 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                             cur.execute(
 
-                                """UPDATE usuarios SET nome=?, email=?, cargo=?, perfil=?, ministerio_id=?, membro_id=COALESCE(?, membro_id), setores_permitidos=?, senha=?, relatorios_permitidos=?, senha_alterada=? WHERE id=?""",
+                                """UPDATE usuarios SET nome=?, email=?, cargo=?, perfil=?, ministerio_id=?, membro_id=COALESCE(?, membro_id), setores_permitidos=?, senha=?, relatorios_permitidos=?, senha_alterada=?, pode_editar_planilha=? WHERE id=?""",
 
-                                (nome, email, cargo, perfil, ministerio_id, membro_id, setores_permitidos, senha_hash, relatorios_permitidos, nova_senha_alterada, user_id),
+                                (nome, email, cargo, perfil, ministerio_id, membro_id, setores_permitidos, senha_hash, relatorios_permitidos, nova_senha_alterada, pode_editar_planilha, user_id),
 
                             )
 
@@ -8280,9 +8284,9 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                             cur.execute(
 
-                                """UPDATE usuarios SET nome=?, email=?, cargo=?, perfil=?, ministerio_id=?, membro_id=COALESCE(?, membro_id), setores_permitidos=?, relatorios_permitidos=? WHERE id=?""",
+                                """UPDATE usuarios SET nome=?, email=?, cargo=?, perfil=?, ministerio_id=?, membro_id=COALESCE(?, membro_id), setores_permitidos=?, relatorios_permitidos=?, pode_editar_planilha=? WHERE id=?""",
 
-                                (nome, email, cargo, perfil, ministerio_id, membro_id, setores_permitidos, relatorios_permitidos, user_id),
+                                (nome, email, cargo, perfil, ministerio_id, membro_id, setores_permitidos, relatorios_permitidos, pode_editar_planilha, user_id),
 
                             )
 
@@ -8325,16 +8329,16 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
                     row = None
                     if user_id is not None and str(user_id).isdigit() and int(user_id) > 0:
-                        row = cur.execute("SELECT id, nome, perfil, ministerio_id, setores_permitidos, senha, relatorios_permitidos, senha_alterada FROM usuarios WHERE id=? AND ativo=1", (int(user_id),)).fetchone()
+                        row = cur.execute("SELECT id, nome, perfil, ministerio_id, setores_permitidos, senha, relatorios_permitidos, senha_alterada, COALESCE(pode_editar_planilha, 0) as pode_editar_planilha FROM usuarios WHERE id=? AND ativo=1", (int(user_id),)).fetchone()
                     elif email:
-                        row = cur.execute("SELECT id, nome, perfil, ministerio_id, setores_permitidos, senha, relatorios_permitidos, senha_alterada FROM usuarios WHERE LOWER(email)=? AND ativo=1", (email,)).fetchone()
+                        row = cur.execute("SELECT id, nome, perfil, ministerio_id, setores_permitidos, senha, relatorios_permitidos, senha_alterada, COALESCE(pode_editar_planilha, 0) as pode_editar_planilha FROM usuarios WHERE LOWER(email)=? AND ativo=1", (email,)).fetchone()
                     elif login:
                         if login.isdigit():
-                            row = cur.execute("SELECT id, nome, perfil, ministerio_id, setores_permitidos, senha, relatorios_permitidos, senha_alterada FROM usuarios WHERE id=? AND ativo=1", (int(login),)).fetchone()
+                            row = cur.execute("SELECT id, nome, perfil, ministerio_id, setores_permitidos, senha, relatorios_permitidos, senha_alterada, COALESCE(pode_editar_planilha, 0) as pode_editar_planilha FROM usuarios WHERE id=? AND ativo=1", (int(login),)).fetchone()
                         elif "@" in login:
-                            row = cur.execute("SELECT id, nome, perfil, ministerio_id, setores_permitidos, senha, relatorios_permitidos, senha_alterada FROM usuarios WHERE LOWER(email)=? AND ativo=1", (login,)).fetchone()
+                            row = cur.execute("SELECT id, nome, perfil, ministerio_id, setores_permitidos, senha, relatorios_permitidos, senha_alterada, COALESCE(pode_editar_planilha, 0) as pode_editar_planilha FROM usuarios WHERE LOWER(email)=? AND ativo=1", (login,)).fetchone()
                         else:
-                            row = cur.execute("SELECT id, nome, perfil, ministerio_id, setores_permitidos, senha, relatorios_permitidos, senha_alterada FROM usuarios WHERE (LOWER(nome) LIKE ? OR LOWER(email)=?) AND ativo=1", (f"%{login}%", login)).fetchone()
+                            row = cur.execute("SELECT id, nome, perfil, ministerio_id, setores_permitidos, senha, relatorios_permitidos, senha_alterada, COALESCE(pode_editar_planilha, 0) as pode_editar_planilha FROM usuarios WHERE (LOWER(nome) LIKE ? OR LOWER(email)=?) AND ativo=1", (f"%{login}%", login)).fetchone()
                     else:
                         conn.close()
                         return self.send_json({"ok": False, "mensagem": "Por favor, selecione ou informe o seu usuário."}, 400)
@@ -8392,6 +8396,8 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                         "setores_permitidos": row["setores_permitidos"] or "",
 
                         "relatorios_permitidos": row["relatorios_permitidos"] or "*",
+
+                        "pode_editar_planilha": int(row["pode_editar_planilha"] or 0),
 
                         "senha_alterada": senha_alterada,
 
