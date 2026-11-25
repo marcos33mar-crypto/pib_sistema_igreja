@@ -22278,7 +22278,7 @@
 
 
 
-  <div id="tela-login" class="hidden fixed inset-0 z-[80] bg-slate-950/90 backdrop-blur-lg flex items-center justify-center p-4">
+  <div id="tela-login" class="fixed inset-0 z-[80] bg-slate-950 flex items-center justify-center p-4">
 
 
 
@@ -22440,6 +22440,18 @@
 
 
   </div>
+
+  <script>
+    try {
+      var q = window.location.search || '';
+      var isAssem = q.indexOf('modo=assembleia') !== -1 || q.indexOf('view=assembleia') !== -1 || q.indexOf('qrcode=1') !== -1;
+      var hasSess = sessionStorage.getItem('pib_sessao_autenticada') === 'true' || localStorage.getItem('pib_sessao_autenticada') === 'true';
+      if (isAssem || hasSess) {
+        var tl = document.getElementById('tela-login');
+        if (tl) tl.classList.add('hidden');
+      }
+    } catch (e) {}
+  </script>
 
 
 
@@ -22852,7 +22864,7 @@
   </div>
 
   <script src="/qrcode.min.js"></script>
-  <script src="/app.js?v=20261124_v294_anexos_lider_badge"></script>
+  <script src="/app.js?v=20261124_v295_login_imediato"></script>
   <script>
     window.addEventListener('DOMContentLoaded', function () {
       if (typeof fetchBootstrap !== 'function') {
