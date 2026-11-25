@@ -21386,8 +21386,8 @@
                 <label class="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50/90 border border-amber-300 hover:border-amber-400 transition cursor-pointer">
                   <input type="checkbox" id="ctrl-editar-planilha" class="mt-0.5 w-4 h-4 text-amber-600 rounded border-amber-400 focus:ring-amber-500" />
                   <div>
-                    <span class="font-extrabold text-amber-950 block text-xs">🔑 Pode Desbloquear e Editar Planilha Mensal</span>
-                    <span class="text-[10px] text-amber-800 leading-snug block mt-0.5">Libera este usuário para destravar a edição de valores, inclusão e exclusão de contas na Planilha Financeira com sua senha.</span>
+                    <span class="font-extrabold text-amber-950 block text-xs">🔑 Liberar Edição Direta da Planilha Mensal (Sem Trava de Senha)</span>
+                    <span class="text-[10px] text-amber-800 leading-snug block mt-0.5">Quando marcado, este usuário edita a Planilha Financeira diretamente sem precisar digitar a senha de desbloqueio. Os demais usuários autorizados continuam editando normalmente mediante senha.</span>
                   </div>
                 </label>
               </div>
@@ -22616,7 +22616,7 @@
   </div>
 
   <script src="/qrcode.min.js"></script>
-  <script src="/app.js?v=20261125_v303_perm_editar_planilha"></script>
+  <script src="/app.js?v=20261125_v304_planilha_direta_vs_senha"></script>
   <script>
     window.addEventListener('DOMContentLoaded', function () {
       if (typeof fetchBootstrap !== 'function') {

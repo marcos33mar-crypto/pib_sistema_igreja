@@ -5302,7 +5302,13 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                     ).fetchall()
 
                     def is_usuario_autorizado_planilha(u):
-                        return int(u["pode_editar_planilha"] or 0) == 1
+                        if int(u["pode_editar_planilha"] or 0) == 1:
+                            return True
+                        perfil_u = str(u["perfil"] or "").upper()
+                        if perfil_u in ("ADMIN", "FINANCEIRO", "TESOURARIA"):
+                            return True
+                        setores_u = [s.strip().lower() for s in str(u["setores_permitidos"] or "").split(",") if s.strip()]
+                        return ("*" in setores_u) or ("tesouraria" in setores_u) or ("editar_planilha" in setores_u)
 
                     def conferir_senha_usuario(u, s_dig):
                         return verificar_senha_segura(s_dig, u["senha"], u["senha_alterada"])

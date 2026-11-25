@@ -5093,7 +5093,14 @@ let CALLBACK_APOS_DESBLOQUEIO_PLANILHA = null;
 
 function isOperadorAutorizadoPlanilha(u) {
   if (!u) return false;
-  return Number(u.pode_editar_planilha || 0) === 1;
+  if (Number(u.pode_editar_planilha || 0) === 1) return true;
+  const perfil = String(u.perfil || '').toUpperCase();
+  if (perfil === 'ADMIN' || perfil === 'FINANCEIRO' || perfil === 'TESOURARIA') return true;
+  const setores = String(u.setores_permitidos || '')
+    .split(',')
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean);
+  return setores.includes('*') || setores.includes('tesouraria') || setores.includes('editar_planilha');
 }
 
 function atualizarInterfaceTravaPlanilha() {
@@ -6242,6 +6249,17 @@ function aplicarPermissoesDeSetor() {
   if (isLiderMin) {
     if (ACTIVE_TAB !== 'tesouraria' && ACTIVE_TAB !== 'manual') switchTab('tesouraria');
     switchTesourariaSubtab('orcamento');
+  }
+
+  if (Number(CURRENT_OPERATOR?.pode_editar_planilha || 0) === 1) {
+    PLANILHA_MENSAL_DESBLOQUEADA = true;
+    OPERADOR_AUTORIZADO_PLANILHA = CURRENT_OPERATOR;
+  } else if (OPERADOR_AUTORIZADO_PLANILHA && Number(OPERADOR_AUTORIZADO_PLANILHA.id) === Number(CURRENT_OPERATOR?.id)) {
+    PLANILHA_MENSAL_DESBLOQUEADA = false;
+    OPERADOR_AUTORIZADO_PLANILHA = null;
+  }
+  if (typeof atualizarInterfaceTravaPlanilha === 'function') {
+    atualizarInterfaceTravaPlanilha();
   }
 }
 
