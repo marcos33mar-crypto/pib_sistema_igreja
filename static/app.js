@@ -4822,8 +4822,8 @@ function renderOrcamento15Ministerios() {
 
     const acaoColHtml = isLiderMin
       ? `<span class="text-[11px] text-slate-400 font-semibold">Somente leitura</span>`
-      : `<button onclick="editarMinisterioModal(${m.id})" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-2.5 py-1 rounded-lg transition cursor-pointer">
-            ✏️ Editar Orçamento / %
+      : `<button onclick="editarMinisterioModal(${m.id})" title="Editar Orçamento / %" aria-label="Editar Orçamento / %" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-2.5 py-1.5 rounded-lg transition cursor-pointer inline-flex items-center justify-center">
+            ✏️
           </button>`;
 
     return `
