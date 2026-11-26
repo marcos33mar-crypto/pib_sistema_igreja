@@ -5168,9 +5168,6 @@
           <button type="button" onclick="navegarTesourariaSubtab('extrato')" id="subtab-btn-extrato" class="subtab-btn px-4 py-2 rounded-xl text-xs font-bold border border-slate-200 text-slate-700 hover:bg-slate-100 transition flex items-center gap-2 cursor-pointer">
             <span>🏦</span> 6. Importar Extrato
           </button>
-          <button type="button" onclick="abrirModalNotasFiscaisA1()" id="subtab-btn-notas-a1" class="px-4 py-2 rounded-xl text-xs font-extrabold border border-indigo-200 bg-indigo-50 hover:bg-indigo-600 text-indigo-800 hover:text-white transition flex items-center gap-2 cursor-pointer ml-auto" title="Consultar NF-e (SEFAZ) e NFS-e (Prefeitura SP) pelo CNPJ com Certificado Digital A1">
-            <span>🏛️</span> Notas Fiscais (CNPJ / A1)
-          </button>
         </div>
 
         <!-- SUB-ABA 1: PLANILHA MENSAL INTERATIVA -->
@@ -8276,10 +8273,6 @@
                 <option value="11">Novembro</option>
                 <option value="12">Dezembro</option>
               </select>
-
-              <button type="button" onclick="abrirModalNotasFiscaisA1()" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold shadow-xs transition flex items-center gap-1.5 cursor-pointer" title="Consultar NF-e (SEFAZ) e NFS-e (Prefeitura SP) com Certificado Digital A1">
-                <span>🏛️</span> Notas Fiscais (CNPJ / A1)
-              </button>
 
               <!-- Botão Imprimir Relatório de Contas a Pagar -->
               <button type="button" onclick="imprimirRelatorioContasAPagar()" class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold shadow-xs transition flex items-center gap-1.5 cursor-pointer">
@@ -22616,7 +22609,7 @@
   </div>
 
   <script src="/qrcode.min.js"></script>
-  <script src="/app.js?v=20261125_v307_tema_executivo"></script>
+  <script src="/app.js?v=20261125_v308_notas_somente_menu"></script>
   <style id="kairos-corporate-theme">
     /* Tema Corporativo & Executivo Kairós (carregado após Tailwind) */
     body {
