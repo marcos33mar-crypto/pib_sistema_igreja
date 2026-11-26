@@ -22609,7 +22609,7 @@
   </div>
 
   <script src="/qrcode.min.js"></script>
-  <script src="/app.js?v=20261125_v308_notas_somente_menu"></script>
+  <script src="/app.js?v=20261125_v309_cores_grafico_fc"></script>
   <style id="kairos-corporate-theme">
     /* Tema Corporativo & Executivo Kairós (carregado após Tailwind) */
     body {
@@ -22669,8 +22669,9 @@
       box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04) !important;
     }
 
-    /* Remove gradientes chamativos e padroniza superfícies */
-    main div[class*="bg-gradient-to-"]:not(.text-white) {
+    /* Remove gradientes chamativos de cards/banners sem afetar barras de gráficos (bg-gradient-to-t) */
+    main div[class*="bg-gradient-to-r"]:not(.text-white),
+    main div[class*="bg-gradient-to-br"]:not(.text-white) {
       background-image: none !important;
       background-color: #ffffff !important;
       border-color: #cbd5e1 !important;
