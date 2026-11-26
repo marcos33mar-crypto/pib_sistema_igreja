@@ -11735,7 +11735,7 @@ function renderUsuarios(termoBusca = FILTRO_USUARIOS_TERMO, tipoFiltro = FILTRO_
                 </td>
                 <td class="py-3 px-4 text-right whitespace-nowrap">
                   <div class="inline-flex items-center gap-1.5">
-                    <button type="button" onclick="carregarUsuarioNoFormulario(${u.id})" title="Editar Acessos & Permissões" class="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 font-bold text-[11px] cursor-pointer transition">✏️ Editar</button>
+                    <button type="button" onclick="carregarUsuarioNoFormulario(${u.id})" title="Editar Acessos & Permissões" aria-label="Editar Acessos & Permissões" class="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 font-bold text-[11px] cursor-pointer transition">✏️</button>
                     <button type="button" onclick="abrirModalAlterarSenhaUsuario(${u.id})" title="Alterar Senha" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 font-bold text-[11px] cursor-pointer transition">🔑</button>
                     <button type="button" onclick="resetarSenhaOperador(${u.id})" title="Resetar para 123456" class="px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold text-[11px] cursor-pointer transition">🔄</button>
                     ${totalUsers > 1 ? `<button type="button" onclick="removerItem('/api/usuarios', ${u.id})" title="Remover Operador" class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-200 font-bold text-[11px] cursor-pointer transition">🗑️</button>` : ''}
@@ -11811,7 +11811,7 @@ function renderUsuarios(termoBusca = FILTRO_USUARIOS_TERMO, tipoFiltro = FILTRO_
           </div>
 
           <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
-            <button type="button" onclick="carregarUsuarioNoFormulario(${u.id})" class="flex-1 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white font-bold py-2.5 px-3 rounded-xl text-xs border border-indigo-200 hover:border-indigo-600 transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"><span>✏️</span> Editar Acessos & Permissões</button>
+            <button type="button" onclick="carregarUsuarioNoFormulario(${u.id})" title="Editar Acessos & Permissões" aria-label="Editar Acessos & Permissões" class="bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white font-bold py-2.5 px-3 rounded-xl text-xs border border-indigo-200 hover:border-indigo-600 transition flex items-center justify-center cursor-pointer shadow-2xs"><span>✏️</span></button>
             ${totalUsers > 1 ? `<button type="button" onclick="removerItem('/api/usuarios', ${u.id})" title="Remover Operador" class="bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-200 hover:border-rose-600 py-2.5 px-3 rounded-xl text-xs font-bold transition cursor-pointer shadow-2xs">🗑️</button>` : ''}
           </div>
         </div>
