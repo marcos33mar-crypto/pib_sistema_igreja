@@ -1654,6 +1654,132 @@
 
 
 
+  <style id="kairos-corporate-theme">
+    /* Tema Corporativo & Executivo Kairós: Sóbrio, Limpo e Contábil */
+    body {
+      background-color: #f8fafc !important;
+      color: #0f172a;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Números alinhados em tabelas e KPIs financeiros */
+    table td, table th, .font-mono, [id^="kpi-"], [id^="tes-mat-"], [id^="tot-min-"], [id^="cp-kpi-"] {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Sidebar Executiva */
+    aside, #sidebar-menu {
+      background-color: #0f172a !important;
+      border-right: 1px solid #1e293b !important;
+      box-shadow: none !important;
+    }
+    .nav-item {
+      border-radius: 0.5rem !important;
+      color: #cbd5e1 !important;
+      transition: background-color 0.15s ease, color 0.15s ease;
+    }
+    .nav-item:hover {
+      background-color: #1e293b !important;
+      color: #ffffff !important;
+    }
+    .nav-item.active {
+      background: #1e3a5f !important;
+      color: #ffffff !important;
+      border-left: 3px solid #60a5fa !important;
+      box-shadow: none !important;
+      font-weight: 600 !important;
+    }
+    .nav-subitem {
+      border-radius: 0.375rem !important;
+    }
+    .nav-subitem.active {
+      background: rgba(30, 58, 95, 0.55) !important;
+      color: #ffffff !important;
+      border-left: 2px solid #60a5fa !important;
+      box-shadow: none !important;
+    }
+
+    /* Sub-abas Financeiras e de Setores */
+    .subtab-btn {
+      border-radius: 0.5rem !important;
+      border-color: #cbd5e1 !important;
+      font-weight: 600 !important;
+    }
+    .subtab-btn.active {
+      background: #0f172a !important;
+      color: #ffffff !important;
+      border-color: #0f172a !important;
+      box-shadow: none !important;
+    }
+
+    /* Cabeçalho Superior Limpo */
+    header {
+      background-color: #ffffff !important;
+      border-bottom: 1px solid #e2e8f0 !important;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03) !important;
+    }
+
+    /* Cards e Containers Mais Nítidos e Sóbrios */
+    main .rounded-3xl {
+      border-radius: 0.875rem !important;
+    }
+    main .rounded-2xl {
+      border-radius: 0.75rem !important;
+    }
+    main .shadow-2xl, main .shadow-xl, main .shadow-lg {
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06) !important;
+    }
+
+    /* Unificação de Gradientes Chamativos para Azul Marinho Institucional */
+    main .bg-gradient-to-r.from-indigo-900,
+    main .bg-gradient-to-r.from-indigo-600,
+    main .bg-gradient-to-r.from-blue-600 {
+      background-image: none !important;
+      background-color: #0f172a !important;
+    }
+    button.bg-indigo-600, a.bg-indigo-600 {
+      background-color: #1e3a5f !important;
+    }
+    button.bg-indigo-600:hover, a.bg-indigo-600:hover {
+      background-color: #172d4a !important;
+    }
+
+    /* Tabelas Corporativas */
+    main table thead th {
+      background-color: #f8fafc;
+      color: #475569;
+      border-bottom: 1px solid #e2e8f0;
+      letter-spacing: 0.03em;
+    }
+    main table tbody tr {
+      border-color: #f1f5f9;
+    }
+
+    /* Inputs e Selects Discretos */
+    main input:not([type="checkbox"]):not([type="radio"]),
+    main select,
+    main textarea {
+      border-color: #cbd5e1;
+      border-radius: 0.5rem;
+    }
+    main input:not([type="checkbox"]):not([type="radio"]):focus,
+    main select:focus,
+    main textarea:focus {
+      border-color: #1e3a5f !important;
+      box-shadow: 0 0 0 2px rgba(30, 58, 95, 0.14) !important;
+    }
+
+    /* Tela de Login Executiva */
+    #tela-login {
+      background-color: #0b1120 !important;
+    }
+    #tela-login > div {
+      border-radius: 0.875rem !important;
+      border: 1px solid #e2e8f0 !important;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35) !important;
+    }
+  </style>
+
   <style id="kairos-boot-mask">
     body.kairos-booting { background: #020617 !important; }
     body.kairos-booting > *:not(#tela-login) { visibility: hidden !important; }
@@ -22616,7 +22742,7 @@
   </div>
 
   <script src="/qrcode.min.js"></script>
-  <script src="/app.js?v=20261125_v305_fix_perm_planilha"></script>
+  <script src="/app.js?v=20261125_v306_tema_corporativo"></script>
   <script>
     window.addEventListener('DOMContentLoaded', function () {
       if (typeof fetchBootstrap !== 'function') {
