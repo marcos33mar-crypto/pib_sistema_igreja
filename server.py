@@ -4922,6 +4922,40 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
 
+        if path == "/manifest.json":
+            manifest_bytes = json.dumps({
+                "name": "Kairós - Sistema de Gestão",
+                "short_name": "Kairós",
+                "description": "Sistema Integrado de Gestão Eclesiástica, Financeira e Ministerial",
+                "start_url": "/",
+                "scope": "/",
+                "display": "standalone",
+                "background_color": "#0b1120",
+                "theme_color": "#111827",
+                "icons": [{"src": "/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}],
+            }, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/manifest+json; charset=utf-8")
+            self.send_header("Content-Length", str(len(manifest_bytes)))
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            self.wfile.write(manifest_bytes)
+            return
+
+        if path == "/sw.js":
+            sw_bytes = (
+                b"self.addEventListener('install', () => self.skipWaiting());\n"
+                b"self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));\n"
+                b"self.addEventListener('fetch', () => {});\n"
+            )
+            self.send_response(200)
+            self.send_header("Content-Type", "application/javascript; charset=utf-8")
+            self.send_header("Content-Length", str(len(sw_bytes)))
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            self.wfile.write(sw_bytes)
+            return
+
         if path == "/baixar-instalador":
             proto = str(self.headers.get("X-Forwarded-Proto", "") or "https").split(",")[0].strip()
             host = str(self.headers.get("Host", "") or "").strip()
@@ -4931,7 +4965,31 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
                 with open(bat_path, "r", encoding="utf-8") as fb:
                     bat_txt = fb.read().replace("https://pib-parque-sp.onrender.com/", base_url)
             except Exception:
-                bat_txt = f"@echo off\r\nstart \"\" \"{base_url}\"\r\n"
+                bat_txt = (
+                    "@echo off\n"
+                    "chcp 65001 >nul\n"
+                    "title Instalador Kairos - Sistema de Gestao\n"
+                    "echo Configurando icone oficial e atalho do Kairos na Area de Trabalho...\n"
+                    "powershell -NoProfile -ExecutionPolicy Bypass -Command ^\n"
+                    "  \"$ErrorActionPreference='Stop';"
+                    f"$url='{base_url}';"
+                    "$dir=Join-Path $env:LOCALAPPDATA 'Kairos';"
+                    "New-Item -ItemType Directory -Force -Path $dir | Out-Null;"
+                    "$ico=Join-Path $dir 'kairos.ico';"
+                    "try { Invoke-WebRequest -Uri ($url + 'logo.ico') -OutFile $ico -UseBasicParsing } catch {};"
+                    "$desk=[Environment]::GetFolderPath('Desktop');"
+                    "$lnkPath=Join-Path $desk 'Kairos.lnk';"
+                    "$edge=Get-ChildItem -Path \\\"$env:ProgramFiles(x86)\\Microsoft\\Edge\\Application\\msedge.exe\\\",\\\"$env:ProgramFiles\\Microsoft\\Edge\\Application\\msedge.exe\\\" -ErrorAction SilentlyContinue | Select-Object -First 1;"
+                    "$chrome=Get-ChildItem -Path \\\"$env:ProgramFiles\\Google\\Chrome\\Application\\chrome.exe\\\",\\\"$env:ProgramFiles(x86)\\Google\\Chrome\\Application\\chrome.exe\\\",\\\"$env:LOCALAPPDATA\\Google\\Chrome\\Application\\chrome.exe\\\" -ErrorAction SilentlyContinue | Select-Object -First 1;"
+                    "$ws=New-Object -ComObject WScript.Shell;"
+                    "$sc=$ws.CreateShortcut($lnkPath);"
+                    "if ($edge) { $sc.TargetPath=$edge.FullName; $sc.Arguments=\\\"--app=$url\\\"; } elseif ($chrome) { $sc.TargetPath=$chrome.FullName; $sc.Arguments=\\\"--app=$url\\\"; } else { $sc.TargetPath=$url; }"
+                    "if (Test-Path $ico) { $sc.IconLocation=\\\"$ico,0\\\"; }"
+                    "$sc.Description='Kairos - Sistema de Gestao';"
+                    "$sc.Save();\"\n"
+                    "echo Pronto! O icone do Kairos foi criado na sua Area de Trabalho.\n"
+                    "timeout /t 4 >nul\n"
+                )
             bat_bytes = bat_txt.replace("\r\n", "\n").replace("\n", "\r\n").encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/octet-stream")
