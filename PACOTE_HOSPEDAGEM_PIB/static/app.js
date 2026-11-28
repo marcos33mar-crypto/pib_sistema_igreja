@@ -23430,3 +23430,37 @@ async function ignorarNotaFiscalA1(notaId, novoStatus) {
     await abrirModalNotasFiscaisA1();
   }
 }
+
+// ============================================================================
+// INSTALADOR DESKTOP (PWA + ATALHO WINDOWS COM LOGO NA ÁREA DE TRABALHO)
+// ============================================================================
+window._kairosInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  window._kairosInstallPrompt = e;
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
+async function instalarKairosDesktop() {
+  if (window._kairosInstallPrompt) {
+    try {
+      window._kairosInstallPrompt.prompt();
+      const res = await window._kairosInstallPrompt.userChoice;
+      if (res && res.outcome === 'accepted') {
+        window._kairosInstallPrompt = null;
+        if (typeof showLiveToast === 'function') {
+          showLiveToast('✅ Kairós instalado com ícone na Área de Trabalho!');
+        }
+        return;
+      }
+    } catch (e) {}
+  }
+  // Fallback universal: baixa o instalador Windows que cria o atalho com a logo oficial
+  window.location.href = '/baixar-instalador';
+}

@@ -4922,6 +4922,26 @@ class ChurchERPHandler(SimpleHTTPRequestHandler):
 
 
 
+        if path == "/baixar-instalador":
+            proto = str(self.headers.get("X-Forwarded-Proto", "") or "https").split(",")[0].strip()
+            host = str(self.headers.get("Host", "") or "").strip()
+            base_url = f"{proto}://{host}/" if host else "https://pib-parque-sp.onrender.com/"
+            bat_path = os.path.join(BASE_DIR, "Instalar_Kairos.bat")
+            try:
+                with open(bat_path, "r", encoding="utf-8") as fb:
+                    bat_txt = fb.read().replace("https://pib-parque-sp.onrender.com/", base_url)
+            except Exception:
+                bat_txt = f"@echo off\r\nstart \"\" \"{base_url}\"\r\n"
+            bat_bytes = bat_txt.replace("\r\n", "\n").replace("\n", "\r\n").encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Disposition", 'attachment; filename="Instalar_Kairos.bat"')
+            self.send_header("Content-Length", str(len(bat_bytes)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(bat_bytes)
+            return
+
         if path == "/":
 
             self.path = "/index.html"

@@ -71,6 +71,9 @@
 
 
   <link rel="icon" type="image/png" href="/logo.png" />
+  <link rel="apple-touch-icon" href="/logo.png" />
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#111827" />
 
 
 
@@ -22168,6 +22171,15 @@
             Política de Privacidade &amp; Conformidade LGPD (Lei nº 13.709/2018)
           </button>
         </div>
+        <div class="pt-1 flex flex-wrap items-center justify-center gap-3">
+          <button type="button" onclick="instalarKairosDesktop()" class="text-slate-700 hover:text-slate-900 font-bold underline cursor-pointer inline-flex items-center gap-1">
+            <span>💻</span> Instalar Atalho na Área de Trabalho
+          </button>
+          <span class="text-slate-300">|</span>
+          <a href="/baixar-instalador" download="Instalar_Kairos.bat" class="text-slate-500 hover:text-slate-800 font-semibold underline inline-flex items-center gap-1">
+            <span>📥</span> Baixar Instalador Windows (.bat)
+          </a>
+        </div>
       </div>
 
 
@@ -22609,7 +22621,7 @@
   </div>
 
   <script src="/qrcode.min.js"></script>
-  <script src="/app.js?v=20261125_v311_acessos_icone_editar"></script>
+  <script src="/app.js?v=20261128_v312_instalador_pwa"></script>
   <style id="kairos-corporate-theme">
     /* Tema Corporativo & Executivo Kairós (carregado após Tailwind) */
     body {
